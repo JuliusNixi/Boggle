@@ -2,4 +2,6 @@
 #define NROWS 4
 #define NCOL 4
 
+// Game matrix.
 char matrix[NROWS][NCOL];
+

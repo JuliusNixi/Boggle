@@ -1,7 +1,7 @@
 #include "data_structures.h"
 
+int main(int argc, char** argv) {
 
-int main() {
-    // test 3
     return 0;
+    
 }
