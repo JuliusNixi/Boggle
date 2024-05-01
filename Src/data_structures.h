@@ -5,3 +5,4 @@
 // Game matrix.
 char matrix[NROWS][NCOL];
 
+//struct sockaddr_in socket_server;

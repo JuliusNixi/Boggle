@@ -4,12 +4,14 @@ CC = gcc
 # Compiler flags
 CFLAGS = -Wall -g -pedantic -pthread
 
-# Header files
-HDR = data_structures.h
-
 # Files names
 NS = boggle_server
 NC = boggle_client
+NSF = support_functions
+
+# Header files
+HDRS = data_structures.h
+HDRSF = $(NSF).h
 
 # Executable files
 EXES = ../Bin/$(NS)
@@ -18,32 +20,37 @@ EXEC = ../Bin/$(NC)
 # Object files in Bin
 OBJS = $(EXES).o
 OBJC = $(EXEC).o
+OBJSF = ../Bin/$(NSF).o
 
 # Object files in Src
 OBJSL = $(NS).o
 OBJCL = $(NC).o
+OBJSFL = $(NSF).o
 
 # Source files
-SRCS = boggle_server.c
-SRCC = boggle_client.c
+SRCS = $(NS).c
+SRCC = $(NC).c
+SRCSF = $(NSF).c
 
 # Targets
 all: clear $(EXES) $(EXEC) 
 
-$(EXES): $(OBJS)
-	$(CC) $(CFLAGS) -o $(EXES) $(OBJS)
-$(EXEC): $(OBJC)
-	$(CC) $(CFLAGS) -o $(EXEC) $(OBJC)
+$(EXES): $(OBJS) $(OBJSF)
+	$(CC) $(CFLAGS) -o $(EXES) $(OBJS) $(OBJSF)
+$(EXEC): $(OBJC) $(OBJSF)
+	$(CC) $(CFLAGS) -o $(EXEC) $(OBJC) $(OBJSF)
 
-$(OBJS): $(SRCS) $(HDR)
-	$(CC) $(CFLAGS) -c $(SRCS) $(HDR) && mv -f $(OBJSL) $(OBJS)
-$(OBJC): $(SRCC) $(HDR)
-	$(CC) $(CFLAGS) -c $(SRCC) $(HDR) && mv -f $(OBJCL) $(OBJC)
+$(OBJS): $(SRCS) $(HDRSF)
+	$(CC) $(CFLAGS) -c $(SRCS) $(HDRSF) && mv -f $(OBJSL) $(OBJS)
+$(OBJC): $(SRCC) $(HDRSF)
+	$(CC) $(CFLAGS) -c $(SRCC) $(HDRSF) && mv -f $(OBJCL) $(OBJC)
+$(OBJSF): $(SRCSF) $(HDRS) $(HDRSF)
+	$(CC) $(CFLAGS) -c $(SRCSF) $(HDRS) $(HDRSF) && mv -f $(OBJSFL) $(OBJSF)
 
 clear:
 	clear
 
-clean:
+clean: clear
 	rm -f ../Bin/*
 
 # End of Makefile
