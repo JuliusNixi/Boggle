@@ -53,4 +53,7 @@ clear:
 clean: clear
 	rm -f ../Bin/*
 
+execs: all
+	./$(EXES)
+
 # End of Makefile
