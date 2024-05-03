@@ -18,11 +18,12 @@ char matrix[NROWS][NCOL];
     The fourth plus 1 is the string terminator (\0).
     
 */
-const int matrixstrlength = (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1);
+#define matrixstrlength (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1)
 char matrixstring[matrixstrlength];
 
-#define BUFFER_SIZE 2
+#define BUFFER_SIZE 1024
 
+// CLI
 char filematrixpath[] = "test.txt";
 
 //struct sockaddr_in socket_server;
