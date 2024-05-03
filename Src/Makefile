@@ -7,38 +7,46 @@ CFLAGS = -Wall -g -pedantic -pthread
 # Files names
 NS = boggle_server
 NC = boggle_client
+NHDRS = data_structures
 NSF = support_functions
+NT = tests
 
 # Header files
-HDRS = data_structures.h
+HDRS = $(NHDRS).h
 HDRSF = $(NSF).h
 
 # Executable files
 EXES = ../Bin/$(NS)
 EXEC = ../Bin/$(NC)
+EXET = ../Tests/$(NT)
 
-# Object files in Bin
+# Object files in Bin and Tests
 OBJS = $(EXES).o
 OBJC = $(EXEC).o
 OBJSF = ../Bin/$(NSF).o
+OBJT = $(EXET).o
 
 # Object files in Src
 OBJSL = $(NS).o
 OBJCL = $(NC).o
 OBJSFL = $(NSF).o
+OBJTL = $(NT).o
 
 # Source files
 SRCS = $(NS).c
 SRCC = $(NC).c
 SRCSF = $(NSF).c
+SRCT = ../Tests/$(NT).c
 
-# Targets
-all: clear $(EXES) $(EXEC) 
+# Targets exe of client, server and tests
+all: clear $(EXES) $(EXEC) $(EXET)
 
 $(EXES): $(OBJS) $(OBJSF)
 	$(CC) $(CFLAGS) -o $(EXES) $(OBJS) $(OBJSF)
 $(EXEC): $(OBJC) $(OBJSF)
 	$(CC) $(CFLAGS) -o $(EXEC) $(OBJC) $(OBJSF)
+$(EXET): $(OBJT) $(OBJSF)
+	$(CC) $(CFLAGS) -o $(EXET) $(OBJT) $(OBJSF)
 
 $(OBJS): $(SRCS) $(HDRSF)
 	$(CC) $(CFLAGS) -c $(SRCS) $(HDRSF) && mv -f $(OBJSL) $(OBJS)
@@ -46,12 +54,17 @@ $(OBJC): $(SRCC) $(HDRSF)
 	$(CC) $(CFLAGS) -c $(SRCC) $(HDRSF) && mv -f $(OBJCL) $(OBJC)
 $(OBJSF): $(SRCSF) $(HDRS) $(HDRSF)
 	$(CC) $(CFLAGS) -c $(SRCSF) $(HDRS) $(HDRSF) && mv -f $(OBJSFL) $(OBJSF)
+$(OBJT): $(SRCT) $(HDRSF)
+	$(CC) $(CFLAGS) -c $(SRCT) $(HDRSF) && mv -f $(OBJTL) $(OBJT)
+
+tests: all 
+	./../Tests/tests
 
 clear:
 	clear
 
 clean: clear
-	rm -f ../Bin/*
+	rm -f ../Bin/* ../Tests/tests.o ../Tests/tests
 
 execs: all
 	./$(EXES)

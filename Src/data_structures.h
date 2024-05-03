@@ -1,6 +1,6 @@
 // Number of columns and rows of the game matrix (default 4x4).
-#define NROWS 4
-#define NCOL 4
+const int NROWS = 4;
+const int NCOL = 4;
 
 // Alphabet to be use to generate matrix.
 char alphabet[] = "ABCDEFGHILMNOPQRSTUVZ";

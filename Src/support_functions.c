@@ -231,7 +231,7 @@ void loadMatrixFromFile(char* path) {
 
 int searchWord(char* word) {
 
-    int matrixcheck[NROWS][NCOL];
+    /*int matrixcheck[NROWS][NCOL];
 
     // Initializing iterator.
     getMatrixNextIndexes(NULL);
@@ -239,7 +239,7 @@ int searchWord(char* word) {
     while (matrixnextindexes[0] != -1) {
 
     }
-
+*/
 
     return 0;
 
