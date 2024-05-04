@@ -4,7 +4,7 @@ List of things to work on.
 
 ### Todo
 
-- [ ] 1 
+- [ ] Testing with small/large matrix size. 
 - [ ] 2 
   - [ ] 3
 

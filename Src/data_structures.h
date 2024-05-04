@@ -2,11 +2,11 @@
 const int NROWS = 4;
 const int NCOL = 4;
 
-// Alphabet to be use to generate matrix.
+// Alphabet to be use to generate the matrix.
 char alphabet[] = "ABCDEFGHILMNOPQRSTUVZ";
 
 // Game matrix.
-char matrix[NROWS][NCOL];
+char** matrix = 0;
 /*
     
     Below i calculate the string length.
@@ -21,9 +21,9 @@ char matrix[NROWS][NCOL];
 #define matrixstrlength (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1)
 char matrixstring[matrixstrlength];
 
+// maybe to change
 #define BUFFER_SIZE 1024
 
-// CLI
-char filematrixpath[] = "test.txt";
+#define VOID_CHAR 'X'
 
 //struct sockaddr_in socket_server;

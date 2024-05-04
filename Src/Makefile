@@ -57,16 +57,24 @@ $(OBJSF): $(SRCSF) $(HDRS) $(HDRSF)
 $(OBJT): $(SRCT) $(HDRSF)
 	$(CC) $(CFLAGS) -c $(SRCT) $(HDRSF) && mv -f $(OBJTL) $(OBJT)
 
+# Execute tests
 tests: all 
 	./../Tests/tests
 
+# Clear screen
 clear:
 	clear
 
+# Delete all .o and exe file to recompile all
 clean: clear
 	rm -f ../Bin/* ../Tests/tests.o ../Tests/tests
 
+# Compile and execute the server
 execs: all
 	./$(EXES)
+
+# Compile and execute the client
+execs: all
+	./$(EXEC)
 
 # End of Makefile
