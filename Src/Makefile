@@ -74,7 +74,7 @@ execs: all
 	./$(EXES)
 
 # Compile and execute the client
-execs: all
+execc: all
 	./$(EXEC)
 
 # End of Makefile
