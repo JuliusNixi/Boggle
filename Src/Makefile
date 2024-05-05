@@ -38,6 +38,8 @@ SRCC = $(NC).c
 SRCSF = $(NSF).c
 SRCT = ../Tests/$(NT).c
 
+.PHONY: all tests clear clean execs execc
+
 # Targets exe of client, server and tests
 all: clear $(EXES) $(EXEC) $(EXET)
 
@@ -71,10 +73,10 @@ clean: clear
 
 # Compile and execute the server
 execs: all
-	./$(EXES)
+	./$(EXES) $(IP) $(PORT)
 
 # Compile and execute the client
 execc: all
-	./$(EXEC)
+	./$(EXEC) $(IP) $(PORT)
 
 # End of Makefile

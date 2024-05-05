@@ -1,6 +1,5 @@
 #include "data_structures.h"
 #include "support_functions.h"
-#include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -65,9 +64,6 @@ void generateRandomMatrix(void) {
 // It fills array[1] with the matrix current column index.
 void getMatrixNextIndexes(int* matrixnextindexes) {
 
-    // Validate matrix.
-    validateMatrix();
-
     // Static indexes, persitent between function calls.
     static int i;
     static int j;
@@ -123,7 +119,7 @@ void validateMatrix(void) {
             // Character not found, error.
             if (found == 0) {
                 // Error
-                printf("Error\n");
+                printf("Invalid matrix\n");
                 return;
             }
         }
@@ -246,16 +242,29 @@ void loadMatrixFromFile(char* path) {
     // Initializing iterator.
     getMatrixNextIndexes(NULL);
     int matrixnextindexes[2];
-    for (int i = 0; i < s.st_size; i++) {
-        // Skipping spaces, new lines, and 'u' of 'Qu'.
-        if (file[i] == ' ' || file[i] == 'u' || file[i] == '\n') continue;
+    counter = 0;
+    static int i = 0;
+    if (i == s.st_size) i = 0;
+    for (; i < s.st_size; i++) {
+        // Skipping spaces, and 'u' of 'Qu'.
+        if (file[i] == ' ' || file[i] == 'u') continue;
+        if (file[i] == '\n') {
+            getMatrixNextIndexes(matrixnextindexes);
+            if (counter != NROWS * NCOL || matrixnextindexes[0] != -1) {
+                // Error file format
+                printf("Error file\n");
+            }
+            i++;
+            break;
+        }
         // Getting next matrix indexes to write.
         getMatrixNextIndexes(matrixnextindexes);
         if (matrixnextindexes[0] == -1){
-            // More matrixes in the file?
             // Error
+        }else {
+            matrix[matrixnextindexes[0]][matrixnextindexes[1]] = file[i];
+            counter++;
         }
-        matrix[matrixnextindexes[0]][matrixnextindexes[1]] = file[i];
     }
 
     // Validating the new matrix.
@@ -382,6 +391,79 @@ int binarySearch(char arr[], int l, int r, char element)
 
 // binarySearch(arr, 0, n - 1, x);
 
+// This function will wait a new client connection.
+// It will accept it, will create a new client-list node.
+// And finally will start a new pthread to handle the new client.
+void acceptClient(void) {
+
+    // Allocating heap memory for a new client node.
+    struct ClientNode* new = NULL;
+    new = (struct ClientNode*) malloc(sizeof(struct ClientNode));
+    if (new == NULL) {
+        // Error
+    }
+
+    // Waiting for a new client connection.
+    new->client_address_len = (socklen_t) sizeof(new->client_addr);
+    new->socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(new->client_addr)), &(new->client_address_len));
+    if (new->socket_client_fd == -1) {
+        // Error
+    }
+
+    
+    // Updating global vars head and tail useful to manage the list.
+    /*
+    
+    Note that the tail pointer can greatly improve the efficiency/performance of the
+    program in the case of so many clients and therefore a long list.
+    Since there is no need to traverse the list until the end, blocking the program flow
+    and making impossible the acceptance of new clients.
+    
+    */
+    new->next = NULL;
+    if (head == NULL) {
+        new->id = 0;
+        head = new;
+        tail = new;
+    }else {
+        tail->next = new;
+        unsigned int lastid = tail->id;
+        tail = tail->next;
+        tail->id = ++lastid;
+    }
+    
+
+    // Starting a new pthread to handle the new client.
+    // The executed function will be clientHandler.
+    // It receives as input the pointer to the node (of its client to be managed)
+    // of the clients list.
+    int retvalue = pthread_create(&(new->thread), NULL, clientHandler, new);
+    if (retvalue != 0) {
+        // Error
+    }
+
+
+    // CONTINUE HERE
+
+    /* // QUI
+    // Ricezione del messaggio
+    ssize_t n_read = 0;
+    char buffer[BUFFER_SIZE];
+    n_read =  read(new->socket_client_fd, buffer, BUFFER_SIZE);
+    printf("\n%s\n",buffer);
+    */
+
+
+}
+
+void* clientHandler(void* voidclient) {
+
+    struct ClientNode* client = (struct ClientNode*) voidclient;
+    printf("Cliend ID: %u.\n", client->id);
+
+    return NULL;
+
+}
 
 
 int searchWord(char* word) {
@@ -399,4 +481,26 @@ int searchWord(char* word) {
     return 0;
 
 }
+
+/*
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <errno.h>
+#include "macro.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+
+# Client ip e porta
+INET_ADDRSTRLEN size of buffer
+char buf [INET_ADDRSTRLEN] = {0}; 
+
+         #include <arpa/inet.h>
+	inet_ntop(AF_INET, &(new->client_addr.sin_addr), buf, new->client_address_len);
+    printf("%d %s\n", new->client_addr.sin_port, buf);
+
+
+*/
+
 
