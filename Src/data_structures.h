@@ -26,4 +26,14 @@ char matrixstring[matrixstrlength];
 
 #define VOID_CHAR 'X'
 
-//struct sockaddr_in socket_server;
+#include <netinet/in.h>
+struct sockaddr_in socket_server;
+int socket_server_fd;
+
+struct ClientNode {
+    struct sockaddr_in client_address;
+    socklen_t client_address_len;
+    int socket_client_fd;
+    struct ClientNode* next;
+};
+
