@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#define SIG_ALRM_ALERT "Time expired, the timer sounds!\n"
+const size_t SIG_ALRM_ALERT_LEN = strlen(SIG_ALRM_ALERT);
+
 // This function initialize the matrix (global char**) by allocating memory
 // in the heap and filling it with a special character.
 void initMatrix(void) {
@@ -243,7 +246,10 @@ void loadMatrixFromFile(char* path) {
     getMatrixNextIndexes(NULL);
     int matrixnextindexes[2];
     counter = 0;
+    // i is static, so i can remember between functions call where
+    // i've come to read.
     static int i = 0;
+    // If i equals to the file size, i am at the end of it and I start reading all over again.
     if (i == s.st_size) i = 0;
     for (; i < s.st_size; i++) {
         // Skipping spaces, and 'u' of 'Qu'.
@@ -392,7 +398,7 @@ int binarySearch(char arr[], int l, int r, char element)
 // binarySearch(arr, 0, n - 1, x);
 
 // This function will wait a new client connection.
-// It will accept it, will create a new client-list node.
+// It will accept it, will create a new client-list node on the heap.
 // And finally will start a new pthread to handle the new client.
 void acceptClient(void) {
 
@@ -405,22 +411,32 @@ void acceptClient(void) {
 
     // Waiting for a new client connection.
     new->client_address_len = (socklen_t) sizeof(new->client_addr);
-    new->socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(new->client_addr)), &(new->client_address_len));
-    if (new->socket_client_fd == -1) {
-        // Error
+    while (1) {
+        new->socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(new->client_addr)), &(new->client_address_len));
+        if (new->socket_client_fd == -1) {
+            // Error
+            printf("Error in accepting client or a signal has been managed.\n");
+        }else
+            break;
     }
 
-    
     // Updating global vars head and tail useful to manage the list.
     /*
     
     Note that the tail pointer can greatly improve the efficiency/performance of the
     program in the case of so many clients and therefore a long list.
     Since there is no need to traverse the list until the end, blocking the program flow
-    and making impossible the acceptance of new clients.
+    and making impossible the acceptance of new clients for a long time.
+
+    WARNING: The list data structure is shared by all the threads.
+    It then becomes necessary to change it to mutual exclusion, otherwise
+    race conditions could occur, for example if this thread were to add an item
+    to the list and was suspended to run one that is trying to delete the last item.
     
     */
     new->next = NULL;
+    // Lock the mutex.
+    pthread_mutex_lock(&listmutex);
     if (head == NULL) {
         new->id = 0;
         head = new;
@@ -431,7 +447,8 @@ void acceptClient(void) {
         tail = tail->next;
         tail->id = ++lastid;
     }
-    
+    // Unlock the mutex.
+    pthread_mutex_unlock(&listmutex);
 
     // Starting a new pthread to handle the new client.
     // The executed function will be clientHandler.
@@ -456,6 +473,7 @@ void acceptClient(void) {
 
 }
 
+// This function will run in a thread and will manage the client requests.
 void* clientHandler(void* voidclient) {
 
     struct ClientNode* client = (struct ClientNode*) voidclient;
@@ -465,20 +483,34 @@ void* clientHandler(void* voidclient) {
 
 }
 
+// This function will manage the SIGALRM signal triggered by the timer.
+// WARNING: The functions executed inside and vars used should be Async-Signal Safe
+// to not interfere with the previously running function. If it happens, in this situation,
+// the suspended accept client function will fail with -1 (TESTED!).
+// But in this case is not problematic, because we will go, thanks to while, again on the
+// accept function.
+void timerHandler(int signum) {
 
-int searchWord(char* word) {
+    //write(STDOUT_FILENO, SIG_ALRM_ALERT, SIG_ALRM_ALERT_LEN);
+    //pid_t pid = fork();
+    return;
 
-    /*int matrixcheck[NROWS][NCOL];
+}
 
-    // Initializing iterator.
-    getMatrixNextIndexes(NULL);
-    int matrixnextindexes[2];
-    while (matrixnextindexes[0] != -1) {
+// This function simply set a timer using global var duration to handle the game time.
+void setAlarm(void) {
 
-    }
-    */
+    // Alarm takes as input seconds, but the user input is in minutes.
+    alarm(60 * duration);
+    printf("The game duration is now setted to %d minutes.\n", duration);
+    printf("TEST: %d\n", alarm(0));
 
-    return 0;
+}
+
+void startGame(void) {
+
+    // loadMatrixFromFile(filepath);
+    setAlarm();
 
 }
 

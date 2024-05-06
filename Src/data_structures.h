@@ -41,4 +41,8 @@ struct ClientNode {
 }; 
 struct ClientNode* head;
 struct ClientNode* tail;
+pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER;
+
+int duration = 0;
+struct sigaction sigactiontimer;
 

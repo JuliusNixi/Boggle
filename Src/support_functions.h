@@ -15,8 +15,8 @@ int binarySearch(char*, int, int, char);
 
 void acceptClient(void);
 void* clientHandler(void*);
+void timerHandler(int);
+void setAlarm(void);
+void startGame(void);
 
-
-
-int searchWord(char*);
 
