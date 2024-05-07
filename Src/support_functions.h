@@ -13,10 +13,14 @@ void mergeSortChar(char*, int, int);
 int binarySearch(char*, int, int, char);
 
 
+
 void acceptClient(void);
 void* clientHandler(void*);
 void timerHandler(int);
 void setAlarm(void);
 void startGame(void);
-
-
+void loadDictionary(void);
+int validateDictionary(char*);
+int searchInString(char*, char);
+int validatePattern(int, int);
+int searchInMatrix(char*); 

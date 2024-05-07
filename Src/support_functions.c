@@ -1,14 +1,10 @@
 #include "data_structures.h"
 #include "support_functions.h"
-#include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#define SIG_ALRM_ALERT "Time expired, the timer sounds!\n"
-const size_t SIG_ALRM_ALERT_LEN = strlen(SIG_ALRM_ALERT);
 
 // This function initialize the matrix (global char**) by allocating memory
 // in the heap and filling it with a special character.
@@ -503,7 +499,6 @@ void setAlarm(void) {
     // Alarm takes as input seconds, but the user input is in minutes.
     alarm(60 * duration);
     printf("The game duration is now setted to %d minutes.\n", duration);
-    printf("TEST: %d\n", alarm(0));
 
 }
 
@@ -511,6 +506,123 @@ void startGame(void) {
 
     // loadMatrixFromFile(filepath);
     setAlarm();
+
+}
+
+void loadDictionary(void) {
+
+   // Stat to get file information. retvalue to check syscalls returns.
+   struct stat s;
+   int retvalue;
+
+   // Performing stat on file.
+   retvalue = stat(DICT_PATH, &s);
+   if (retvalue == -1) {
+    // Error
+   }
+   // Check if the file is regular.
+   if(!S_ISREG(s.st_mode)){
+        // Error not a regular file
+    }
+
+    // To store file content.
+    char file[s.st_size];
+
+    // Opening the file in readonly mode.
+    int fd = open(DICT_PATH, O_RDONLY, NULL);
+    if (fd == -1) {
+        // Error
+    }
+
+    // Reading the file content using a buffer of BUFFER_SIZE length.
+    char buffer[BUFFER_SIZE];
+    int counter = 0;
+    while (1) {
+        retvalue = read(fd, buffer, BUFFER_SIZE);
+        if (retvalue == -1) {
+            // Error
+        }
+        // Exit, end of file reached.
+        if (retvalue == 0) break;
+
+        // Copying the buffer in the main array.
+        for (int i = 0; i < retvalue; i++)
+            file[counter++] = buffer[i];
+    }
+
+    // Counting file lines and allocating heap space.
+    counter = 0;
+    for (int i = 0; i < s.st_size; i++) {
+        if (file[i] == '\n' || i + 1 == s.st_size)
+            counter++;
+    }
+    words_len = counter;
+    words = (char**) malloc(sizeof(char*) * words_len);
+    if (words == NULL) {
+        // Error
+    }
+
+    // Array counter. x
+    counter = 0;
+    int wl = 0;
+    int c = 0;
+    for (int i = 0; i < s.st_size; i++) {
+        if (file[i] == '\n' || i + 1 == s.st_size) {
+            words[counter++] = (char*) malloc(sizeof(char) * (wl + 1 + 1));
+            if (words[counter - 1] == NULL) {
+                // Error
+            }
+            c = 0;
+            for (int j = i - wl; j <= i; j++) 
+                words[counter - 1][c++] = file[j];
+            words[counter - 1][c] = '\0';
+            wl = 0;
+        }  else 
+            wl++;
+    }
+
+}
+
+// Search a word in the dictionary file.
+int validateDictionary(char* word) {
+
+    for (int i = 0; i < words_len; i++)
+        if (strcmp(words[i], word) == 0) return 1;
+    return 0;
+
+}
+
+// A simple function that searches a character in a string.
+// It returns the char position in the string, otherwise -1.
+int searchInString(char* string, char c) {
+
+    for (int i = 0; i < strlen(string); i++)
+        if (string[i] == c) return i;
+    return -1;
+
+}
+
+// Validate a pattern of word in the game matrix.
+int validatePattern(int i, int j) {
+
+
+    return 0;
+
+}
+
+// Search a word submitted by a client in the game matrix.
+int searchInMatrix(char* word) {
+
+    int counter = 0;
+    for (int i = 0; i < NROWS; i++)
+        for (int j = 0; j < NCOL; j++) {
+            char c = matrix[i][j];
+            int p = searchInString(word, c);
+            matrixint[i][j] = p;
+            counter += validatePattern(i, j);
+        }
+            
+    return counter;
 
 }
 

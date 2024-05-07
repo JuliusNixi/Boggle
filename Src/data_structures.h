@@ -20,6 +20,7 @@ char** matrix = 0;
 */
 #define matrixstrlength (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1)
 char matrixstring[matrixstrlength];
+int matrixint[NROWS][NCOL];
 
 // maybe to change
 #define BUFFER_SIZE 1024
@@ -45,4 +46,10 @@ pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER;
 
 int duration = 0;
 struct sigaction sigactiontimer;
+#define SIG_ALRM_ALERT "Time expired, the timer sounds!\n"
+#include <string.h>
+const size_t SIG_ALRM_ALERT_LEN = strlen(SIG_ALRM_ALERT);
 
+#define DICT_PATH "../Data/dizionario.txt"
+char** words;
+size_t words_len;

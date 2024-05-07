@@ -14,7 +14,7 @@ extern struct sigaction sigactiontimer;
 int main(int argc, char** argv) {
 
     // Printing banner.
-    printf("\n\n\n##################\n#     SERVER     #\n##################\n\n\n");
+    printf("\n\n##################\n#     SERVER     #\n##################\n\n");
 
     // Check number of args.
     if (argc < 3 || argc > 7) {
@@ -89,6 +89,10 @@ int main(int argc, char** argv) {
         // Error
     }
     printf("Timer handler registered.\n");
+
+    // Loading dictionary in memory.
+    loadDictionary();
+    printf("Dictionary loaded.\n");
 
     // Listening for incoming connections.
     retvalue = listen(socket_server_fd, SOMAXCONN);
