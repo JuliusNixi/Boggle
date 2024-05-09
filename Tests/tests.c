@@ -3,14 +3,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern char** matrix;
-extern const int NROWS;
-extern const int NCOL;
 extern char alphabet[];
-extern char matrixstring[]; 
+extern char matrixstring[];
+
+#define NROWS 4 // x
+#define NCOL 4 // x
+char matrix[NROWS][NCOL];  // x
+#define BUFFER_SIZE 1024  // x
 
 int main(void) {
-
+    
     int tests = 5;
     srand(42);
 
@@ -78,11 +80,74 @@ int main(void) {
     // Testing loadMatrixFromFile.
     printf("Testing loadMatrixFromFile...\n");    
     for (int i = 0; i < tests; i++) {
-        loadMatrixFromFile("../Data/matrici.txt");
+        if (i == 0) loadMatrixFromFile("../Data/matrici.txt");
         serializeMatrixStr();
         printf("%s\n", matrixstring);
     }
 
+/*
+    // se cambiano dimensioni matrici modificare qui
+    int m[][4] = {
+                {1,2,-1,-1},        {-1,3,4,-1},        {-1,-1,5,6},        {-1,-1,-1,7}
+
+        };
+    for (int i = 0; i < NROWS; i++){
+        for (int j = 0; j < NCOL; j++) {
+            // copio solo i numeri (forzando manualmente) non voglio testare con parole ora
+            matrixint[i][j] = m[i][j];
+            printf("%d ", m[i][j]);
+        }
+        printf("\n");
+    }
+
+    printf("\n");
+    */
+   
+/*
+    for (int i = 0; i < NROWS; i++){
+        for (int j = 0; j < NCOL; j++)
+            printf("%d ", validatePattern(i, j));
+        printf("\n");
+    }
+
+    printf("\n");
+    loadMatrixFromFile("../Data/matrici2.txt");
+    serializeMatrixStr();
+    loadDictionary();
+    printf("New matrix:\n%s",matrixstring);
+    char s1[] = "BACKPACK";
+    char s2[] = "ABCDEFG";
+    char s3[] = "NOT IN DICT";
+    printf("SEARCHING %s EXPECTED 0 -> %d.\n", s1, searchInMatrix(s1));
+    printf("SEARCHING %s EXPECTED 1 -> %d.\n", s2, searchInMatrix(s2));
+    printf("SEARCHING %s EXPECTED 0 -> %d.\n", s3, searchInMatrix(s3));
+    for (int i = 0; i < NROWS; i++){
+        for (int j = 0; j < NCOL; j++) {
+            // copio solo i numeri (forzando manualmente) non voglio testare con parole ora
+            printf("%d ", matrixint[i][j]);
+        }
+        printf("\n");
+    }
+
+
+
+    printf("\n\n\n");
+    loadMatrixFromFile(NULL);
+    serializeMatrixStr();
+    printf("New matrix:\n%s",matrixstring);
+    char s4[] = "CASA";
+    printf("SEARCHING %s EXPECTED 1 -> %d.\n", s4, searchInMatrix(s4));
+
+
+
+
+
+
+
+    extern int cerca(char*);
+    printf("\n\n\n");
+    cerca("CASA");
+*/
     return 0;
     
 }
