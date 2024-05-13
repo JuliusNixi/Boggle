@@ -7,9 +7,12 @@ The binaries in Bin/ as been compiled on:
 Apple clang version 15.0.0 (clang-1500.1.0.2.5)\
 Target: arm64-apple-darwin23.2.0
 
-# Compiling
-Enter in the Src\ directory and use:
+# Compiling and useful shortcut
 - make -> To compile all.
-- IP=localhost PORT=8080 make execs -> To compile all and then run the server, with localhost and 8080 as args.
-- IP=localhost PORT=8080 make execc -> To compile all and then run the client, with localhost and 8080 as args.
+- make execs -> To compile all and then run the server, with default localhost and 8080 as args.
+- make execc -> To compile all and then run the client, with default localhost and 8080 as args.
+- make clean -> To remove all objects and executables files.
 - make tests -> To compile all and then run the tests.
+
+# Usage
+Usage: ./Bin/boggle_server IP PORT [--matrici FILEPATH] [--durata MINUTES].

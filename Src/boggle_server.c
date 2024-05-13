@@ -44,11 +44,13 @@ int main(int argc, char** argv) {
 
     // Checking optional args.
     char* filepath = NULL;
+    int customduration = 0;
     for (int i = 3; i < argc; i += 2)
         if (strcmp(argv[i], "--matrici") == 0)
             filepath = argv[i + 1];
         else if (strcmp(argv[i], "--durata") == 0) {
             duration = atoi(argv[i + 1]);
+            customduration = 1;
             if (duration <= 0) {
                 // Error
                 printf("Invalid game duration %d.\n", duration);
@@ -63,7 +65,7 @@ int main(int argc, char** argv) {
     // Printing infos.
     if (filepath != NULL) 
         printf("Trying to use matrix file at: %s.\n", filepath);
-    if (duration != 0)
+    if (customduration)
         printf("Using inserted duration %d minutes.\n", duration);
     else 
         printf("Using default duration %d minutes.\n", duration);

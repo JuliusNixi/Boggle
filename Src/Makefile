@@ -71,6 +71,10 @@ clear:
 clean: clear
 	rm -f ../Bin/* ../Tests/tests.o ../Tests/tests
 
+# Some useful default args
+export IP=localhost
+export PORT=8080
+
 # Compile and execute the server
 execs: all
 	./$(EXES) $(IP) $(PORT)

@@ -56,3 +56,20 @@ const size_t SIG_ALRM_ALERT_LEN = strlen(SIG_ALRM_ALERT);
 #define DICT_PATH "../Data/dizionario2.txt"   // Path to the dictionary file that will be used to check if a word is valid.
 char** words = 0;  // Pointer to a char[][] array that will be allocated on the heap. Each string rapresent a word/line on the dictionary file.
 size_t words_len = 0;   // Length of the char[][] above.
+char** words_copy = 0;  
+
+#define WORD_LEN 4  // If set to an integer greater than 0, will refuse all the words that not match this length.
+#define CASE_SENSITIVE 0  // If set to 0, the game will be case INSENSITIVE, accepting all words
+// present in the game matrix and the dictionary file when matching the user guess without checking
+// the format of the characters.
+
+#define MSG_OK 'K'
+#define MSG_ERR 'E'
+#define MSG_REGISTRA_UTENTE 'R'
+#define MSG_MATRICE 'M'
+#define MSG_TEMPO_PARTITA 'T'
+#define MSG_TEMPO_ATTESA 'A'
+#define MSG_PAROLA 'W'
+#define MSG_PUNTI_FINALI 'F'
+#define MSG_PUNTI_PAROLA 'P'
+

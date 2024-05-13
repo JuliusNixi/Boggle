@@ -29,6 +29,11 @@ char buf [INET_ADDRSTRLEN] = {0};
 
 */
 
+
+
+
+
+
 /*
 // Merges two subarrays of arr[].
 // First subarray is arr[l..m].
@@ -148,12 +153,6 @@ int binarySearch(char arr[], int l, int r, char element)
 }
 */
 
-
-
-
-
-
-
 /*
 
 void mergeChar(char*, int, int, int);
@@ -193,3 +192,106 @@ int validatePattern(int i, int j) {
 }
 
 */
+
+
+/*
+
+// Search a word in the dictionary file.
+// word is the string to search in the dictionary.
+// return 1 if find, 0 otherwise.
+int validateDictionary(char* word) {
+
+    for (int i = 0; i < words_len; i++) 
+        if (strcmp(words[i], word) == 0) return 1;
+    return 0;
+
+}
+
+
+// Search a word submitted by a player/client in the game matrix.
+// returns 1 if the word is founded in the dictionary AND in the game matrix.
+// if one of both fail the returns will be 0.
+int searchInMatrix(char* word) {
+
+    if (validateDictionary(word) == 0) return 0;
+    
+    for (int i = 0; i < NROWS; i++)
+        for (int j = 0; j < NCOL; j++) {
+            // TODO
+        }
+
+    return 0;
+
+}
+
+
+
+char** copyMatrix(void) {
+
+    char** c;
+    c = (char**) malloc(sizeof(char*) * NROWS);
+    for (int i = 0; i < NCOL; i++)
+        c[i] = (char*) malloc(sizeof(char) * NCOL);
+    for (int i = 0; i < NROWS; i++) {
+        for (int j = 0; j < NCOL; j++)
+            c[i][j] = matrix[i][j];
+    }
+    return c;
+
+}
+
+int check(int i, int j, char* s, char** tmpmatrix) {
+
+   if (tmpmatrix == NULL) // Error ();
+   if (s == NULL) return 0;
+   if (i < 0 || i > NROWS - 1 || j < 0 || j > NCOL - 1) return 0;
+    char c = s[0];
+    if (c == '\0'){
+        printf("TROVATO %d %d\n",i,j);
+        return 1;
+    } 
+    printf("cerco %c elemento %c i: %d  j: %d -> %d\n",c, tmpmatrix[i][j],i,j,(int)c);
+    if (tmpmatrix[i][j] == c) {
+        s++;
+        tmpmatrix[i][j] = 'X';
+        // shortcut
+        return check(i - 1, j, s,tmpmatrix) || check(i, j - 1, s,tmpmatrix) || check(i, j + 1, s,tmpmatrix) || check(i + 1, j, s,tmpmatrix);
+    }
+    return 0;
+
+}
+
+int cerca(char* word) {
+
+    char** c = copyMatrix();
+    for (int i = 0; i < NROWS; i++) {
+        for (int j = 0; j < NCOL; j++) {
+            printf("Matrice char for: %c \n", matrix[i][j]);
+            int x = check(i,j, word,c);
+            printf("Valore %d \n", x);
+            c = copyMatrix();
+        }
+    }
+    return 0;
+}
+
+
+
+
+
+
+char** copyD(void) {
+
+    char** d;
+    d = (char**) malloc(sizeof(char*) * words_len);
+    for (int i = 0; i < words_len; i++) {
+        d[i] = (char*) malloc(sizeof(char) * strlen(words[i]));
+        strcpy(d[i], words[i]);
+    }
+    return d;
+
+}
+
+
+*/
+

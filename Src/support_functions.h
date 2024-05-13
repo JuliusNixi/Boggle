@@ -10,5 +10,8 @@ void timerHandler(int);
 void setAlarm(void);
 void startGame(void);
 void loadDictionary(void);
-int validateDictionary(char*);
-int searchInMatrix(char*); 
+void searchWordInMatrix(int, int);
+void restoreWords(void);
+void validateDictionary(void);
+int validateWord(char*);
+
