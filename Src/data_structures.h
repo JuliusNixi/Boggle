@@ -3,7 +3,7 @@
 #define NCOL 4 // Matrix number of columns.
 
 // Alphabet to be use to generate the matrix.
-#define ALPHABET "ABCDEFGHILMNOPQRSTUVZ" // Alphabet used in the game.
+#define ALPHABET "abdcdefghijklmnopqrstuvxyz0123456789" // Alphabet used in the game.
 
 // Game matrix.
 char matrix[NROWS][NCOL];  // Matrix game core.
@@ -25,7 +25,7 @@ char matrixstring[MAT_STR_LEN]; // Matrix serialized string container.
 
 #define BUFFER_SIZE 1024  // Size of the buffers that will be used.
 
-#define VOID_CHAR 'X' // Special char that will used to indicate an undefined matrix state.
+#define VOID_CHAR '-' // Special char that will used to indicate an undefined matrix state.
 
 char* MAT_PATH = 0; // String that will be allocated on the heap and will rapresent the matrix file path (if present).
 
@@ -47,21 +47,17 @@ struct ClientNode* head; // Pointer to the client list head.
 struct ClientNode* tail; // Pointer to the client list tail.
 pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER; // Mutex that will used to manage interactions with the list for threads.
 
-unsigned int duration = 10; // Game duration, default 10 minutes.
+unsigned int duration = 0U; // Game duration.
 struct sigaction sigactiontimer; // Timer that will handle the game time.
 #define SIG_ALRM_ALERT "Time expired, the timer sounds!\n"
 #include <string.h>
 const size_t SIG_ALRM_ALERT_LEN = strlen(SIG_ALRM_ALERT);
 
-#define DICT_PATH "../Data/dizionario2.txt"   // Path to the dictionary file that will be used to check if a word is valid.
 char** words = 0;  // Pointer to a char[][] array that will be allocated on the heap. Each string rapresent a word/line on the dictionary file.
 size_t words_len = 0;   // Length of the char[][] above.
-char** words_copy = 0;  
+char** words_copy = 0;  // Copy of "words" to be used when the dictionary is validated.
 
 #define WORD_LEN 4  // If set to an integer greater than 0, will refuse all the words that not match this length.
-#define CASE_SENSITIVE 0  // If set to 0, the game will be case INSENSITIVE, accepting all words
-// present in the game matrix and the dictionary file when matching the user guess without checking
-// the format of the characters.
 
 #define MSG_OK 'K'
 #define MSG_ERR 'E'
@@ -72,4 +68,18 @@ char** words_copy = 0;
 #define MSG_PAROLA 'W'
 #define MSG_PUNTI_FINALI 'F'
 #define MSG_PUNTI_PAROLA 'P'
+
+struct Message {
+    char type;
+    unsigned int length;
+    char* data;
+};
+
+unsigned int seed = 0U;
+
+#define MAX_NUM_CLIENTS 32
+
+char DEFAULT_DICT[] = "Data/dictionary_ita.txt";
+
+
 

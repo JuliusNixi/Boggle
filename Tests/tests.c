@@ -3,18 +3,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern char alphabet[];
 extern char matrixstring[];
 
-#define NROWS 4 // x
-#define NCOL 4 // x
-char matrix[NROWS][NCOL];  // x
-#define BUFFER_SIZE 1024  // x
+#define NROWS 4
+#define NCOL 4
+char matrix[NROWS][NCOL];
 
 int main(void) {
     
     int tests = 5;
-    srand(42);
 
     // Testing generateRandomMatrix.
     printf("Testing generateRandomMatrix...\n");

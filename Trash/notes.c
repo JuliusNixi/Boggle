@@ -168,6 +168,10 @@ int binarySearch(char*, int, int, char);
 
 
 
+
+
+
+
 /*
 
 // A simple function that searches a character in a string.
@@ -193,7 +197,6 @@ int validatePattern(int i, int j) {
 
 */
 
-
 /*
 
 // Search a word in the dictionary file.
@@ -206,7 +209,6 @@ int validateDictionary(char* word) {
     return 0;
 
 }
-
 
 // Search a word submitted by a player/client in the game matrix.
 // returns 1 if the word is founded in the dictionary AND in the game matrix.
@@ -223,8 +225,6 @@ int searchInMatrix(char* word) {
     return 0;
 
 }
-
-
 
 char** copyMatrix(void) {
 
@@ -275,11 +275,6 @@ int cerca(char* word) {
     return 0;
 }
 
-
-
-
-
-
 char** copyD(void) {
 
     char** d;
@@ -292,6 +287,167 @@ char** copyD(void) {
 
 }
 
+*/
+
+
+
+
+
+
+
+/*
+
+// This function search, starting from an element of the current game matrix,
+// rapresented by the inputs i and j (respectively row, column indexes)
+// all the words present in the global var "char** words".
+// It uses another global var "char** words_copy", and modifies this one.
+// It updates every word in "char** words_copy" by removing the letter found 
+// in the current game matrix from it.
+// If all the letters of a word are founded at end, this word in the "char** words_copy"
+// will be rapresented as '\0'.
+void searchWordInMatrix(int i, int j) {
+
+    // i and j are not valid. Trying to do an access out of bounds to the game matrix.
+    // We must stop the recursive call.
+    if (i < 0 || i > NROWS - 1 || j < 0 || j > NCOL - 1) return;
+
+    // foundatleastone signals if at least one letter of a word is founded.
+    // So if it positive, it means we should continue to check the adjacent
+    // elements in the matrix, because it is possible that the word is present.
+    // On the other hand, if it is 0, it means we must stop the search.
+    int foundatleastone = 0;
+    // Iterating on all words loaded with loadDictionary() from dictionary file
+    // in the "char** words".
+    for (int l = 0; l < words_len; l++) {
+ 
+        // Current char element in the l-word to find.
+        char c = words_copy[l][0];
+        // Word already founded in the matrix, skipping to the next.
+        if (c == '\0') continue;
+        // Checking the Qu case in the current game matrix and in the word-l, to handle the situation.
+        if (c == 'Q' && words_copy[l][1] == 'U' && matrix[i][j] == 'Q') (words_copy[l])++;
+        // Is present the current char element of the l-word in the matrix[i][j]?
+        if (matrix[i][j] == c) {
+            // Yes, at least one letter found.
+            // Incrementing the pointer of the current l-word, in this way we will
+            // continue to search for the next word char.
+            (words_copy[l])++;
+            foundatleastone++;
+        } 
+        
+    }
+
+    // Continuing the search on the adjacent elements.
+    if (foundatleastone) {
+        searchWordInMatrix(i - 1, j);
+        searchWordInMatrix(i, j - 1);
+        searchWordInMatrix(i, j + 1);
+        searchWordInMatrix(i + 1, j);
+    }
+
+}
+
+// The previous function searchWordInMatrix() modifies the "char** words_copy" var.
+// At the end words_copy will contain, for each word of the dictionary file
+// previous loaded (with loadDictionary()), only the remaining letters of
+// the initial word that were not found in the current game matrix starting
+// the search from an element of it.
+// The words of which all letters have been found will be represented by '\0'.
+// The function has two different behaviors, if it is the first time it is called
+// (reported with words_copy[0] == NULL) it will just copy all words from "char** words"
+// to "char** words_copy". If the function call, on the other hand, should be one after the 
+// first, it will reset all words that have not been completely found, i.e.,
+// those other than '\0'.
+void restoreWords(void) {
+    // First behavior.
+    if (words_copy[0] == NULL) {
+        for (int i = 0; i < words_len; i++)
+            words_copy[i] = words[i];
+        return;
+    }
+    // Second behavior.
+    for (int i = 0; i < words_len; i++)
+        if (words_copy[i][0] != '\0') words_copy[i] = words[i];
+}
+
+// This function validate a dictionary file previous loaded with loadDictionary().
+// Validate means that "delete" all words loaded from the dictionary that are not
+// present in the current game matrix.
+// All the words present in the file are stored (with loadDictionary()) in the
+// global "char** words" var.
+// After this function execution, there will be another "char** words_copy" global
+// var that will contain only the words present in the current game matrix (and
+// obviously in the file, and so in the "char** words").
+// WARNING: It MUST CALLED AFTER the function loadDictionary() to load
+// the dictionary before.
+void validateDictionary(void) {
+
+    // Dictionary not loaded.
+    if (words == 0) {
+        // Error
+        printf("Error, cannot validate the words if a dictionary has not been previously loaded.\nCall loadDictionary() before and retry.\n");
+    }
+
+    // First validation. words_copy must be initialized.
+    if (words_copy == 0) {
+        words_copy = (char**) malloc(sizeof(char*) * words_len);
+        if (words_copy == 0) {
+            // Error
+            printf("Error, cannot allocate heap memory for the words_copy.\n");
+        }
+    }
+
+    // Setting the first char* in the array to NULL to signal the restoreWords()
+    // function that is the first call of it.
+    // The function has a different behavior the first time, compared with subsequent.
+    words_copy[0] = NULL;
+    restoreWords();
+
+    // Iter on the letters in the current game matrix. 
+    // For each of them I invoke an searchWordInMatrix()
+    // function that will search for all the words contained in "char** words" (dictionary file),
+    // and the restoreWords(), that will reset the words strings modified but
+    // not completely founded ini the words_copy var.
+    for (int i = 0; i < NROWS; i++)
+        for (int j = 0; j < NCOL; j++) {
+            searchWordInMatrix(i, j);
+            restoreWords();
+        }
+
+    // Now words_copy should contain the words NOT present in the current game matrix,
+    // instead, the words present will be reported as '\0'.
+    // Now we will "invert" the dictionary, because we want the words present in the matrix.
+    // In other words, we can say that we will calculate the complementary of the set.
+    // At the end of this for, words_copy will contain only the words present in the 
+    // current game matrix, instead, the words NOT present will be reported as '\0'.
+    for (int i = 0; i < words_len; i++)
+        if (words_copy[i][0] == '\0') words_copy[i] = words[i];
+        else while ((words_copy[i][0])++ != '\0');
+
+    printf("Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
+    for (int i = 0; i < words_len; i++)
+        if (words_copy[i][0] != '\0')
+            printf("%s\n", words_copy[i]);
+
+}
 
 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

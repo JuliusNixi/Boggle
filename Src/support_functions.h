@@ -9,9 +9,7 @@ void* clientHandler(void*);
 void timerHandler(int);
 void setAlarm(void);
 void startGame(void);
-void loadDictionary(void);
-void searchWordInMatrix(int, int);
-void restoreWords(void);
+void loadDictionary(char*);
+int searchWordInMatrix(int, int, char*);
 void validateDictionary(void);
 int validateWord(char*);
-

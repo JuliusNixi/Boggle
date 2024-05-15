@@ -42,6 +42,8 @@ SRCT = ../Tests/$(NT).c
 
 # Targets exe of client, server and tests
 all: clear $(EXES) $(EXEC) $(EXET)
+	cp $(EXES) ../paroliere_srv
+	cp $(EXEC) ../paroliere_cl
 
 $(EXES): $(OBJS) $(OBJSF)
 	$(CC) $(CFLAGS) -o $(EXES) $(OBJS) $(OBJSF)
@@ -70,6 +72,7 @@ clear:
 # Delete all .o and exe file to recompile all
 clean: clear
 	rm -f ../Bin/* ../Tests/tests.o ../Tests/tests
+	rm -f ../paroliere_srv ../paroliere_cl
 
 # Some useful default args
 export IP=localhost

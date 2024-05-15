@@ -15,4 +15,6 @@ Target: arm64-apple-darwin23.2.0
 - make tests -> To compile all and then run the tests.
 
 # Usage
-Usage: ./Bin/boggle_server IP PORT [--matrici FILEPATH] [--durata MINUTES].
+Usage: ./Bin/boggle_server nome_server porta_server [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario].
+
+
