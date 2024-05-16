@@ -1,7 +1,7 @@
 # Compiler
 CC = gcc
 
-# Compiler flags
+# Compiler flags, all warnings and g for debugging
 CFLAGS = -Wall -g -pedantic -pthread
 
 # Files names
@@ -10,10 +10,13 @@ NC = boggle_client
 NHDRS = data_structures
 NSF = support_functions
 NT = tests
+# Root files names
+RNS = paroliere_srv
+RNC = paroliere_cl
 
 # Header files
-HDRS = $(NHDRS).h
-HDRSF = $(NSF).h
+HDRS = $(NHDRS).h # data_strctures
+HDRSF = $(NSF).h # support_functions
 
 # Executable files
 EXES = ../Bin/$(NS)
@@ -42,14 +45,14 @@ SRCT = ../Tests/$(NT).c
 
 # Targets exe of client, server and tests
 all: clear $(EXES) $(EXEC) $(EXET)
-	cp $(EXES) ../paroliere_srv
-	cp $(EXEC) ../paroliere_cl
+	cp $(EXES) ../$(RNS)
+	cp $(EXEC) ../$(RNC)
 
 $(EXES): $(OBJS) $(OBJSF)
 	$(CC) $(CFLAGS) -o $(EXES) $(OBJS) $(OBJSF)
-$(EXEC): $(OBJC) $(OBJSF)
+$(EXEC): $(OBJC) $(OBJSF) # client support_functions
 	$(CC) $(CFLAGS) -o $(EXEC) $(OBJC) $(OBJSF)
-$(EXET): $(OBJT) $(OBJSF)
+$(EXET): $(OBJT) $(OBJSF) # client support_functions
 	$(CC) $(CFLAGS) -o $(EXET) $(OBJT) $(OBJSF)
 
 $(OBJS): $(SRCS) $(HDRSF)
@@ -71,19 +74,19 @@ clear:
 
 # Delete all .o and exe file to recompile all
 clean: clear
-	rm -f ../Bin/* ../Tests/tests.o ../Tests/tests
-	rm -f ../paroliere_srv ../paroliere_cl
+	rm -f $(EXES) $(EXEC) $(EXET) $(OBJS) $(OBJC) $(OBJSF) $(OBJT) 
+	rm -f ../$(RNS) ../$(RNC)
 
-# Some useful default args
+# Some useful default args for testing
 export IP=localhost
 export PORT=8080
 
 # Compile and execute the server
 execs: all
-	./$(EXES) $(IP) $(PORT)
+	cd .. && ./$(RNS) $(IP) $(PORT)
 
 # Compile and execute the client
 execc: all
-	./$(EXEC) $(IP) $(PORT)
+	cd .. && ./$(RNC) $(IP) $(PORT)
 
 # End of Makefile

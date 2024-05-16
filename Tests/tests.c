@@ -3,26 +3,40 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern char matrixstring[];
+//extern char matrixstring[];
 
 #define NROWS 4
 #define NCOL 4
+#define VOID_CHAR '-'
 char matrix[NROWS][NCOL];
+#define ALPHABET "ABDCDEFGHIJKLMNOPQRSTUVXYZ"
+
+
+// Printing game matrix without serializeMatrixStr
+void printManualMatrix(void) {
+    for (int i = 0; i < NROWS; i++) {
+            for (int j = 0; j < NCOL; j++)
+                printf("%c ", matrix[i][j]);
+            printf("\n");
+    }
+}
 
 int main(void) {
-    
+
+    srand(42);
+
     int tests = 5;
+
+    // Testing initMatrix.
+    printf("Testing initMatrix...\n");
+    initMatrix();
+    printManualMatrix();
 
     // Testing generateRandomMatrix.
     printf("Testing generateRandomMatrix...\n");
     for (int x = 0; x < tests; x++) {
         generateRandomMatrix();
-        for (int i = 0; i < NROWS; i++) {
-            for (int j = 0; j < NCOL; j++)
-                printf("%c ", matrix[i][j]);
-            printf("\n");
-        }
-        printf("\n");
+        printManualMatrix();
     }
 
     // Testing getMatrixNextIndexes.
@@ -32,42 +46,49 @@ int main(void) {
         getMatrixNextIndexes(matrixnextindexes);
         printf("i: %d j: %d \n", matrixnextindexes[0], matrixnextindexes[1]);
     }
-    printf("\n");
+
+    // Testing validateMatrix.
+    printf("Testing validateMatrix...\n");
+    char temp = matrix[0][0];
+    matrix[0][0] = VOID_CHAR;
+    printf("Expecting error...\n");
+    validateMatrix();
+    matrix[0][0] = temp;
+    validateMatrix();
+    printf("Expeting pass (nothing)...\n");
 
     // Testing serializeMatrixStr.
     printf("Testing serializeMatrixStr...\n");
     for (int x = 0; x < tests; x++) {
         generateRandomMatrix();
-        serializeMatrixStr();
-        printf("%s", matrixstring);
+        char* s = serializeMatrixStr();
+        printf("%s", s);
+        free(s);
         printf("--------------ABOVE THE SERIALIZED, BELOW THE NORMAL--------------\n");
-        for (int i = 0; i < NROWS; i++) {
-            for (int j = 0; j < NCOL; j++)
-                printf("%c ", matrix[i][j]);
-            printf("\n");
-        }    
-        printf("\n");  
+        printManualMatrix();
     }
 
     // Testing validateMatrix.
-    printf("Testing validateMatrix...\n");
+    printf("Re-testing validateMatrix...\n");
     for (int x = 0; x < tests; x++) {
         // Changing random character in the matrix with some not allowed.
         for (int i = 0; i < NROWS; i++)
             for (int j = 0; j < NCOL; j++) {
                 // Including in the new alphabet some letters not contained in the legit one.
-                char newalpha[] = "JABCDEFGHILMNOPQRSTUVZ"; // JKWXY
+                char trash[] = "-.,()/&!|$£";
+                size_t l = strlen(ALPHABET) + strlen(trash);
+                char newalpha[l];
+                strcat(newalpha, ALPHABET);
+                strcat(newalpha, trash);
                 int r = rand() % strlen(newalpha);
                 char c = newalpha[r];
-                matrix[i][j] = c;
+                r = rand() % 10;
+                // Choosing between changing the matrix[i][j] element with a random not allowed char, or not.
+                if (r <= 3) matrix[i][j] = c;
             }
         // Remember not to use the serializeMatrixStr to print
         // because it validate the matrix itself.
-        for (int i = 0; i < NROWS; i++) {
-            for (int j = 0; j < NCOL; j++)
-                printf("%c ", matrix[i][j]);
-            printf("\n");
-        }
+        printManualMatrix();
         // If the matrix is not valid should print something, nothing otherwise.
         printf("--------------\n");
         validateMatrix();
@@ -78,73 +99,21 @@ int main(void) {
     printf("Testing loadMatrixFromFile...\n");    
     for (int i = 0; i < tests; i++) {
         if (i == 0) loadMatrixFromFile("../Data/matrici.txt");
-        serializeMatrixStr();
-        printf("%s\n", matrixstring);
+        else loadMatrixFromFile(NULL);
+        char* s = serializeMatrixStr();
+        printf("%s\n", s);
+        free(s);
     }
 
-/*
-    // se cambiano dimensioni matrici modificare qui
-    int m[][4] = {
-                {1,2,-1,-1},        {-1,3,4,-1},        {-1,-1,5,6},        {-1,-1,-1,7}
-
-        };
-    for (int i = 0; i < NROWS; i++){
-        for (int j = 0; j < NCOL; j++) {
-            // copio solo i numeri (forzando manualmente) non voglio testare con parole ora
-            matrixint[i][j] = m[i][j];
-            printf("%d ", m[i][j]);
-        }
-        printf("\n");
-    }
-
-    printf("\n");
-    */
-   
-/*
-    for (int i = 0; i < NROWS; i++){
-        for (int j = 0; j < NCOL; j++)
-            printf("%d ", validatePattern(i, j));
-        printf("\n");
-    }
-
-    printf("\n");
-    loadMatrixFromFile("../Data/matrici2.txt");
-    serializeMatrixStr();
-    loadDictionary();
-    printf("New matrix:\n%s",matrixstring);
-    char s1[] = "BACKPACK";
-    char s2[] = "ABCDEFG";
-    char s3[] = "NOT IN DICT";
-    printf("SEARCHING %s EXPECTED 0 -> %d.\n", s1, searchInMatrix(s1));
-    printf("SEARCHING %s EXPECTED 1 -> %d.\n", s2, searchInMatrix(s2));
-    printf("SEARCHING %s EXPECTED 0 -> %d.\n", s3, searchInMatrix(s3));
-    for (int i = 0; i < NROWS; i++){
-        for (int j = 0; j < NCOL; j++) {
-            // copio solo i numeri (forzando manualmente) non voglio testare con parole ora
-            printf("%d ", matrixint[i][j]);
-        }
-        printf("\n");
-    }
-
-
-
-    printf("\n\n\n");
-    loadMatrixFromFile(NULL);
-    serializeMatrixStr();
-    printf("New matrix:\n%s",matrixstring);
-    char s4[] = "CASA";
-    printf("SEARCHING %s EXPECTED 1 -> %d.\n", s4, searchInMatrix(s4));
-
-
-
-
-
-
-
-    extern int cerca(char*);
-    printf("\n\n\n");
-    cerca("CASA");
-*/
+  /*
+    TO TEST
+void loadDictionary(char*);
+int searchWordInMatrix(int, int, char*);
+void validateDictionary(void);
+int validateWord(char*);
+  
+  */
+  
     return 0;
     
 }

@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <string.h>
 
 // This function initialize the game matrix (global char[NROWS][NCOL]).
 // Is not mandatory but recommended, to avoid annoying bugs during the development.
@@ -98,7 +99,7 @@ void validateMatrix(void) {
             unsigned int found = 0;
             // Searching char of matrix in the alphabet.
             for (unsigned int x = 0; x < strlen(ALPHABET); x++)
-                if (c == ALPHABET[x]) {
+                if (c == toupper(ALPHABET[x])) {
                     found = 1;
                     break;
                 }
@@ -112,11 +113,34 @@ void validateMatrix(void) {
 
 }
 
-// This function fills a global string (char matrixstring[])
-// It's length is defined by global #define calculated from NROWS and NCOLS data.
+// This function allocate on the heap a string.
+// It returns the pointer to it.
+// It's length is calculated from NROWS and NCOLS data.
 // The string will rapresent visually the game matrix.
-// The Qu will be show in the result even if only the character Q is stored in the game matrix.
-void serializeMatrixStr(void) {
+// The Qu will be show in the result even if, only the character Q is stored in the game matrix.
+char* serializeMatrixStr(void) {
+/*
+    
+    Below i calculate the string length of the matrix.
+    There are 4 addends enclosed in a parenthesis.
+    The first is the length of the only data contained in the matrix 
+    multiplied by 2 because every position could be Qu.
+    The second addend is the number of spaces betwen letters.
+    The third rapresent the \n at the end of each line.
+    The fourth plus 1 is the string terminator (\0).
+
+    Is used to serialize the matrix into a visually pretty string.
+    
+*/
+    // Matrix serialized string length.
+    const size_t MAT_STR_LEN = (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1);
+
+    // Allocating the string on the heap.
+    char* matrixstring = (char*) malloc(sizeof(char)* MAT_STR_LEN);
+    if (matrixstring == NULL) {
+        // Error
+        printf("Error in allocating heap memory for the matrix string.\n");
+    }
 
     // Checking the matrix validation.
     validateMatrix();
@@ -177,6 +201,8 @@ void serializeMatrixStr(void) {
     // Insert string terminator.
     matrixstring[MAT_STR_LEN - 1] = '\0';
 
+    return matrixstring;
+
 }
 
 // This function fill the game matrix (global char[NROWS][NCOL]) of size as written in NCOL and NROWS
@@ -185,17 +211,26 @@ void serializeMatrixStr(void) {
 // by line (one matrix for file line ended with \n) beginning from the first to the end of file.
 // If NULL is passed as arg, the function will load the next
 // matrix from the current file, otherwise will start from the first line of the new file passed.
-// The current used file path is stored on the heap with a char* global var MAT_PATH.
+// The current used file path is stored on the heap with a static char* var MAT_PATH.
 // The matrix will be loaded with all UPPERCASE characters regardless of how the characters
 // are written in the file.
 // If the matrices read from the file run out, faced with a new function call with a NULL argument,
 // the function will start over in a "circular" way from the first line of the same file.
 void loadMatrixFromFile(char* path) {
 
+    unsigned int counter = 0;
+    // To store file content.
+    // All the contents of the file is loaded into heap memory only the first time
+    // so as to avoid costly I/O operations, for that the pointer and the stat need to be static.
+    static char* file = NULL;
+    static struct stat s;
+
     // i is static, so i can remember between functions call
     // where I was left to read the file.
     static unsigned int i = 0;
     // Resetting i while a (new) path is received.
+    // String that will be allocated on the heap and will rapresent the matrix file path (if present).
+    static char* MAT_PATH = 0;
     if (path != NULL) {
         // Releasing old path.
         if (MAT_PATH != NULL) free(MAT_PATH);
@@ -205,7 +240,7 @@ void loadMatrixFromFile(char* path) {
             // Error
             printf("Error in allocating heap memory for the matrices file path.\n");
         }
-        // Copying the path to the global var.
+        // Copying the path to in the heap var.
         strcpy(MAT_PATH, path);
         i = 0;
     }else
@@ -215,48 +250,54 @@ void loadMatrixFromFile(char* path) {
             printf("Error, loadMatrixFromFile() has not been initialized. Recall it with a valid file path.\n");
         }
 
-   // Stat to get file information. retvalue to check syscalls returns.
-   struct stat s;
-   int retvalue;
+   if (path != NULL) {
+    // Stat to get file information. retvalue to check syscalls returns.
+    int retvalue;
 
-   // Performing stat on file.
-   retvalue = stat(MAT_PATH, &s);
-   if (retvalue == -1) {
-        // Error
-        printf("Error in getting %s matrices file information.\n", MAT_PATH);
-   }
-   // Check if the file is regular.
-   if(!S_ISREG(s.st_mode)){
-        printf("Error %s matrices file is not a regular file.\n", MAT_PATH);
-        // Error not a regular file
-    }
-
-    // To store file content.
-    char file[s.st_size];
-
-    // Opening the file in readonly mode.
-    int fd = open(MAT_PATH, O_RDONLY, NULL);
-    if (fd == -1) {
-        // Error
-        printf("Error in opening %s matrices file.\n", MAT_PATH);
-    }
-
-    // Reading the file content using a buffer of BUFFER_SIZE length.
-    char buffer[BUFFER_SIZE];
-    unsigned int counter = 0;
-    while (1) {
-        retvalue = read(fd, buffer, BUFFER_SIZE);
-        if (retvalue == -1) {
+    // Performing stat on file.
+    retvalue = stat(MAT_PATH, &s);
+    if (retvalue == -1) {
             // Error
-            printf("Error in reading %s matrices file.\n", MAT_PATH);
-        }
-        // Exit while, end of file reached.
-        if (retvalue == 0) break;
-
-        // Copying the buffer in the main file array.
-        for (unsigned int i = 0; i < retvalue; i++)
-            file[counter++] = buffer[i];
+            printf("Error in getting %s matrices file information.\n", MAT_PATH);
     }
+    // Check if the file is regular.
+    if(!S_ISREG(s.st_mode)){
+            printf("Error %s matrices file is not a regular file.\n", MAT_PATH);
+            // Error not a regular file
+        }
+
+    if (file != NULL)
+        free(file);
+    file = (char*) malloc(sizeof(char) * s.st_size);
+    if (file == NULL) {
+        // Error
+        printf("Error in allocating memory for the matrix file content.");
+    }
+
+
+        // Opening the file in readonly mode.
+        int fd = open(MAT_PATH, O_RDONLY, NULL);
+        if (fd == -1) {
+            // Error
+            printf("Error in opening %s matrices file.\n", MAT_PATH);
+        }
+
+        // Reading the file content using a buffer of BUFFER_SIZE length.
+        char buffer[BUFFER_SIZE];
+        while (1) {
+            retvalue = read(fd, buffer, BUFFER_SIZE);
+            if (retvalue == -1) {
+                // Error
+                printf("Error in reading %s matrices file.\n", MAT_PATH);
+            }
+            // Exit while, end of file reached.
+            if (retvalue == 0) break;
+
+            // Copying the buffer in the main file array.
+            for (unsigned int i = 0; i < retvalue; i++)
+                file[counter++] = buffer[i];
+        }
+   }
 
     // Applying the read matrix from file to the program matrix var.
     // Initializing iterator.
@@ -300,7 +341,7 @@ void loadMatrixFromFile(char* path) {
 // This function will wait a new client connection.
 // It will accept it when present, will create a new client-list node on the heap.
 // Finally will start a new pthread to handle the new client.
-// ClientNode is a global struct, .
+// ClientNode is a global struct.
 void acceptClient(void) {
 
     // Allocating heap memory for a new client node.
@@ -383,7 +424,7 @@ void acceptClient(void) {
 // This function will run in a separate thread and will manage the client requests.
 // Each client is served by a thread.
 // The returned object and the input are void*.
-// Must be converted to the correct type.
+// Input must be converted to the correct type ClientNode*.
 void* clientHandler(void* voidclient) {
 
     // Casting void* to ClientNode*.
@@ -397,7 +438,7 @@ void* clientHandler(void* voidclient) {
 // This function will manage the SIGALRM signal triggered by the timer.
 // WARNING: The functions executed inside and vars used should be Async-Signal Safe
 // to not interfere with the previously running function. If it happens, in this situation,
-// the suspended accept client function will fail with -1 (TESTED!).
+// the suspended accept client function executed (waitinig) before will fail with -1 (TESTED!).
 // But in this case is not problematic, because we will go, thanks to while, again on the
 // accept function.
 void timerHandler(int signum) {
@@ -434,21 +475,29 @@ void startGame(void) {
 // This function allocate and load in memory on the heap a global char array[][] called "words".
 // Each line is a char* to a word of the dictionary file.
 // Assuming the dictionary file contains one word at each line terminated by \n.
-// Dictionary file CAN be used to check if a word submitted by a client is legit.
-// It used only when the optional --diz is setted by CLI.
-// So this function is not mandatory to use. If no dictionary has been received,
+// Dictionary file can be used to check if a word submitted by a client is legit.
+// It used when the optional --diz is setted by CLI with a file path.
+// If --diz is not present, will be used DEFAULT_DICT, if it's not empty.
+// So this function is not mandatory to use. If no dictionary has been received, and DEFAULT_DICT is empty,
 // this function will be useless and the game will only check if the word obtained
 // from the client is present in the current game matrix.
 void loadDictionary(char* path) {
 
     // Dictionary already loaded.
     if (words != NULL) {
-        // Error
-        //printf("Error, a dictionary has been already loaded, it can't be changed.\n");
+        // Cleaning words and words_copy.
+        // Clear also words_copy is a good idea to not create a possible insubstantial state.
         for (int i = 0; i < words_len; i++)
             free(words[i]);
-        //TODO
-        
+        free(words);
+        words = NULL;
+        words_len = 0;
+        if (words_copy != NULL) {
+            for (int i = 0; i < words_len; i++)
+                free(words_copy[i]);  
+            free(words_copy);
+            words_copy = NULL;      
+        }
     }
 
     // Empty path.
@@ -581,8 +630,7 @@ int searchWordInMatrix(int i, int j, char* word) {
 // To know what is "words", refer to the function loadDictionary().
 // This new copy will be called "words_copy".
 // It will contains only the words present in "words" var AND in the current game matrix.
-// So its use is optional just like loadDictionary() and will be useless if a dictionary
-// is not set with the optional parameter --diz.
+// Without a --diz and DEFAULT_DICT this function will be useless and never called.
 // To save memory, only the words_copy var will be allocated on the heap, its elements, 
 // instead, char* (strings), will simply be copied from "words" var.
 // Remember to call this function whenever the current game matrix is changed and a 
@@ -614,16 +662,15 @@ void validateDictionary(void) {
         for (int i = 0; i < NROWS; i++)
             for (int j = 0; j < NCOL; j++)
             // If at least one occurrence of the x-word of the loaded dictionary file
-            // is found in the current game matrix, i will come out from these for.
+            // is found in the current game matrix, I will come out from these for.
                 if((found = searchWordInMatrix(i, j, words[x])) && (i = NROWS) && (j = NCOL))
                 ;
         // Deleting (INCREASING ONLY THE COPY OF "WORDS" POINTERS) the x-word not found.
         // At the end "words_copy" var will contain only all words from the previously loaded
         // dictionary file AND present in the current game matrix. 
-        // The other words will be represented by '\0.
+        // The other words will be represented by '\0'.
         if (!found)
             while(words_copy[x][0] != '\0') words_copy[x]++;
-
     }
 
     // Printing results.
@@ -637,9 +684,8 @@ void validateDictionary(void) {
 // This function validate a word sent by the client/player.
 // It returns 0 if the word is not valid, 1 if it is.
 // Takes as input a pointer to the word (string) to validate.
-// If a dictionary is in use (--diz as been set),
-// it searches the word in the dictionary of the words present in
-// (through global var "char** words_copy", see validateDictionary()) the current game matrix,
+// If a dictionary is in use (--diz has been set or DEFAULT_DICT not empty),
+// it searches the word in the var called "words_copy" filled previously with validateDictionary().
 // If no dictionary is in use, it only looks for the word in the current game matrix.
 /*
 
@@ -647,7 +693,7 @@ void validateDictionary(void) {
     By using a dictionary, as the size of the matrix, the length of the words, and the number
     of searches increase, the efficiency of the software improves because the more onerous
     operation of searching for a word in the matrix is performed only once when the current game 
-    matrix changes. Otherwise, if the dictionary is not used,
+    matrix changes with validateDictionary(). Otherwise, if the dictionary is not used,
     every time the user submits a word, the search has to be performed totally, nullifying
     previously performed searches.
 
@@ -690,8 +736,8 @@ int validateWord(char* word) {
     if (words == NULL)
         return searchWordInMatrix(0, 0, word);
 
-    // DICTIONARY HAS BEEN SET.
-    // Searching the word in the dictionary with the current game matrix words.
+    // DICTIONARY HAS BEEN SET WITH --diz OR DEFAULT_DICT.
+    // Searching the word in the dictionary containing only the the current game matrix words.
     for (int i = 0; i < words_len; i++)
         if (words_copy[i][0] != '\0' && strcmp(words_copy[i], word) == 0) return 1;
     
@@ -704,7 +750,7 @@ int validateWord(char* word) {
 
 ##########################              EXAMPLE             ##########################
 
-Since the previous functions might be unclear/complex let's see an example.
+Since the previous functions might be unclear/complex let's an example.
 
 Let's assume that loadDictionary("/path/to/file.txt") has been called, now we will
 have "char** words" global var, filled with all the words present in the dictionary
@@ -732,7 +778,6 @@ The characters in the matrix are all uppercase.
 In the notation of this example, I wrote some lowercase characters
 to denote those that form the words of interest (present in the file).
 Also, let's assume there is not the constraint of the fixed word length.
-Also, let's assume the game is setted with CASE_SENSITIVE = 0, so it's case INSENSITIVE.
 
 Now let's call validateDictionary(); At the end we will have "char** words_copy" global var
 filled with:
@@ -759,4 +804,9 @@ one received as input from the user and if so the word will be valid, invalid ot
 
 */
 
+void sigintHandler(int signum) {
 
+    printf("Handler CTRLC.\n");
+    return;
+    
+}

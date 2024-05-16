@@ -5,13 +5,22 @@
 #include <string.h>
 #include <signal.h>
 #include <getopt.h>
+#include <ctype.h>
 
+/* EXTERN */
 extern struct sockaddr_in server_addr;
 extern int socket_server_fd;
 extern unsigned int duration;
-extern struct sigaction sigactiontimer;
-extern unsigned int seed;
-extern char DEFAULT_DICT[];
+
+struct sigaction sigactiontimer; // Timer that will handle the game time.
+struct sigaction sigint; // SIGINT handler.
+
+unsigned int seed = 0U;
+
+#define USAGE_MSG "Invalid args. Usage: ./%s nome_server porta_server [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario].\n"
+
+#define DEFAULT_DICT "./Data/dictionary_ita.txt" // To disable use an empty string.
+
 
 int main(int argc, char** argv) {
 
@@ -21,8 +30,18 @@ int main(int argc, char** argv) {
     // Check number of args.
     if (argc < 3 || argc > 11 || ((argc > 3) && (argc != 5 && argc != 7 && argc != 9 && argc != 11))) {
         // Error
-        printf("Invalid args. Usage: ./%s nome_server porta_server [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario].\n", argv[0]);
+        printf(USAGE_MSG, argv[0]);
     }
+
+    // Registering SIGINT singlal handler.
+    int retvalue = 0;
+    sigint.sa_handler = sigintHandler;
+    retvalue = sigaction(SIGINT, &sigint, NULL);
+    if (retvalue == -1) {
+        // Error
+        printf("Error in setting sigint signal handler.\n");
+    }
+    printf("SIGINT signal handler registered.\n");
 
     // Parsing port.
     unsigned int port = atoi(argv[2]);
@@ -35,7 +54,11 @@ int main(int argc, char** argv) {
     server_addr.sin_family = AF_INET;
     
     // Parsing IP.
-    int retvalue = 0;
+    char* s = argv[1];
+    while(s[0] != '\0'){
+        s[0] = tolower(s[0]);
+        s++;
+    } 
     if (strcmp(argv[1], "localhost") == 0)
         retvalue = inet_aton("127.0.0.1", &(server_addr.sin_addr));
     else
@@ -48,7 +71,12 @@ int main(int argc, char** argv) {
     // Checking optional args.
     char* filemath = NULL;
     char* filedict = NULL;
-    for (int i = 3; i < argc; i += 2)
+    for (int i = 3; i < argc; i += 2) {
+        s = argv[i];
+        while(s[0] != '\0'){
+            s[0] = tolower(s[0]);
+            s++;
+        } 
         if (strcmp(argv[i], "--matrici") == 0)
             filemath = argv[i + 1];
         else if (strcmp(argv[i], "--durata") == 0) {
@@ -61,15 +89,15 @@ int main(int argc, char** argv) {
             seed = atoi(argv[i + 1]);
             if ((int) seed <= 0) {
                 // Error
-                printf("Invalid seed %d. Must be greater than 0\n", (int) seed);
+                printf("Invalid seed %d. Must be greater than 0.\n", (int) seed);
             }
         }else if (strcmp(argv[i], "--diz")){
             filedict = argv[i + 1];
         }else{
             // Error
-            printf("Invalid args. Usage: ./%s nome_server porta_server [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario].\n", argv[0]);
+            printf(USAGE_MSG, argv[0]);
         }
-
+    }
     printf("Starting server on IP: %s and port: %d.\n", argv[1], port);
 
     // Setting default args and printing infos.
@@ -89,11 +117,8 @@ int main(int argc, char** argv) {
         seed = 42U;
         printf("Using default seed %u.\n", seed);
     }
-    if (filedict != NULL) 
-        printf("Trying to use dictionary file at: %s.\n", filedict);
-    else
-        printf("No dictionary has been set.\n");
 
+    // Further checks added after the suggestion given by Prof.
     // getopt_long
     // https://man7.org/linux/man-pages/man3/getopt.3.html
     // Starting parsing from 3, because 0 = Program Name, 1 = IP, 2 = Port, 3 = ...
@@ -128,6 +153,7 @@ int main(int argc, char** argv) {
             default:
                    // Error
                    printf("Error while parsing args with getopt_long().\n");
+                   printf(USAGE_MSG, argv[0]);
                    return 0;
                    break;
         }
@@ -135,9 +161,10 @@ int main(int argc, char** argv) {
 
     if (optind < argc) {
          // Error
-         printf("Error, unrecognized args: ");
+        printf("Error, unrecognized args: ");
         while (optind < argc) printf("%s ", argv[optind++]);
         printf("\n");
+        printf(USAGE_MSG, argv[0]);
         return 0;
     }
 
@@ -147,7 +174,7 @@ int main(int argc, char** argv) {
     srand(seed);
     printf("Initialized random seed %u.\n", seed);
 
-    // Registering timer handler.
+    // Registering timer signal handler.
     sigactiontimer.sa_handler = timerHandler;
     retvalue = sigaction(SIGALRM, &sigactiontimer, NULL);
     if (retvalue == -1) {
@@ -157,10 +184,11 @@ int main(int argc, char** argv) {
     printf("Game timer signal handler registered.\n");
 
     // Loading words dictionary in memory.
-    if (filedict != NULL)
+    if (filedict != NULL){
+        printf("Trying to use dictionary file at: %s.\n", filedict);
         loadDictionary(filedict);
-    else{
-        if ((DEFAULT_DICT != NULL)) {
+    }else{
+        if (strlen(DEFAULT_DICT) > 0) {
             printf("Using default dictionary file.\n");
             loadDictionary(DEFAULT_DICT);
         }else{
