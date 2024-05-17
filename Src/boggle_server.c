@@ -1,28 +1,23 @@
-#include "support_functions.h"
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#include <getopt.h>
-#include <ctype.h>
-
-/* EXTERN */
-extern struct sockaddr_in server_addr;
-extern int socket_server_fd;
+// Shared server files vars and libs.
+#include "server.h"
 extern unsigned int duration;
 
-struct sigaction sigactiontimer; // Timer that will handle the game time.
-struct sigaction sigint; // SIGINT handler.
+// Current file vars and libs.
+#include <signal.h>
 
-unsigned int seed = 0U;
+#define USAGE_MSG "Invalid args. Usage: ./%s nome_server porta_server [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario].\n" // Message to print when the user insert wrong args.
 
-#define USAGE_MSG "Invalid args. Usage: ./%s nome_server porta_server [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario].\n"
-
-#define DEFAULT_DICT "./Data/dictionary_ita.txt" // To disable use an empty string.
-
+#define DEFAULT_DICT "./Data/dictionary_ita.txt" // Default dict used why --diz is not present.
 
 int main(int argc, char** argv) {
+
+    // Initializing shared vars.
+    duration = 0U;
+
+    struct sigaction sigint; // SIGINT signal handler.
+    struct sigaction sigactiontimer; // Timer that will handle the game time.
+
+    unsigned int seed = 0U; // Random seed.
 
     // Printing banner.
     printf("\n\n##################\n#     SERVER     #\n##################\n\n");
@@ -39,15 +34,15 @@ int main(int argc, char** argv) {
     retvalue = sigaction(SIGINT, &sigint, NULL);
     if (retvalue == -1) {
         // Error
-        printf("Error in setting sigint signal handler.\n");
+        printf("Error in setting SIGINT signal handler.\n");
     }
     printf("SIGINT signal handler registered.\n");
 
     // Parsing port.
     unsigned int port = atoi(argv[2]);
-    if (port > 65535 || port <= 0) {
+    if (port > 65535U || (int)port <= 0U) {
         // Error
-        printf("Invalid port %u. It should be less than 65535 and higher than 0.\n", port);
+        printf("Invalid port %d. It should be less than 65535 and higher than 0.\n", (int)port);
     }
     server_addr.sin_port = htons(port);
 
@@ -55,14 +50,7 @@ int main(int argc, char** argv) {
     
     // Parsing IP.
     char* s = argv[1];
-    while(s[0] != '\0'){
-        s[0] = tolower(s[0]);
-        s++;
-    } 
-    if (strcmp(argv[1], "localhost") == 0)
-        retvalue = inet_aton("127.0.0.1", &(server_addr.sin_addr));
-    else
-        retvalue = inet_aton(argv[1], &(server_addr.sin_addr));
+    retvalue = parseIP(s, &server_addr);
     if (retvalue != 1) {
         // Error
         printf("Invalid IP %s.\n", argv[1]);
@@ -73,10 +61,7 @@ int main(int argc, char** argv) {
     char* filedict = NULL;
     for (int i = 3; i < argc; i += 2) {
         s = argv[i];
-        while(s[0] != '\0'){
-            s[0] = tolower(s[0]);
-            s++;
-        } 
+        toLowerOrUpperString(s, 'l');
         if (strcmp(argv[i], "--matrici") == 0)
             filemath = argv[i + 1];
         else if (strcmp(argv[i], "--durata") == 0) {
@@ -98,20 +83,20 @@ int main(int argc, char** argv) {
             printf(USAGE_MSG, argv[0]);
         }
     }
-    printf("Starting server on IP: %s and port: %d.\n", argv[1], port);
+    printf("Starting server on IP: %s and port: %u.\n", argv[1], port);
 
     // Setting default args and printing infos.
     if (filemath != NULL) 
         printf("Trying to use matrix file at: %s.\n", filemath);
     else
         printf("Using random matrices.\n");
-    if ((int) duration != 0)
+    if (duration != 0)
         printf("Using inserted duration %u minutes.\n", duration);
     else {
         duration = 3U;
         printf("Using default duration %u minutes.\n", duration);
     }
-    if ((int) seed != 0)
+    if (seed != 0)
         printf("Using inserted seed %u.\n", seed);
     else {
         seed = 42U;
@@ -154,8 +139,7 @@ int main(int argc, char** argv) {
                    // Error
                    printf("Error while parsing args with getopt_long().\n");
                    printf(USAGE_MSG, argv[0]);
-                   return 0;
-                   break;
+                   return 1;
         }
     }
 
@@ -165,7 +149,7 @@ int main(int argc, char** argv) {
         while (optind < argc) printf("%s ", argv[optind++]);
         printf("\n");
         printf(USAGE_MSG, argv[0]);
-        return 0;
+        return 1;
     }
 
     printf("The args seems to be ok...\n");
@@ -188,12 +172,8 @@ int main(int argc, char** argv) {
         printf("Trying to use dictionary file at: %s.\n", filedict);
         loadDictionary(filedict);
     }else{
-        if (strlen(DEFAULT_DICT) > 0) {
-            printf("Using default dictionary file.\n");
-            loadDictionary(DEFAULT_DICT);
-        }else{
-            printf("WARNING: Starting the game without a dictionary file!\nThe submitted words will be searched only in the current game matrix!\n");
-        }
+        printf("Trying to use default dictionary file at %s.\n", DEFAULT_DICT);
+        loadDictionary(DEFAULT_DICT);
     } 
 
     // Initializing game matrix.

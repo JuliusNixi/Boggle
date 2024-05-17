@@ -1,1 +1,0 @@
-cd ../Src/ && clear && make && gcc -c ../Trash/newtests.c && mv newtests.o ../Trash/newtests.o && gcc -Wall -g -pedantic -pthread -o ../Trash/newtests ../Trash/newtests.o ../Bin/support_functions.o && ./../Trash/newtests && rm ../Trash/newtests.o ../Trash/newtests

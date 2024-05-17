@@ -1,15 +1,6 @@
-#include "../Src/support_functions.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "../Src/server.h"
 
-//extern char matrixstring[];
-
-#define NROWS 4
-#define NCOL 4
-#define VOID_CHAR '-'
-char matrix[NROWS][NCOL];
-#define ALPHABET "ABDCDEFGHIJKLMNOPQRSTUVXYZ"
+extern unsigned int duration;
 
 
 // Printing game matrix without serializeMatrixStr
@@ -68,7 +59,7 @@ int main(void) {
         printManualMatrix();
     }
 
-    // Testing validateMatrix.
+    // Re-testing validateMatrix.
     printf("Re-testing validateMatrix...\n");
     for (int x = 0; x < tests; x++) {
         // Changing random character in the matrix with some not allowed.
@@ -98,7 +89,7 @@ int main(void) {
     // Testing loadMatrixFromFile.
     printf("Testing loadMatrixFromFile...\n");    
     for (int i = 0; i < tests; i++) {
-        if (i == 0) loadMatrixFromFile("../Data/matrici.txt");
+        if (i == 0) loadMatrixFromFile("../Data/matriciprof.txt");
         else loadMatrixFromFile(NULL);
         char* s = serializeMatrixStr();
         printf("%s\n", s);
