@@ -6,7 +6,9 @@ List of things to work on.
 
 - [ ] Testing with small/large/not quadratic matrix size. 
 - [ ] acceptClient write stdout error without printf on failing mutex acquire.
-  - [ ] 3
+- [ ] client stampa prompt thread safe
+- [ ] ClientNode* tails used?
+- [ ] Masked signals.
 
 ### Done ✓
 

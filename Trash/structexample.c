@@ -1,3 +1,4 @@
+// Sub struct
 struct j {
     int v;
 };
@@ -10,13 +11,17 @@ struct s{
 struct s i;
 
 
-void modifica(struct j* x) {
+void modify(struct j* x) {
+
     x->v = 100;
+    return;
+
 }
 
 void p(struct s* x) {
 
-    modifica(&x->wp);
+    modify(&x->wp);
+    return;
 
 }
 
@@ -24,10 +29,9 @@ void p(struct s* x) {
 int main(void) {
 
     i.wp.v = 2;
-    printf("prima v: %d\n", i.wp.v);
+    printf("before v: %d\n", i.wp.v);
     p(&i);
-    printf("dopo v: %d\n", i.wp.v);
+    printf("then v: %d\n", i.wp.v);
     return 0;
-
 
 }

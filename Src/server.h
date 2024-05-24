@@ -1,36 +1,19 @@
-// Common used libs.
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <getopt.h>
+// Shared/Common CLIENT & SERVER files vars and libs.
+#include "common.h"
 
-#include <arpa/inet.h>
-struct sockaddr_in server_addr; // Socket server address.
-int socket_server_fd; // Socket server file descriptor.
+// Common server only files used vars and libs.
+typedef unsigned long int uli;
 
-// Functions used. Implementation and infos in the server.c file. 
-void toLowerOrUpperString(char*, char);
-int parseIP(char*, struct sockaddr_in*);
-void startGame(void);
-void acceptClient(void);
-void sigintHandler(int);
-void timerHandler(int);
-void* clientHandler(void*);
-void initMatrix(void);
-void loadDictionary(char*);
-void generateRandomMatrix(void);
-void validateMatrix(void);
-void getMatrixNextIndexes(int*);
-char* serializeMatrixStr(void);
-void loadMatrixFromFile(char*);
-void setAlarm(void);
-int searchWordInMatrix(int, int, char*);
-void validateDictionary(void);
-int validateWord(char*);
+uli gameduration; // Game duration. 
 
-unsigned int duration; // Game duration.
+int usematrixfile;  // 1 if a path has been specified by the user thought CLI args, 0 otherwise.
+char* matpath; // String path rapresenting the path of the matrix file (specified by CLI arg).
+// It's not allocated, it just point (after the initialization) to argv[1].
 
-/*              REMEMBER USED ALSO IN TEST FILE!                */
+
+/*              REMEMBER                */
+// These variables may not be used in the server.c file, but they will be used in the tests.c file.
+
 // Numbers of columns and rows of the game matrix (default 4x4).
 #define NROWS 4 // Matrix number of rows.
 #define NCOL 4 // Matrix number of columns.
@@ -40,33 +23,53 @@ char matrix[NROWS][NCOL];  // Matrix game core.
 
 #define VOID_CHAR '-' // Special char that will used to indicate an undefined state.
 
-#define ALPHABET "abdcdefghijklmnopqrstuvxyz" // Alphabet to be use to generate the matrix.
+#define ALPHABET "abdcdefghijklmnopqrstuvxyz" // Alphabet to be use to generate a random matrix.
+//------------------------------------------------------------------------------------
 
+// The player/client will be stored in a heap linked list, with the below structure.
+struct ClientNode {
+    int socket_client_fd;  // Client socket descriptor.
+    struct sockaddr_in client_addr; // Client address.
+    socklen_t client_address_len; // Client address length.
+    struct ClientNode* next;  // Pointer of the next node of the list.
+    pthread_t thread; // Thread that will handle the player/client.
+    pthread_mutex_t handlerequest;  // Each client will have a mutex that will be acquired from the corresponding thread when a request will be taken over.
+    unsigned int points; // Player points.
+    char** words_validated; // To remember the already submitted words by the player.
+    char* name; // Player's name.
+}; 
 
-/*
-
-NON IN USO
-
-#define MSG_OK 'K'
-#define MSG_ERR 'E'
-#define MSG_REGISTRA_UTENTE 'R'
-#define MSG_MATRICE 'M'
-#define MSG_TEMPO_PARTITA 'T'
-#define MSG_TEMPO_ATTESA 'A'
-#define MSG_PAROLA 'W'
-#define MSG_PUNTI_FINALI 'F'
-#define MSG_PUNTI_PAROLA 'P'
-
-struct Message {
-    char type;
-    unsigned int length;
-    char* data;
-};
-
-#define MAX_NUM_CLIENTS 32
-
-*/
-
+// Functions signature server used. Implementation and infos in the server main file.
+void generateRandomMatrix(void);
+void loadMatrixFromFile(char*);
+void getMatrixNextIndexes(int*);
+void validateMatrix(void);
+void initMatrix(void);
+char* serializeMatrixStr(void);
+void loadDictionary(char*);
+void validateDictionary(void);
+int registerUser(char*, struct ClientNode*);
+void setAlarm(void);
+void startGame(void);
+void* gamePause(void*);
+void acceptClient(void);
+// I used unsigned long because i read that is the best type for handling POSIX time.
+char* itoa(uli);
+uli timeCalculator(uli, char);
+void sendCurrentMatrix(struct ClientNode*);
+void* clientHandler(void*);
+int submitWord(struct ClientNode*, char*);
+int searchWordInMatrix(int, int, char*);
+int validateWord(char*);
+// Present both in client and server, but with DIFFERENT IMPLEMENTATION.
+// void clearExit(void); -> common.h
+// void* signalsThread(void* args); -> common.h
+////////////////////////////////////////////////////////////////////////
+// struct Message* receiveMessage(int); -> common.h
+// void sendMessage(int, char, char*); -> common.h
+// void destroyMessage(struct Message**); -> common.h
+// int parseIP(char*, struct sockaddr_in*); -> common.h
+// void toLowerOrUpperString(char*, char); -> common.h
 
 
 
