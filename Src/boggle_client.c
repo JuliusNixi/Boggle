@@ -7,12 +7,6 @@
 
 #define MSG_AIUTO "Comandi disponibili:\naiuto -> Mostra questa pagina.\nregistra_utente nome_utente -> Permette di registrarsi nel gioco.\nmatrice -> Ottiene la corrente matrice di gioco.\np parola_indicata -> Invia una parola trovata.\nfine -> Esce dal gioco.\n"
 
-// Support struct used only to grab the user input of arbitrary length.
-struct StringNode {
-    char* s;   // Pointer to an heap allocated string.
-    struct StringNode* n; // Pointer to the next list element.
-};
-
 int main(int argc, char** argv) {
 
     int retvalue; // To check system calls result (succes or failure).
@@ -124,6 +118,7 @@ int main(int argc, char** argv) {
        mLock(&mprint);
        if (aprint == 0) {
             fflush(stdin);
+            while (1) if ((retvalue = read(STDIN_FILENO, NULL, 1)) == 0) break;
             printf(PROMPT_STR);
             fflush(stdout);
             // Prompt printed. Informing the other thread (responses handler) to not print it.
@@ -245,6 +240,7 @@ int main(int argc, char** argv) {
         if (strcmp("fine", input) == 0){
             mLock(&mprint);
             printf("Ciao, ciao, alla prossima! Grazie per aver giocato.\n");
+            sendMessage(client_fd, MSG_ESCI, NULL);
             // I quit the program, no need to release the lock.
             break;
         }

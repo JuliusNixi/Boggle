@@ -11,19 +11,33 @@ int main(int argc, char** argv) {
     int retvalue; // To check system calls result (succes or failure).
     unsigned int seed = 0U; // Random seed.
 
-    // Creating a mask, that will block the SIGINT and SIGALRM signals, and enabling
-    // it for the current main thread.
-    // Important to do it as soon as possible.
+    // Creating a mask, that will block the SIGINT and SIGALRM signals for all thread except
+    // the dedicated thread signal handler. Important to do it as soon as possible.
     sigemptyset(&signal_mask);
     sigaddset(&signal_mask, SIGINT);
     sigaddset(&signal_mask, SIGALRM);
+
+    // Enabling the mask.
     retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
     if (retvalue != 0) {
         // Error
         printf("Error in setting the pthread signals mask.\n");
     }
+    printf("Threads signals mask enabled correctly.\n");
 
-    /* Any newly created threads INHERIT the signal mask with these signals blocked. */
+    struct sigaction sigusr1; // SIGUSR1 signal struct, will be used to handle the game end.
+  
+    // Setting the endGame handler.
+    sigusr1.sa_flags = 0;
+    sigusr1.sa_handler = endGame;   
+    retvalue = sigaction(SIGUSR1, &sigusr1, NULL);
+    if (retvalue == -1) {
+        // Error
+        printf("Error in setting SIGUSR1 signal handler.\n");
+    }           
+    printf("SIGUSR1 signal handler registered correctly.\n");
+
+    /* Any newly created threads INHERIT the signal mask with SIGALRM, SIGINT signals blocked. */
 
     // Creating the thread that will handle ALL AND EXCLUSIVELY SIGINT and SIGALRM signals by
     // waiting with waitsignal() forever.
@@ -78,7 +92,7 @@ int main(int argc, char** argv) {
     char* filemath = NULL;
     char* filedict = NULL;
     for (int i = 3; i < argc; i += 2) {
-        toLowerOrUpperString(argv[i], 'l');
+        toLowerOrUpperString(argv[i], 'L');
         if (strcmp(argv[i], "--matrici") == 0)
             filemath = argv[i + 1];
         else if (strcmp(argv[i], "--durata") == 0) {

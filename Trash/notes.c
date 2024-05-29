@@ -1,26 +1,13 @@
 /*
 
 #include <sys/socket.h>
-#include <errno.h>
 
-
-# Client ip e porta
-INET_ADDRSTRLEN size of buffer
-char buf [INET_ADDRSTRLEN] = {0}; 
-         #include <arpa/inet.h>
-	inet_ntop(AF_INET, &(new->client_addr.sin_addr), buf, new->client_address_len);
-    printf("%d %s\n", new->client_addr.sin_port, buf);
 
 
 
  binarySearch(arr, 0, n - 1, x);
 
-    
-    // Ricezione del messaggio
-    ssize_t n_read = 0;
-    char buffer[BUFFER_SIZE];
-    n_read =  read(new->socket_client_fd, buffer, BUFFER_SIZE);
-    printf("\n%s\n",buffer);
+
     
 
 */

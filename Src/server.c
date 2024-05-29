@@ -21,44 +21,64 @@ unsigned long int pausetime = 0;  // Time of the last pause startup.
 
 int pauseon = 0;
 pthread_mutex_t pausemutex = PTHREAD_MUTEX_INITIALIZER;
-
-
-
-
-
-
-
-
-
-
-
-
-
-volatile sig_atomic_t signalsecurepause;
 pthread_t pausethread;
-int pausethreadend = 0;
-
-struct Queue {
-    unsigned long int points;
-    int socket_client_fd;
-    struct Queue* next;
-};
-struct Queue* headq;
-struct Queue* tailq;
-
-// SISTEMARE
-unsigned long connectedplayers;
-unsigned long activeplayers;
-int sistemare = 0;
-
 
 #define MAX_NUM_CLIENTS 32
-unsigned int connectedclients;
+unsigned int nclientsconnected = 0U;
 
+pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER;
+struct Queue {
+    struct ClientNode* e;
+    struct Queue* next;
+};
+struct Queue* headq = NULL;
+struct Queue* tailq = NULL;
+unsigned int nclientsqueuedone = 0U;
+pthread_t queue;
 void* scorer(void* args) {
 
-    return NULL;
+
+    /////////////////////////////////////////////////////////////////////////////
+    // WARNING: NOW clientHandler() THREADS ARE RUNNING AGAIN AND CAN ACCESS TO
+    // struct ClientNode* OBJECT (but not the entire clients list)!
+    /////////////////////////////////////////////////////////////////////////////
+
+    // Game ranking creation.
+    // Locking now this queue it should be pointless,
+    // since if we got here all the threads should have already completed the insertion
+    // on the queue, however I do it just in case (for best practice).
+    mLock(&queuemutex);
+
+    printf("smusi");
+    // TODO
+    
+    struct StringNode* heads;
+    struct Queue* current = headq;
+    struct ClientNode array[nclientsconnected];
+    //for (unsigned int i = 0; i < nclientsconnected)
+    while (1) {
+        if (current == NULL) break;
+
+        current = current->next;
+    }
+    
+
+    
+
+
+
+    mULock(&queuemutex);
+
+    pthread_exit(NULL);
+
 }
+
+
+
+
+
+
+
 
 
 
@@ -275,28 +295,137 @@ void* signalsThread(void* args) {
 
         // Treatment of different signals.
         switch (sig){
-        case SIGINT:{ 
+            case SIGINT:{ 
+                // TODO
+                break;
+            }case SIGALRM:{
+                // This will manage the SIGALRM signal triggered by the timer when the game is over.
 
-            break;
-        }case SIGALRM:{
-            // This will manage the SIGALRM signal triggered by the timer when the game is over.
+                // The game is over.
+                printf("\n\nGame FINISHED!\n\n");
 
-            // The game is over.
-            printf("\n\nGame FINISHED!\n\n");
+                // Enabling pause.
+                mLock(&pausemutex);
+                mLock(&listmutex);
 
-            //mLock(&listmutex);
-            
-            pauseon = 1;
+                struct ClientNode* current = head;
 
-            // ... points total ...
+                // Locking threads handlers, when they complete the current request.
+                while (1) {
+                    if (current == NULL) break;
+                    mLock(&(current->handlerequest));
+                    current = current->next;
+                }
+                // Enabling pause, it's safe because all the clients threads are SUSPENDED
+                // on their mutexes or before on read() and cannot read pauseon.
+                pauseon = 1;
+                // Advising the threads handlers of end of game to stop read().
+                while (1) {
+                    if (current == NULL) break;
+                    retvalue = pthread_kill(current->thread, SIGUSR1); 
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    current = current->next;
+                }
+                // TODO Waiting pthread_kill?
+                // Now all clients threads (in clientHandler()) are suspended
+                // on their mutexes (eventually read() are stopped),
+                // except for those in disconnectClient(), but these last are not relevant.
+                // Releasing all threads, now they can read the modified pauseon.
+                while (1) {
+                    if (current == NULL) break;
+                    mULock(&(current->handlerequest));
+                    current = current->next;
+                }
+                // Important to realease to not suspend during the pause the clients accepting.
+                mULock(&listmutex);
+                // Releasing the lock.
+                mULock(&pausemutex);
 
-            // Pause on.
+                /////////////////////////////////////////////////////////////////////////////
+                // WARNING: NOW clientHandler() THREADS ARE RUNNING AGAIN AND CAN ACCESS TO
+                // struct ClientNode* OBJECT (their own mutex not entirely the list)!
+                /////////////////////////////////////////////////////////////////////////////
 
-            break;
-        }default:
-            // Error
-            printf("");
-            break;
+                // Threads working on queue...
+                // After threads can once again return to respond to clients requests...
+
+                // Checking completed threads fill queue.
+                while (1) {
+                    mLock(&queuemutex);
+                    // nclientsconnected remember to use it only after acquiring the listmutex!
+                    mLock(&listmutex);
+                    // All threads have succesfully filled the queue.
+                    if (nclientsqueuedone == nclientsconnected) break;
+                    mULock(&listmutex);
+                    mULock(&queuemutex);
+                    // To avoid instant re-acquiring.
+                    usleep(100);
+                }
+                mULock(&listmutex);
+                mULock(&pausemutex);
+
+
+                // Creating the score thread.
+                retvalue = pthread_create(&queue, NULL, scorer, NULL);
+                if (retvalue != 0) {
+                    // Error
+                }
+                // Waiting the score thread to finish.
+                retvalue = pthread_join(queue, NULL);
+                if (retvalue != 0){
+                    // Error
+
+                }
+
+                // Executing pause.
+                retvalue = pthread_create(&pausethread, NULL, gamePause, NULL);
+                if (retvalue != 0){
+                    // Error
+
+                }
+                // Waiting the pause thread to finish.
+                retvalue = pthread_join(pausethread, NULL);
+                if (retvalue != 0){
+                    // Error
+
+                }
+
+                // Clearing the queue.
+                clearQueue();
+
+
+                // Disabling pause and starting a new game.
+                mLock(&pausemutex);
+                mLock(&listmutex);
+                // Locking threads to avoid unsafe multithreading situations.
+                while (1) {
+                    if (current == NULL) break;
+                    mLock(&(current->handlerequest));
+                    current = current->next;
+                }
+                // Disabling pause.
+                pauseon = 0;
+                // Starting a new game.
+                startGame();
+                // Preparing clients for a new game.
+                // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
+                updateClients();
+                // Releasing clients locks.
+                while (1) {
+                    if (current == NULL) break;
+                    mULock(&(current->handlerequest));
+                    current = current->next;
+                }
+                mULock(&listmutex);
+                mULock(&pausemutex);
+
+                break;
+            }default:
+                // Error
+                // TODO
+                break;
         }
     }
 
@@ -685,15 +814,15 @@ void validateDictionary(void) {
 // - to simply check if a connected user is registered or not (by passing a NULL name as arg).
 //   it returns 1 if registered, 0 otherwise.
 // - to register a new user if the proposed username is not already registered.
-//   it returns 1 if registered succesfully, 0 if the name is already present and so
-//   no registration has been made. If successful it also initialize the struct NodeClient
-//   name and words_validated fields.
-int registerUser(char* name, struct ClientNode* user) {
-
-    if (words == NULL || words_copy == NULL || words_len == 0) {
-        // Error
-        printf("Error, dictionary not loaded or validated. Call before loadDictionary() AND validateDictionary().\n");
-    }
+//   it returns -1 if registered succesfully, -2 if the name is already present and c if 
+//   the proposed name does not match the alphabet of allowed chars (global #define), 
+//   where c is the first invalid char code.
+//   So, in these last two cases, no registration will be made.
+//   If successful it also initialize the struct ClientNode name and words_validated fields.
+// In the second use case, It's possible a deadlock situation during the end of the game,
+// in which case the function resolves the deadlock, saves the message to process later,
+// and returns -3.
+int registerUser(char* name, struct ClientNode* user, struct Message* m) {
 
     // Invalid user arg check.
     if (user == NULL) {
@@ -708,13 +837,57 @@ int registerUser(char* name, struct ClientNode* user) {
     }
 
     // Normalizing in UPPERCASE the player name.
-    toLowerOrUpperString(name, 'u');
+    toLowerOrUpperString(name, 'U');
 
+    // Checking the conformity of the name against the alphabet.
+    for (unsigned int x = 0; x < strlen(name); x++) {
+        int found = 0;
+        for (unsigned int i = 0; i < strlen(ALPHABET); i++) {
+            char c = toupper(ALPHABET[i]);
+            if (name[x] == c) {
+                found = 1;
+                break;
+            }
+        }
+        if (found == 0) return name[x];
+    }
+
+    int retvalue;
+    retvalue = pthread_mutex_trylock(&pausemutex);
+    if (retvalue != 0) {
+        if (retvalue == EBUSY) {
+            // Pause is on!
+            // DANGER OF DEADLOCK:
+            // thread clientHandler() -> acquire lock client->handlerequest
+            // signalsThread() -> acquire listmutex lock list.
+            // registerUser() (this function called by clientHandler()) -> wait on listmutex lock list.
+            // signalsThread() -> wait on lock client->handlerequest
+            // Mutual waiting!
+            // DEADLOCK!!!!
+            // For this we have used pthread_mutex_trylock() and pausemutex here.
+            // Saving the message to process it later.
+            user->queuedmessage = m;
+            // Pre-releasing the mutex to fix the deadlock.
+            mULock(&(user->handlerequest));
+            // To avoiding to re-acquiring immediately.
+            usleep(100);
+            return -3;
+        }else{
+            // Error
+        }
+    }
+    // TryLock success.
+    // listmutex CANNOT BE acquired by the signalsThread() thanks to pausemutex, acquiring it,
+    // acquiring by other threads is not a problem.
     mLock(&listmutex);
+    // If registerUser() is called, it means at least 1 player should be in the clients list.
+    if (head == NULL || tail == NULL) {
+        // Error
+        printf("Error, called registerUser() and the clients list is empty.\n");
+    }
     // Going through the list.
+    // If registerUser() is called, it means at least 1 player should be in the clients list.
     struct ClientNode* current = head;
-    struct ClientNode* prev = head;
-    struct ClientNode* tmp = NULL;
     int found = 1;
     while (1) {
         if (current == NULL) break;
@@ -723,13 +896,13 @@ int registerUser(char* name, struct ClientNode* user) {
             found = 0;
             break;
         } 
-        tmp = current;
         current = current->next;
-        prev = current;
     }
     mULock(&listmutex);
+    mULock(&pausemutex);
 
-    if (!found) return 0;
+    // Name already present.
+    if (!found) return -2;
 
     // If we arrive here the user name is valid and not already registered.
 
@@ -737,7 +910,7 @@ int registerUser(char* name, struct ClientNode* user) {
     char* str = (char*) malloc(sizeof(char) * strlen(name));
     if (str == NULL) {
         // Error
-        printf("Error registering a new user.\n");
+        printf("Error registering a new user name.\n");
     }
     // Copying the new username in heap memory.
     strcpy(str, name);
@@ -751,14 +924,14 @@ int registerUser(char* name, struct ClientNode* user) {
     user->words_validated = (char**) malloc(sizeof(char*) * words_len);
     if (user->words_validated == NULL) {
         // Error
-        printf("Error in allocating heaap memory for words_validated of a client/player in registerUser().\n");
+        printf("Error in allocating heap memory for words_validated of a client/player in registerUser().\n");
     }
     for (unsigned int i = 0; i < words_len; i++) (user->words_validated)[i] = words_copy[i];
 
     printf("Registered user with new name %s.\n", user->name);
 
     // Registered succesfully.
-    return 1;
+    return -1;
 
 }
 
@@ -768,7 +941,7 @@ int registerUser(char* name, struct ClientNode* user) {
 void setAlarm(void) {
 
     // Alarm takes as input seconds, but the user input (gameduration var) is in minutes.
-    // alarm(60 * duragamedurationtion);
+    // alarm(60 * gameduration);
 
     /*
     Time remaining to the next match: 1716168197 seconds.
@@ -785,8 +958,6 @@ void setAlarm(void) {
 void startGame(void) {
 
     printf("A new game is started right now.\n");
-
-    //mLock(&pausemutex);
 
     // Getting new game start timestamp in POSIX.
     matchtime = (unsigned long) time(NULL);
@@ -808,6 +979,9 @@ void startGame(void) {
     // Setting the new pause timer.
     setAlarm();
 
+    // Printing current connected clients.
+    printConnectedClients(head);
+
 }
 
 // This function will run in a dedicated thread.
@@ -818,12 +992,6 @@ void* gamePause(void* args) {
 
     // Executing the pause.
     sleep(PAUSE_DURATION);
-
-    // Ending pause.
-    // ...
-    
-    // Starting a new game.
-    startGame();
 
     // Terminating the thread. This WILL NOT EVEN return.
     pthread_exit(NULL);
@@ -862,24 +1030,46 @@ void acceptClient(void) {
 
     // Initializing new client.
     new->next = NULL;
+
+    // PTHREAD_MUTEX_ERRORCHECK
+    // This type of mutex provides error checking. 
+    // A thread attempting to relock this mutex without first unlocking it shall return with an error. 
+    // A thread attempting to unlock a mutex which another thread has locked shall return with an error.
+    // A thread attempting to unlock an unlocked
+    // mutex shall return with an error.
+    retvalue = pthread_mutexattr_init(&(new->handlerequestattr));
+    if (retvalue != 0) {
+        // Error
+        printf("Error in mutex handle request attributes initialization.\n");
+    }
+
+    retvalue = pthread_mutexattr_settype(&(new->handlerequestattr), PTHREAD_MUTEX_ERRORCHECK);
+    if (retvalue != 0) {
+        // Error
+        printf("Error in setting mutex handle request attributes.\n");
+    }
+
     // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
     // In this case i must use pthread_mutex_init().
-    retvalue = pthread_mutex_init(&(new->handlerequest), NULL);
+    retvalue = pthread_mutex_init(&(new->handlerequest), &(new->handlerequestattr));
     if (retvalue != 0) {
         // Error
         printf("Error in mutex handle request initialization.\n");
     }
+
     new->points = 0U;
     // These below fields are truly initalized when the client is registered in registerUser().
     new->words_validated = NULL;
     new->name = NULL;
+    new->queuedmessage = NULL;
+    new->exited = 0;
 
     // Adding the client to the list and updating global vars head and tail useful
     // to manage the list.
     // Lock the mutex.
     mLock(&listmutex);
     // Empty list.
-    if (head == NULL) {
+    if (head == NULL || tail == NULL) {
         head = new;
         tail = new;
     }else {
@@ -887,8 +1077,6 @@ void acceptClient(void) {
         tail->next = new;
         tail = tail->next;
     }
-    // Unlock the mutex.
-    mULock(&listmutex);
     printf("New client added to the list.\n");
     
     // Starting a new pthread to handle the new client.
@@ -965,6 +1153,11 @@ uli timeCalculator(uli matchorpausetime, char mode) {
 // and then send it (with sendMessage() function) to the received as input client.
 void sendCurrentMatrix(struct ClientNode* client) {
 
+    if (client == NULL) {
+        // Error
+        printf("Error, sendCurrentMatrix() received an empty client.\n");
+    }
+
     char* mat = serializeMatrixStr();
     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
     free(mat);
@@ -981,23 +1174,106 @@ void sendCurrentMatrix(struct ClientNode* client) {
 // Then it will process the request and will reply back to the client.
 void* clientHandler(void* voidclient) {
 
+    if (voidclient == NULL) {
+        // Error
+        printf("Error, clientHandler() received an empty void-client.\n");
+    }
+
     // Casting void* to ClientNode*.
     struct ClientNode* client = (struct ClientNode*) voidclient;
-
+    int retvalue;
     struct Message* received = NULL;
+    int localpauseon = 0;
+    nclientsconnected++;
+
+    // Max clients (optional) feature (to disabled set MAX_NUM_CLIENTS to 0).
+    if (MAX_NUM_CLIENTS == nclientsconnected) {
+        printf("Maximum number of clients reached. Disconnecting the new client.\n");
+        sendMessage(client->socket_client_fd, MSG_ERR, "Maximum number of clients reached. Disconnecting you... :(\n");
+        // IMPORTANT: Release the listmutex lock before disconnectClient(), since it itself acquires it!
+        mULock(&listmutex);
+        disconnectClient(&client, 0);
+        // client->handlerequest not acquired yet, no need to release it.
+        // THIS THREAD IS DEAD.
+    }
+
+    // Unlock the mutex.
+    mULock(&listmutex);
+
+    // Setup client completed.
+
     while (1) {
 
-        // Waiting messages.
-        received = receiveMessage(client->socket_client_fd);
+        if (client->queuedmessage == NULL)
+            // Waiting messages.
+            received = receiveMessage(client->socket_client_fd);
+        else{
+            // There is a previous message to be processed because of an interruption
+            // due to the end of the game.
+            client->queuedmessage = NULL;
+        }
+
+        // Avoiding interrupts while processing response.
+        // In this way EVERY COMPLETE REQUEST received BEFORE the TIMER, will be processed.
+        /*
+        
+        man pthread_mutex_lock
+
+        [...] If a signal is delivered to a thread waiting for a mutex, upon return from 
+        the signal handler the thread shall resume waiting for the mutex as if it was
+        not interrupted. [...]
+        
+        */
+        mLock(&(client->handlerequest));
+
+        if (pauseon) {
+            if (localpauseon == 0) localpauseon = 1;
+        }else{
+            localpauseon = 0;
+        }
+
+        // Lock acquired after end game, received interrupted/failed, so not valid.
+        if (received == NULL) {
+            // End of game message on queue.
+            // Sending end game.
+            gameEndQueue(client);
+
+            // Clearing previous received INCOMPLETED requests.
+            while(1){
+                retvalue = read(client->socket_client_fd, NULL, BUFFER_SIZE);
+                if (retvalue == 0) break;
+            } 
+            sendMessage(client->socket_client_fd, MSG_IGNORATO, NULL);
+
+            localpauseon = 2;
+            
+            mULock(&(client->handlerequest));
+            continue;
+        }else{
+            // There is a full message received after the end game to process.
+            if (pauseon && localpauseon == 1) {
+                // End of game message on queue.
+                // Sending end game.
+                gameEndQueue(client);
+
+                localpauseon = 2;
+
+                // Continuing processing previous received request.
+
+            }else{
+                // Normal message, nothing to do.
+                ;
+            }
+        }
 
         // Processing the new request.
         switch (received->type) {
             
             case MSG_MATRICE: {
 
-                // Not logged in, r = 0.
-                int r = registerUser(NULL, client);
-                if (!r){
+                int r = registerUser(NULL, client, received);
+                // Not yet authenticated.
+                if (r == 0){
                     sendMessage(client->socket_client_fd, MSG_ERR, "You're not authenticated. Please sign up before.\n");
                     printf("A user requested the game matrix before the auth.\n");            
                     break;
@@ -1032,25 +1308,36 @@ void* clientHandler(void* voidclient) {
                 break; 
 
             }case MSG_REGISTRA_UTENTE:{
-
+         
+                int r = registerUser(NULL, client, received);
                 // Already logged in r = 1.
-                int r = registerUser(NULL, client);
-                if (r){
+                if (r == 1){
                     sendMessage(client->socket_client_fd, MSG_ERR, "You're already authenticated.\n");
                     printf("An user already registered, tried again to register, his name: %s.\n", client->name);
                     break;
                 }
 
                 // Trying to register the proposed name.
-                r = registerUser(received->data, client);
-                if (r){
+                r = registerUser(received->data, client, received);
+                // Interrupted by end game.
+                if (r == -3) continue;
+                if (r == -1){
                     // Registered succesfully.
                     sendMessage(client->socket_client_fd, MSG_OK, "Registered correctly with name.\n");
                     printf("User registered succesfully, request from name %s satisfied.\n", client->name);
-                }else{
+                    break;
+                }
+                if (r == -2){
                     // Name already present.
                     sendMessage(client->socket_client_fd, MSG_ERR, "Name already present in the game, please chose a different one.\n");
                     printf("An user tried registering an already present name: %s.\n", received->data);
+                    break;
+                }
+                if (r > 0) {
+                    // At least 1 invalid char againist the alphabet in the proposed name.
+                    sendMessage(client->socket_client_fd, MSG_ERR, "The proposed name contains at least one character, that's not in the alphabet.\nThe alphabet of admitted characters is:\n");
+                    sendMessage(client->socket_client_fd, MSG_ERR, ALPHABET);
+                    printf("An user tried to register the proposed name: %s. It contains the: %c character, that's invalid.\n", received->data, (char) r);
                     break;
                 }
 
@@ -1094,8 +1381,8 @@ void* clientHandler(void* voidclient) {
             }case MSG_PAROLA: {
 
                 // Not logged in.
-                int r = registerUser(NULL, client);
-                if (!r) {
+                int r = registerUser(NULL, client, received);
+                if (r == 0) {
                     sendMessage(client->socket_client_fd, MSG_ERR, "You're not authenticated. Please sign up before.\n");
                     printf("An user tried to submit a word before the auth.\n");            
                     break;
@@ -1132,14 +1419,24 @@ void* clientHandler(void* voidclient) {
 
                 free(strint);
                 break;
-
+            }case MSG_ESCI : {
+                printf("Received a disconnect request.\n");
+                destroyMessage(&received);
+                disconnectClient(&client, 0);
+                // No need to release handlerequest mutex, will be released and destroyed
+                // by disconnectClient().
+                // THIS THREAD IS DEAD.
             }case MSG_ERR : {
+
+                // TODO
 
                 break;
 
             }default:{
 
+                // TODO
                 // Not recognized message.
+
                 break;
 
             } 
@@ -1147,6 +1444,7 @@ void* clientHandler(void* voidclient) {
         } // Switch end.
 
         destroyMessage(&received);
+        mULock(&(client->handlerequest));
 
     } // While end.
 
@@ -1170,7 +1468,7 @@ int submitWord(struct ClientNode* player, char* word) {
     }
 
     // Normalizing the word to UPPERCASE.
-    toLowerOrUpperString(word, 'u');
+    toLowerOrUpperString(word, 'U');
 
     // i is the index of the searched word in the "words_copy" var.
     // "words_copy" mantain only the words present BOTH in the dictionary
@@ -1278,7 +1576,7 @@ int validateWord(char* word) {
     // or "HoMe" or "HOME".
     // Will all be accepted if the word is present in the dictionary file and the
     // current game matrix.
-    toLowerOrUpperString(word, 'u');
+    toLowerOrUpperString(word, 'U');
 
     // Searching the word in the dictionary containing only the the current game matrix words.
     for (unsigned int i = 0; i < words_len; i++)
@@ -1297,11 +1595,339 @@ void clearExit(void){
 
 }
 
+// This function disconnect a client, it before removes the client from the clients list.
+// Then free all the heap allocated objects and destroy the relative mutex.
+// It takes as input a struct ClientNode** clienttodestroy that rapresent the interested client.
+// The terminatethread, if 1 inform the function to also terminate forced the corresponding thread and return.
+// Otherwise, it means that the clientHandler() thread itself has called this function and thus
+// it terminates the thread that is executing it WITHOUT RETURN.
+// This option should be used when the caller of the functions is not itself the thread of the client
+// to disconnect.
+void disconnectClient(struct ClientNode** clienttodestroy, int terminatethread) {
+
+    // Invalid clienttodestroy.
+    if (*clienttodestroy == NULL) {
+        // Error
+        printf("Error, invalid client to disconnect.\n");
+    }
+
+    struct ClientNode* client = *clienttodestroy;
+
+    // Invalid client.
+    if (client == NULL) {
+        // Error
+        printf("Error, disconnectClient() received an empty client.\n");
+    }
+
+    int retvalue;
+    disconnect_restart: {
+        retvalue = pthread_mutex_trylock(&(client->handlerequest));
+        if (retvalue != 0) {
+            if (retvalue == EBUSY) {
+                // Already acquired by someone.
+                // client->handlerequest can be already acquired by:
+                // - clientHandler() before of calling this funciton (so we have ourself the lock)
+                // - signalsThread() in game pause.
+                // Detecting and fixing these possibilities.
+                // IMPORTANT: No use in this case the wrapper mLock/mULock because we must handle in
+                // a specific way the error.
+                retvalue = pthread_mutex_unlock(&(client->handlerequest));
+                if (retvalue == 0) {
+                    // Already locked by us previously of the calling of this function, released.
+                    // Retrying in a moment.
+                    usleep(100);
+                    goto disconnect_restart;
+                }else if (retvalue == 1){
+                    // Already locked by signalsThread().
+                    // See for example MAX_NUM_CLIENTS check in clientHandler() (at the top) function
+                    // BEFORE acquiring client->handlerequest, in this moment signalsThread() could 
+                    // acquire this mutex because we have released listmutex.
+
+                    // WHY USING GOTO THAT CAUSES SPAGHETTI CODE?!?!
+                    // Because this function could recursively recall itself so many times
+                    // before signalsThread() ends and releases the client->handlerequest lock.
+                    // This could cause stackoverflow, but fortunally we don't need the stack of
+                    // the previous call, so in this case the goto is perfect to jump at the start
+                    // of this function.
+                    // Waiting the lock...
+                    usleep(100);
+                    goto disconnect_restart;
+                }else {
+                    // Error
+                }
+            }else{
+                // Error
+            }      
+        }
+        // Trylock success, now locked by us.
+
+
+        // OWNING client->handlerequest MUTEX.
+
+
+        retvalue = pthread_mutex_trylock(&pausemutex);
+        if (retvalue != 0) {
+            // Already locked by another clientHandler() or by singnalsHandler().
+            if (retvalue == EBUSY) {
+                // Releasing to prevent deadlock.
+                mULock(&(client->handlerequest));
+                usleep(100);
+                goto disconnect_restart;
+            }else{
+                // Error
+            }
+        }
+        // Trylock success, now locked by us.
+
+
+        // OWNING pause MUTEX.
+
+        // Now possible danger situation cannot happen because signalsThread() and
+        // eventually others clientHandler() are locked out (waiting on pausemutex)
+        // and cannot acquire the listmutex.
+
+        // Removing from the list (the client destruction will be done LATER in this function).
+        mLock(&listmutex);
+        // Empty list (impossible if a client is requested to be disconnected).
+        if (head == NULL || tail == NULL) {
+            // Error
+            printf("Error, cannot disconnect the client, because the player list is empty.\n");
+        }
+        // Going trought the clients list.
+        struct ClientNode* current = head;
+        struct ClientNode* prev = head;
+        struct ClientNode* tmp = NULL;
+        int found = 0;
+        while (1) {
+            if (current == client){
+                if (current == head && current == tail) found = 1;
+                else if (current == head) found = 2;
+                else if (current == tail) found = 3;
+                else found = 4;
+                break;
+            }
+            if (current == NULL) break;
+            tmp = current;
+            current = current->next;
+            prev = tmp;
+        }
+        if (found){
+            if (found == 1) {
+                // The list contains only 1 element.
+                head = NULL;
+                tail = NULL;
+            }else if (found == 2) {
+                // To remove the first element.
+                head = head->next;
+            }else if (found == 3) {
+                // prev->next contains the element to remove.
+                // To remove the last element.
+                tail = prev;
+            }else{
+                // At least 3 elements in the list and the victim is in the middle.
+                // prev->next contains the element to remove.
+                prev->next = prev->next->next;
+            }
+        }else{
+            // Error
+            printf("Error, the client you asked to remove from the list is not in it.\n");
+            mULock(&pausemutex);
+            mULock(&listmutex);
+            return;
+        }
+        nclientsconnected--;
+        mULock(&pausemutex);
+        mULock(&listmutex);
+
+        pthread_t tmpt;
+        tmpt = client->thread;
+
+        // Still owning it, signalsThread() cannot stall because the client is already removed
+        // from clients list.
+        pthread_mutex_destroy(&(client->handlerequest));
+
+        // Cleaning the client object.
+        client->socket_client_fd = -1;
+        client->client_address_len = 0;
+        client->next = NULL;
+        client->points = 0U;
+        free(client->words_validated);
+        client->words_validated = NULL;
+        free(client->name);
+        client->name = NULL;
+        free(client->queuedmessage);
+        client->queuedmessage = NULL;
+        pthread_mutexattr_destroy(&(client->handlerequestattr));
+        free(client);
+        *clienttodestroy = NULL;
+
+        // Terminate the corresponding thread if requested.
+        if (terminatethread) {
+            retvalue = pthread_kill(tmpt, SIGQUIT);
+            if (retvalue != 0) {
+                // Error
+            }
+            return;
+        }else
+            pthread_exit(NULL);
+    }
+}
+
+// This function is the SIGUSR1 signal handler.
+// It executed by every clientHandler() thread, when received the signal from signalsThread()
+// which corresponds to the end of the game.
+void endGame(int signum) {
+
+    // This is used only to interrupt the read() with EINTR in errno.
+    return;
+
+}
+
+// Update players info at start of a new game.
+// IT ASSUME that all mutexes are ALREADY LOCKED and loadDictionary() and validateDictionary()
+// has been called before!
+void updateClients(void) {
+
+    // loadDictionary() and/or validateDictionary() not called before.
+    if (words == NULL || words_copy == NULL) {
+        // Error
+    }
+
+    // Going through the list.
+    struct ClientNode* current = head;
+    while (1) {
+        if (current == NULL) break;
+        // Resetting points.
+        current->points = 0U;
+        // IMPORTANT: Copying the new words_copy (of the new matrix).
+        if (current->name != NULL)
+            for (unsigned int i = 0; i < words_len; i++) (current->words_validated)[i] = words_copy[i];
+        current = current->next;
+    }
+
+}
+
+// Simply print all connected clients with their informations recursively.
+// IT ASSUME that listmutex is already acquired by the caller!
+// It takes as input an element of the clients list (a pointer to it) to start with.
+void printConnectedClients(struct ClientNode* c) {
+
+    // End list reached.
+    if (c == NULL) return;    
+    // Getting as string the client IP, and the port.  
+    char buf[INET_ADDRSTRLEN] = {0}; 
+	inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
+    int port = c->client_addr.sin_port;
+
+    // Preparing the string that will be printed.
+    char st[] = "Name: %s - IP: %s - Port: %d - Thread ID: %LU\n";
+
+    // Calculating the needed name space.
+    size_t namelen;
+    char v[] = "Unregistered";
+    if (c->name != NULL) namelen = strlen(c->name);
+    else namelen = strlen(v);
+
+    // Allocating the needed heap memory to store the string to print.
+    char* s = (char*) malloc((namelen + INET_ADDRSTRLEN + strlen(st)) * sizeof(char));
+    if (s == NULL) {
+        // Error
+    }
+
+    // Filling the string with data.
+    if (c->name != NULL) sprintf(s, st, c->name, buf, port, (unsigned long) c->thread);
+    else namelen = sprintf(s, st, v, buf, port, (unsigned long) c->thread);
+
+    // Printing string.
+    printf("%s", s);
+
+    // Freeing the allocated heap memory.
+    free(s);
+
+    // Recursively print the next client in the clients list.
+    printConnectedClients(c->next);
+
+}
+
+// This function create (and add element to) a heap allocated queue.
+// Each struct Queue element contains a struct ClientNode* object and a pointer to the next element.
+// It's called by each clientHandler() function at end of game, if the player is registered 
+// (name != NULL).
+// Is possible to use the queue by accessing to headq and tailq global struct Queue*.
+void gameEndQueue(struct ClientNode* e) {
+
+    // Invalid client.
+    if (e == NULL) {
+        // Error
+    }
+
+    struct Queue* new;
+    new = (struct Queue*) malloc(sizeof(struct Queue));
+    if (new == NULL) {
+        // Error
+    }
+    new->next = NULL;
+    new->e = e;
+
+    // A simply mutex used only to sync with others threads in the queue.
+    mLock(&queuemutex);
+    struct Queue* tmp = NULL;
+    // Example of a queue because sometimes I confuse head and tail... xD
+    //           Tail -> NULL <- Head
+    // Push A -> 
+    //           Tail -> A <- Head
+    // Push B -> 
+    //           Tail -> B A <- Head
+    // Pop -> 
+    //           Tail -> B <- Head
+    if (headq == NULL || tailq == NULL) {
+        // Empty queue.
+        headq = new;
+        tailq = new;
+    }else{
+        // Not empty queue.
+        tmp = tailq;
+        tailq = new;
+        tailq->next = tmp;
+    }
+    nclientsqueuedone++;
+    printf("New object pushed to the tail queue.\n");
+    mULock(&queuemutex);
+
+
+}
+
+
+void clearQueue(void) {
+
+    printf("pietro");
+
+    // Locking now this queue it should be pointless,
+    // since if we got here all the threads should have already completed the insertion
+    // on the queue, however I do it just in case.
+    mLock(&queuemutex);
+    if (headq == NULL || tailq == NULL) {
+        // Error
+    }
+    struct Queue* begin = tailq;
+    struct Queue* tmp = NULL;
+    while (1) {
+        if (begin == NULL) break;
+        tmp = begin->next;
+        free(begin);
+        begin = tmp;
+    }
+    nclientsqueuedone = 0U;
+    headq = NULL;
+    tailq = NULL;
+    mULock(&queuemutex);
+
+}
+
+
 /*
 
 ##########################              EXAMPLE             ##########################
-
-Since the previous functions might be unclear let's see an example.
 
 Let's assume that loadDictionary("/path/to/file.txt") has been called, now we will
 have "char** words" var, filled with all the words present in the dictionary
@@ -1355,6 +1981,34 @@ one received as input from the user and if so the word will be valid, invalid ot
 
 */
 
+/*
 
+ ########   SOME INFORMATIONS ON SYNCHRONIZATION BETWEEN THREADS AND SIGNAL MANAGEMENT  ########
+    
+sigwait() handles all SIGINT and SIGALRM signals running in a dedicated thread
+called signalsThread().
+If more signals arrive, the first one to arrive is put in pending, the others lost.
+Therefore, I cannot be interrupted by a new signal (of these) while handling the previous one.
+When a game is over the alarm() (setted on start of new game) trigger an SIGALRM signal.
+So, the signalsThread() waits all threads to complete the current response in processing, then
+it acquires their mutex (each clientHandler() has its own mutex).
+Then, we use pthread_kill() to inform each clientHandler() thread that the game is over
+with a SIGUSR1 signal.
+In this way, all threads (both those blocked on the read and those blocked immediately afterwards
+waiting for the mutex that allows them to continue processing the received request)
+are "suspended" on their own mutex.
+Specifically, threads locked on reads are interrupted and the read will fail returning EINTR in errno.
+In the case of a partial received request (e.g. read interrupted on receiving the
+unsigned int length of the data field, but it has already read the message type)
+we inform the client of that, we ignore this request, and we clear all received socket
+stream (of the interested client) to avoid subsequent misaligned readings of the message fields.
+Now we can enable safety the pause (pauseon global var), because we will be sure that
+no thread can perform unsafe multithreaded actions.
+Then we release all clientHandler() mutexes (for each client, its own).
+Now all the clients will acquire their locks and will detect the end of game, so they
+will fill the end-game queue, which the thread scorer will subsequently take care of as
+required by the project text.
+
+*/
 
 

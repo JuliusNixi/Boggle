@@ -35,7 +35,7 @@ void clearExit(void){
 void* responseHandler(void* args) {
 
     struct Message* received = NULL;
-    int retvalue;
+
     while (1){
        
        // Wait to receive a message.
@@ -43,6 +43,7 @@ void* responseHandler(void* args) {
 
        mLock(&mprint);
 
+        // Check if printing prompt is needed.
         if (aprint == 0) {
             fflush(stdin);
             printf(PROMPT_STR);
@@ -52,40 +53,45 @@ void* responseHandler(void* args) {
 
        printf("\n");
 
+        // Processing and printing the server response.
        switch (received->type)
        {
-       case MSG_MATRICE: {
-        printf("%s", received->data);
-        break;
-       }case MSG_OK:{
-        printf("%s", received->data);
-        break;
-       }case MSG_ERR: {
-        printf("%s", received->data);
-        break;
-       }case MSG_TEMPO_ATTESA: {
-        printf("The game is in pause. Seconds left to the end of the pause: %d.\n", atoi(received->data));
-        break;
+        case MSG_MATRICE: {
+            printf("%s", received->data);
+            break;
+        }case MSG_OK:{
+            printf("%s", received->data);
+            break;
+        }case MSG_ERR: {
+            printf("%s", received->data);
+            break;
+        }case MSG_TEMPO_ATTESA: {
+            printf("The game is in pause. Seconds left to the end of the pause: %d.\n", atoi(received->data));
+            break;
         }case MSG_TEMPO_PARTITA: {
-        printf("The game is ongoing. Seconds left to the end of the game: %d.\n", atoi(received->data));
-        break;
-       }case MSG_PUNTI_PAROLA: {
-        int p = atoi(received->data);
-        if (p == 0)
-            printf("Word already claimed. You got %d points.\n", p);
-        else
-            printf("Word claimed succesfully, nice guess! You got %d points.\n", p);
-        break;
-       }default:
-       // Not recognized.
-        break;
+            printf("The game is ongoing. Seconds left to the end of the game: %d.\n", atoi(received->data));
+            break;
+        }case MSG_PUNTI_PAROLA: {
+            int p = atoi(received->data);
+            if (p == 0)
+                printf("Word already claimed. You got %d points.\n", p);
+            else
+                printf("Word claimed succesfully, nice guess! You got %d points.\n", p);
+            break;
+        }case MSG_IGNORATO: {
+            printf("Le eventuali richieste INCOMPLETE trasmesse sono state ignorate a causa della fine del gioco.\n");
+            break;
+        }default:
+            // Error
+            printf("Error, received an unknown server response!\n");
+            break;
        }
        
        fflush(stdin);
-       printf("[PROMPT PAROLIERE]--> ");
+       printf(PROMPT_STR);
        fflush(stdout);
        aprint = 1;
-       retvalue = pthread_mutex_unlock(&mprint);
+       mULock(&mprint);
 
        destroyMessage(&received);
 

@@ -1,15 +1,14 @@
-// Sub struct
+// Sub struct.
 struct j {
     int v;
 };
 
-// Main struct
+// Main struct.
 #include <stdio.h>
 struct s{
     struct j wp;
 };
 struct s i;
-
 
 void modify(struct j* x) {
 
@@ -29,9 +28,9 @@ void p(struct s* x) {
 int main(void) {
 
     i.wp.v = 2;
-    printf("before v: %d\n", i.wp.v);
+    printf("before p: %d\n", i.wp.v);
     p(&i);
-    printf("then v: %d\n", i.wp.v);
+    printf("then p: %d\n", i.wp.v);
     return 0;
 
 }

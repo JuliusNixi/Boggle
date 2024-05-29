@@ -78,18 +78,20 @@ int main(void) {
     /* APPLICATION CODE */
     while(1) {
         pthread_mutex_lock(&mutex);  // -> ADDED TO SOLVE RACE CONDITION 1
+
         printf("THREAD MAIN: %d.\n", secret);
-        // sleep(5); // -> USE WITH NORMAL - EXPECTED
-        // The sleep is to "artificially force" the right behaviour.
-        // Normally I would like to have the behaviuor with the sleep above (and without the below RACE CONDITION 1).
+        sleep(5); // -> USE WITH NO MUTEX TO OBTAIN THE RACE CONDITION 1 BEHAVIOUR.
+        // The sleep is to "artificially force" a behaviour.
+
         //------------------------------------------------------------
         if (secret == 0) secret = 1;
         else secret = 0;
         //------------------------------------------------------------
-        sleep(5); // -> RACE CONDITION 1
-        // The sleep is to "artificially force" the race condition.
-        // I WOULDN'T like to have the behaviour with the sleep above.
+        // sleep(5); // -> USE WITH NO MUTEX TO OBTAIN THE EXPECTED BEHAVIOUR.
+        // The sleep is to "artificially force" a behaviour.
+
         pthread_mutex_unlock(&mutex); // -> ADDED TO SOLVE RACE CONDITION 1
+
         sleep(1);   // ALWAYS BE CAREFUL WHEN LOCKING/UNLOCKING A MUTEX IN A WHILE!
         // WITHOUT THIS LAST SLEEP, THE OTHER THREAD WILL NEVER ACQUIRE THE MUTEX (TESTED)!
     }
@@ -105,22 +107,22 @@ int main(void) {
 NORMAL - EXPECTED:
 
 THREAD MAIN     THREAD SIGNAL       SECRET VALUE MEMORY
-      R                                       0
+      R                                       0 <-
       F                                       1
-                      R                       1
+                      R                       1 <-
                       F                       0
 
 OUTPUT
 ----------------
 THREAD MAIN: 0.
-THREAD: 1.
+CTRL + C THREAD: 1.
 ----------------
 
 POSSIBLE RACE CONDITION 1:
 
 THREAD MAIN     THREAD SIGNAL       SECRET VALUE MEMORY
-      R                                       0
-                      R                       0
+      R                                       0 <-
+                      R                       0 <-
       F                                       1
                       F                       0
 
@@ -128,11 +130,11 @@ THREAD MAIN     THREAD SIGNAL       SECRET VALUE MEMORY
 OUTPUT
 ----------------
 THREAD MAIN: 0.
-THREAD: 0.
+CTRL+C THREAD: 0.
 ----------------
 
 */
 
-// Let's try to use pthread_mutex_t to solve the issue (forcing the NORMAL - EXPECTED behaviour)... 
+// Let's try to use pthread_mutex_t to solve the issue (forcing the NORMAL - EXPECTED behaviour while using the RACE CONDITION 1 setup)... 
 
 

@@ -4,6 +4,11 @@
 // It also execute a inet_aton on a struct sockaddr_in.
 int parseIP(char* ip, struct sockaddr_in* sai) {
 
+    if (ip == NULL || sai == NULL) {
+        // Error
+        printf("Error, parseIP() received a NULL ip or sockaddr_in.\n");
+    }
+
     // Lowering, LoCalhost and localhost and LOCALHOST, are now identical.
     toLowerOrUpperString(ip, 'L');
     int retvalue;
@@ -20,6 +25,12 @@ int parseIP(char* ip, struct sockaddr_in* sai) {
 // 'L' means lowercase, any other upper and is specified by lowerupper.
 void toLowerOrUpperString(char* string, char lowerupper) {
 
+    if (string == NULL) {
+        // Error
+        printf("Error, toLowerOrUpperString() received an empty string.\n");
+    }
+    // Checking if lowerupper is 'L' (means to change the string in lowercase),
+    // or 'U' (means to change the string in UPPERCASE).
     lowerupper = toupper(lowerupper);
     if (lowerupper != 'L' && lowerupper != 'U') {
             // Error
@@ -39,6 +50,11 @@ void toLowerOrUpperString(char* string, char lowerupper) {
 // It returns a pointer to the struct Message allocated on the heap.
 struct Message* receiveMessage(int fdfrom) {
 
+    if (fdfrom < 0) {
+        // Error
+        printf("Error, the receiver of the message is invalid.\n");
+    }
+
     int retvalue = 0;
     struct Message* readed = NULL;
 
@@ -53,6 +69,7 @@ struct Message* receiveMessage(int fdfrom) {
     retvalue = read(fdfrom, &(readed->type), sizeof(readed->type));
     if (retvalue == -1) {
         // Error
+        if (errno == EINTR) return readInterrupted(&readed);
         printf("Error in reading a message type.\n");
     }
 
@@ -60,6 +77,7 @@ struct Message* receiveMessage(int fdfrom) {
     retvalue = read(fdfrom, &(readed->length), sizeof(readed->length));
     if (retvalue == -1) {
         // Error
+        if (errno == EINTR) return readInterrupted(&readed);
         printf("Error in reading a message length.\n");
     }
 
@@ -76,10 +94,29 @@ struct Message* receiveMessage(int fdfrom) {
     retvalue = read(fdfrom, readed->data, sizeof(char) * readed->length);
     if (retvalue == -1) {
         // Error
+        if (errno == EINTR) return readInterrupted(&readed);
         printf("Error in reading a message data.\n");
     }
 
     return readed;
+
+}
+
+// This function will be executed when a read syscall fails due a signal of end game.
+// EVERY COMPLETED REQUEST RECEIVED BEFORE THE TIMER WILL BE PROCESSED.
+// In this case we we have been interrupted before the request has been fully transmitted
+// by the client, and so it will be cancelled and not processed.
+// This function delete the incomplete request.
+void* readInterrupted(struct Message** readed) {
+
+    struct Message* m = *readed;
+    m->type = (char)0;
+    m->length = 0;
+    free(m->data);
+    m->data = NULL;
+    free(m);
+    *readed = NULL;
+    return NULL;
 
 }
 
@@ -90,6 +127,11 @@ struct Message* receiveMessage(int fdfrom) {
 // Note that the length of the length Message field will be automatically calculated based on data
 // length with strlen().
 void sendMessage(int fdto, char type, char* data) {
+
+    if (fdto < 0) {
+        // Error
+        printf("Error, the recipient of the message is invalid.\n");
+    }
 
     struct Message tosend;
     int retvalue;
@@ -133,6 +175,11 @@ void sendMessage(int fdto, char type, char* data) {
 // This to avoid referring by mistake to memory released.
 void destroyMessage(struct Message** m) {
 
+    if (m == NULL || *m == NULL) {
+        // Error
+        printf("Error, cannot destroy an invalid message.\n");
+    }
+
     // Releasing allocated memory and destroying the vars content.
     (*m)->type = (char)0;
     (*m)->length = 0u;
@@ -146,6 +193,10 @@ void destroyMessage(struct Message** m) {
 // Wrapper lock/unlock mutexes to catch errors.
 void mLock(pthread_mutex_t* m) {
 
+    if (m == NULL) {
+        // Error
+        printf("Error, mLock() received an empty mutex.\n");
+    }
     int retvalue;
     retvalue = pthread_mutex_lock(m);
     if (retvalue != 0) {
@@ -157,6 +208,11 @@ void mLock(pthread_mutex_t* m) {
 
 // Wrapper lock/unlock mutexes to catch errors.
 void mULock(pthread_mutex_t* m) {
+
+    if (m == NULL) {
+        // Error
+        printf("Error, mULock() received an empty mutex.\n");
+    }
 
     int retvalue;
     retvalue = pthread_mutex_unlock(m);

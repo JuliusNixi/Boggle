@@ -40,7 +40,7 @@
     BACK TO MAIN... THE LAST (WHEN RECEIVED THE FIRST SIGALRM) SLEEP FAIL!
 
 
-
+    IMPORTANT:
    ! At the end, I chose a different implementation with a dedicated thread and the sigwait() !
    ! SEE multithreadedsignals.c !
 

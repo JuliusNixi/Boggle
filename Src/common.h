@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <errno.h>
 
 #define MSG_OK 'K'
 #define MSG_ERR 'E'
@@ -18,6 +19,9 @@
 #define MSG_PAROLA 'W'
 #define MSG_PUNTI_FINALI 'F'
 #define MSG_PUNTI_PAROLA 'P'
+
+#define MSG_ESCI 'Q'
+#define MSG_IGNORATO 'I'
 
 #define BUFFER_SIZE 1024  // Size of the buffers that will be used in some cases.
 
@@ -34,6 +38,13 @@ int socket_server_fd; // Socket server file descriptor.
 sigset_t signal_mask; // Signal mask to handle signals (SIGINT and SIGALRM).
 pthread_t sig_thr_id; // Thread that will handle the signals (SIGINT and SIGALRM).
 
+// Support struct used to grab the user input of arbitrary length in the client.
+// and to create the game ranking in the server.
+struct StringNode {
+    char* s;   // Pointer to an heap allocated string.
+    struct StringNode* n; // Pointer to the next list element.
+};
+
 // Functions used both in client and server, their implementation normally is
 // the same, is done in common.c.
 int parseIP(char*, struct sockaddr_in*);
@@ -49,4 +60,4 @@ void sendMessage(int, char, char*);
 void destroyMessage(struct Message**);
 void mLock(pthread_mutex_t*);
 void mULock(pthread_mutex_t*);
-
+void* readInterrupted(struct Message**);
