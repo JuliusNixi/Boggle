@@ -27,10 +27,6 @@ pthread_t pausethread;
 unsigned int nclientsconnected = 0U;
 
 pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER;
-struct Queue {
-    struct ClientNode* e;
-    struct Queue* next;
-};
 struct Queue* headq = NULL;
 struct Queue* tailq = NULL;
 unsigned int nclientsqueuedone = 0U;
@@ -44,32 +40,149 @@ void* scorer(void* args) {
     /////////////////////////////////////////////////////////////////////////////
 
     // Game ranking creation.
-    // Locking now this queue it should be pointless,
-    // since if we got here all the threads should have already completed the insertion
-    // on the queue, however I do it just in case (for best practice).
-    mLock(&queuemutex);
 
-    printf("smusi");
-    // TODO
+    ////////////////////////////// FOR TESTING ONLY //////////////////////////////
+
+    // CREATING A RANDOM PLAYERS QUEUE
+
+    int clients = 30;
+    nclientsconnected = clients;
+
+    srand(42);
     
-    struct StringNode* heads;
-    struct Queue* current = headq;
-    struct ClientNode array[nclientsconnected];
-    //for (unsigned int i = 0; i < nclientsconnected)
-    while (1) {
-        if (current == NULL) break;
+    for (int i = 0; i < clients; i++) {
 
-        current = current->next;
+        struct ClientNode* new = NULL;
+        new = (struct ClientNode*) malloc(sizeof(struct ClientNode));
+        new->client_address_len = (socklen_t) sizeof(new->client_addr);
+        new->socket_client_fd = -1;
+        new->next = NULL;
+        pthread_mutexattr_init(&(new->handlerequestattr));
+        pthread_mutexattr_settype(&(new->handlerequestattr), PTHREAD_MUTEX_ERRORCHECK);
+        pthread_mutex_init(&(new->handlerequest), &(new->handlerequestattr));
+
+        // Rand points.
+        int randint = rand() % 100;
+        new->points = (unsigned int) randint;
+
+        new->words_validated = NULL;
+        new->name = NULL;
+        new->queuedmessage = NULL;
+
+        char sip[] = "127.0.0.1";
+        parseIP(sip, &(new->client_addr));
+        char buf[INET_ADDRSTRLEN] = {0}; 
+        inet_ntop(AF_INET, &(new->client_addr.sin_addr), buf, new->client_address_len);
+        unsigned int port = atoi("80");
+        (new->client_addr).sin_port = htons(port);
+        
+        new->thread = (pthread_t) 0LU;
+
+        // Rand name.
+        int r = rand() % 10;
+        if (r >= 5) {
+            char n[5];
+            for (int j = 0; j < 5; j++) n[j] = ALPHABET[rand() % strlen(ALPHABET)];
+            new->name = (char*) malloc(sizeof(char) * strlen(n));
+            strcpy(new->name, n);
+        }
+
+        // Createing a new queue element.
+        struct Queue* newq;
+        newq = (struct Queue*) malloc(sizeof(struct Queue));
+        if (newq == NULL) {
+            // Error
+        }
+        newq->next = NULL;
+        newq->e = new;
+
+        // Inserting in queue.
+        struct Queue* tmp = NULL;
+        if (headq == NULL || tailq == NULL) {
+            // Empty queue.
+            headq = newq;
+            tailq = newq;
+        }else{
+            // Not empty queue.
+            tmp = tailq;
+            tailq = newq;
+            tailq->next = tmp;
+        }
+
     }
-    
-
-    
+    //////////////////////////////////////////////////////////////////////////////
 
 
 
-    mULock(&queuemutex);
 
+
+
+
+    // No players :(
+    if (nclientsconnected == 0){
+        printf("No players... :(\n)");
+        pthread_exit(NULL);
+    } 
+
+    // Copying clients list in an array to use qsort.
+    struct Queue* array[nclientsconnected];
+    struct Queue* currentl = tailq;
+    unsigned int counter = 0;
+    while (1) {
+        if (currentl == NULL) break;
+        array[counter++] = currentl;
+        currentl = currentl->next;
+    }
+
+    // Sorting players by points.
+    qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPoints);
+
+    printf("\t\tFINAL SCOREBOARD\n");
+    printConnectedClients(NULL, array, nclientsconnected);
+    printf("\n\n");
+
+    if (array[0]->e->points == 0) {
+        printf("No winners, all players have 0 points.\n");
+        pthread_exit(NULL);
+    }
+
+    unsigned int p = array[0]->e->points;
+
+    counter = 0;
+    for (unsigned int i = 0; i < nclientsconnected; i++) {
+        if (p == array[i]->e->points) counter++;
+        else break;
+    }
+    if (counter == 1) {
+        printf("The winner is: %s.\n", array[0]->e->name);
+        pthread_exit(NULL);
+    }
+
+    printf("The winners are:\n");
+    counter = 0;
+    for (unsigned int i = 0; i < nclientsconnected; i++) {
+        if (p == array[i]->e->points)
+            printf("%s\n", array[i]->e->name);
+        else break;
+    }
+        
     pthread_exit(NULL);
+
+/*
+    struct StringNode* headstr = NULL;
+    struct Queue* currentq = headq;
+    for (unsigned int i = 0; i < nclientsconnected; i++) {
+        struct StringNode* new = (struct StringNode*) malloc(sizeof(struct StringNode));
+        new->n = NULL;
+        new->s = (char*) malloc(sizeof(char) * strlen(array[i]->name));
+        //if (headstr == NULL) {
+        //    headstr = new;
+        //}
+    }
+
+    */
+
+
 
 }
 
@@ -96,8 +209,17 @@ void* scorer(void* args) {
 
 
 
+int sortPlayersByPoints(const void* a, const void* b) {
 
+    struct Queue** x = (struct Queue**) a;
+    struct Queue** y = (struct Queue**) b;
+    struct Queue* xx = *x;
+    struct Queue* yy = *y;
+    unsigned int px = xx->e->points;
+    unsigned int py = yy->e->points;
+    return py - px;
 
+}
 
 
 // This function generate a random letters matrix of size as written in NCOL and NROWS.
@@ -316,9 +438,11 @@ void* signalsThread(void* args) {
                     mLock(&(current->handlerequest));
                     current = current->next;
                 }
+
                 // Enabling pause, it's safe because all the clients threads are SUSPENDED
                 // on their mutexes or before on read() and cannot read pauseon.
                 pauseon = 1;
+
                 // Advising the threads handlers of end of game to stop read().
                 while (1) {
                     if (current == NULL) break;
@@ -340,13 +464,15 @@ void* signalsThread(void* args) {
                 }
                 // Important to realease to not suspend during the pause the clients accepting.
                 mULock(&listmutex);
-                // Releasing the lock.
-                mULock(&pausemutex);
+
+                // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
 
                 /////////////////////////////////////////////////////////////////////////////
                 // WARNING: NOW clientHandler() THREADS ARE RUNNING AGAIN AND CAN ACCESS TO
                 // struct ClientNode* OBJECT (their own mutex not entirely the list)!
                 /////////////////////////////////////////////////////////////////////////////
+
+                // REMEMBER: pauseon is still active and conditions the responses.
 
                 // Threads working on queue...
                 // After threads can once again return to respond to clients requests...
@@ -364,20 +490,25 @@ void* signalsThread(void* args) {
                     usleep(100);
                 }
                 mULock(&listmutex);
-                mULock(&pausemutex);
+                mULock(&queuemutex);
 
-
+                // Important to lock list since nclientsconnected is used inside the scorer thread.
+                mLock(&listmutex);
                 // Creating the score thread.
                 retvalue = pthread_create(&queue, NULL, scorer, NULL);
                 if (retvalue != 0) {
                     // Error
                 }
+
                 // Waiting the score thread to finish.
                 retvalue = pthread_join(queue, NULL);
                 if (retvalue != 0){
                     // Error
-
                 }
+                mULock(&listmutex);
+
+                // registerUser() and disconnectClient() back again in running.
+                mULock(&pausemutex);
 
                 // Executing pause.
                 retvalue = pthread_create(&pausethread, NULL, gamePause, NULL);
@@ -394,7 +525,6 @@ void* signalsThread(void* args) {
 
                 // Clearing the queue.
                 clearQueue();
-
 
                 // Disabling pause and starting a new game.
                 mLock(&pausemutex);
@@ -980,7 +1110,7 @@ void startGame(void) {
     setAlarm();
 
     // Printing current connected clients.
-    printConnectedClients(head);
+    printConnectedClients(head, NULL, 0);
 
 }
 
@@ -1062,7 +1192,6 @@ void acceptClient(void) {
     new->words_validated = NULL;
     new->name = NULL;
     new->queuedmessage = NULL;
-    new->exited = 0;
 
     // Adding the client to the list and updating global vars head and tail useful
     // to manage the list.
@@ -1605,6 +1734,18 @@ void clearExit(void){
 // to disconnect.
 void disconnectClient(struct ClientNode** clienttodestroy, int terminatethread) {
 
+    // Updating the thread signals mask, that will block the SIGUSR1.
+    // Important to do it as soon as possible.
+    sigaddset(&signal_mask, SIGUSR1);
+
+    // Enabling the mask.
+    int retvalue;
+    retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
+    if (retvalue != 0) {
+        // Error
+        printf("Error in setting the new pthread signals mask in disconnectClient().\n");
+    }
+
     // Invalid clienttodestroy.
     if (*clienttodestroy == NULL) {
         // Error
@@ -1619,7 +1760,6 @@ void disconnectClient(struct ClientNode** clienttodestroy, int terminatethread) 
         printf("Error, disconnectClient() received an empty client.\n");
     }
 
-    int retvalue;
     disconnect_restart: {
         retvalue = pthread_mutex_trylock(&(client->handlerequest));
         if (retvalue != 0) {
@@ -1810,23 +1950,49 @@ void updateClients(void) {
 // Simply print all connected clients with their informations recursively.
 // IT ASSUME that listmutex is already acquired by the caller!
 // It takes as input an element of the clients list (a pointer to it) to start with.
-void printConnectedClients(struct ClientNode* c) {
+void printConnectedClients(struct ClientNode* list, struct Queue** array, int usearray) {
 
-    // End list reached.
-    if (c == NULL) return;    
-    // Getting as string the client IP, and the port.  
     char buf[INET_ADDRSTRLEN] = {0}; 
-	inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
-    int port = c->client_addr.sin_port;
-
+    int port;
     // Preparing the string that will be printed.
-    char st[] = "Name: %s - IP: %s - Port: %d - Thread ID: %LU\n";
+    char st[] = "Name: %s - IP: %s - Port: %d - Points %u - Thread ID: %LU\n";
+
+    if (list == NULL && !usearray) return; 
+    if ((array == NULL || *array == NULL) && usearray) return;
+    if ((array == NULL || *array == NULL) && list == NULL) return;
 
     // Calculating the needed name space.
     size_t namelen;
-    char v[] = "Unregistered";
-    if (c->name != NULL) namelen = strlen(c->name);
-    else namelen = strlen(v);
+    char v[] = "unregistered";
+
+    if (usearray) {
+
+        for (unsigned int i = 0; i < usearray; i++) {
+            struct ClientNode* c = array[i]->e;
+            if (c->name != NULL) namelen = strlen(c->name);
+            else namelen = strlen(v); 
+            // Allocating the needed heap memory to store the string to print.
+            char* s = (char*) malloc((namelen + INET_ADDRSTRLEN + strlen(st)) * sizeof(char));
+            if (s == NULL) {
+                // Error
+            }
+            // Getting as string the client IP, and the port.  
+            inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
+            port = ntohs((c->client_addr).sin_port);
+            // Filling the string with data.
+            if (c->name != NULL) sprintf(s, st, c->name, buf, port, c->points, (unsigned long) c->thread);
+            else namelen = sprintf(s, st, v, buf, port, c->points, (unsigned long) c->thread);
+            // Printing string.
+            printf("%s", s);
+            // Freeing the allocated heap memory.
+            free(s);
+        }
+        return;
+  
+    }
+    
+    if (list->name != NULL) namelen = strlen(list->name);
+    else namelen = strlen(v); 
 
     // Allocating the needed heap memory to store the string to print.
     char* s = (char*) malloc((namelen + INET_ADDRSTRLEN + strlen(st)) * sizeof(char));
@@ -1834,9 +2000,15 @@ void printConnectedClients(struct ClientNode* c) {
         // Error
     }
 
+    struct ClientNode* c = list;
+
+    // Getting as string the client IP, and the port.  
+	inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
+    port = ntohs((c->client_addr).sin_port);
+
     // Filling the string with data.
-    if (c->name != NULL) sprintf(s, st, c->name, buf, port, (unsigned long) c->thread);
-    else namelen = sprintf(s, st, v, buf, port, (unsigned long) c->thread);
+    if (c->name != NULL) sprintf(s, st, c->name, buf, port, c->points, (unsigned long) c->thread);
+    else namelen = sprintf(s, st, v, buf, port, c->points, (unsigned long) c->thread);
 
     // Printing string.
     printf("%s", s);
@@ -1845,7 +2017,7 @@ void printConnectedClients(struct ClientNode* c) {
     free(s);
 
     // Recursively print the next client in the clients list.
-    printConnectedClients(c->next);
+    printConnectedClients(c->next, NULL, 0);
 
 }
 
@@ -1897,17 +2069,14 @@ void gameEndQueue(struct ClientNode* e) {
 
 }
 
-
+// This function clear the end game queue to prepare it for the next end game.
 void clearQueue(void) {
 
     printf("pietro");
 
-    // Locking now this queue it should be pointless,
-    // since if we got here all the threads should have already completed the insertion
-    // on the queue, however I do it just in case.
-    mLock(&queuemutex);
     if (headq == NULL || tailq == NULL) {
-        // Error
+        // NO PLAYERS CONNECTED!
+        return;
     }
     struct Queue* begin = tailq;
     struct Queue* tmp = NULL;
@@ -1920,7 +2089,6 @@ void clearQueue(void) {
     nclientsqueuedone = 0U;
     headq = NULL;
     tailq = NULL;
-    mULock(&queuemutex);
 
 }
 

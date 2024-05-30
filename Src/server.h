@@ -29,20 +29,28 @@ char matrix[NROWS][NCOL];  // Matrix game core.
 // The player/client will be stored in a heap linked list, with the below structure.
 struct ClientNode {
     int socket_client_fd;  // Client socket descriptor.
+
     struct sockaddr_in client_addr; // Client address.
     socklen_t client_address_len; // Client address length.
+
     struct ClientNode* next;  // Pointer of the next node of the list.
     pthread_t thread; // Thread that will handle the player/client.
+
     pthread_mutex_t handlerequest;  // Each client will have a mutex that will be acquired from the corresponding thread when a request will be taken over.
     pthread_mutexattr_t handlerequestattr;
+
     unsigned int points; // Player points.
     char** words_validated; // To remember the already submitted words by the player.
     char* name; // Player's name.
     struct Message* queuedmessage; // Used to save a suspended message that need to be processed.
-    int exited; // Used to detected disconnected clients.
 }; 
 
-// Functions signature server used. Implementation and infos in the server main file.
+struct Queue {
+    struct ClientNode* e;
+    struct Queue* next;
+};
+
+// Functions signatures server used. Implementation and infos in the server main file.
 void generateRandomMatrix(void);
 void loadMatrixFromFile(char*);
 void getMatrixNextIndexes(int*);
@@ -76,7 +84,9 @@ int validateWord(char*);
 void disconnectClient(struct ClientNode**, int);
 void endGame(int);
 void updateClients(void);
-void printConnectedClients(struct ClientNode*);
+void printConnectedClients(struct ClientNode*, struct Queue**, int);
 void gameEndQueue(struct ClientNode*);
 void clearQueue(void);
 void* scorer(void*);
+int sortPlayersByPoints(const void*, const void*);
+
