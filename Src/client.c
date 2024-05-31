@@ -81,6 +81,19 @@ void* responseHandler(void* args) {
         }case MSG_IGNORATO: {
             printf("Le eventuali richieste INCOMPLETE trasmesse sono state ignorate a causa della fine del gioco.\n");
             break;
+        }case MSG_PUNTI_FINALI: {
+            printf("Il gioco è terminato, questa è la classifica:\n");
+            char* s = received->data;
+            char* tmp = s;
+            while (1) {
+                if (tmp == received->data) tmp = strtok(s, ",");
+                else tmp = strtok(NULL, ",");
+                if (tmp == NULL) break;
+                printf("Nome: %s. ", tmp);
+                tmp = strtok(NULL, ",");
+                printf("Punti: %s.\n", tmp);
+            }
+            break;
         }default:
             // Error
             printf("Error, received an unknown server response!\n");

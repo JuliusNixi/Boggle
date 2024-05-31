@@ -47,7 +47,7 @@ void* scorer(void* args) {
 
     // CREATING A RANDOM QUEUE FOR TESTING
 
-  /*
+    /*
     int clients = 30;
     nclientsconnected = clients;
 
@@ -98,8 +98,7 @@ void* scorer(void* args) {
 
     }
     //////////////////////////////////////////////////////////////////////////////
-
-*/
+    */
 
     // No players :(
     if (nclientsconnected == 0){
@@ -119,6 +118,7 @@ void* scorer(void* args) {
 
     // Sorting players by points using message data.
     // To use qsort i copied the list in the array.
+     
     qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPointsMessage);
 
     printf("\t\tFINAL SCOREBOARD\n");
@@ -132,43 +132,41 @@ void* scorer(void* args) {
     char* pstr = csvNamePoints(array[0]->m, 1);
     // p is max points.
     int p = atoi(pstr);
-    free(pstr);
     if (p == 0) {
         printf("No winners, all players have 0 points.\n");
-        pthread_exit(NULL);
     }
 
     counter = 0;
     int cp;
     for (unsigned int i = 0; i < nclientsconnected; i++) {
+        if (p == 0) break;
         pstr = csvNamePoints(array[i]->m, 1);
         cp = atoi(pstr);
-        free(pstr);
         if (p == cp) counter++;
         else break;
     }
     if (counter == 1) {
         char* n = csvNamePoints(array[0]->m, 0);
         printf("The winner is: %s with %d points.\n", n, p);
-        free(n);
-        pthread_exit(NULL);
     }
 
-    printf("The winners with %d points are:\n", p);
-    counter = 0;
-    for (unsigned int i = 0; i < nclientsconnected; i++) {
-        pstr = csvNamePoints(array[i]->m, 1);
-        int cp = atoi(pstr);
-        free(pstr);
-        if (p == cp){
-            char* n = csvNamePoints(array[i]->m, 0);
-            printf("%s\n", n);
-            free(n);  
+    if (p != 0 && counter != 1) {
+        printf("The winners with %d points are:\n", p);
+        counter = 0;
+        for (unsigned int i = 0; i < nclientsconnected; i++) {
+            pstr = csvNamePoints(array[i]->m, 1);
+            int cp = atoi(pstr);
+            if (p == cp){
+                char* n = csvNamePoints(array[i]->m, 0);
+                printf("%s\n", n);
+            }
+            else break;
         }
-        else break;
     }
 
     createScoreboard(array, nclientsconnected);
+
+    printf("\nCSV:\n%s\n", scoreboardstr);
         
     pthread_exit(NULL);
 
@@ -195,13 +193,45 @@ char* csvNamePoints(struct Message* m, int nameorpoints) {
         // Error
     }
 
-    // Wanted name.
-    char* tmp = strtok(m, ",");
-    // Wanted points.
-    if (nameorpoints)
-        tmp = strtok(NULL, ",");
+    char* s = m->data;
+    char* backup = (char*) malloc(sizeof(char) * strlen(s));
+    if (backup == NULL) {
+        // Error
+    }
+    strcpy(backup, s);
 
-    return tmp;
+    // Name.
+    char* tmp = strtok(backup, ",");
+    size_t namelen = strlen(tmp);
+    char* name = (char*) malloc(sizeof(char) * namelen);
+    if (name == NULL) {
+        // Error
+    }
+    strcpy(name, tmp);
+
+    // Points.
+    tmp = strtok(NULL, ",");
+    size_t pointslen = strlen(tmp);
+    char* points = (char*) malloc(sizeof(char) * pointslen);
+    if (points == NULL) {
+        // Error
+    }
+    strcpy(points, tmp);        
+
+    char* ret;
+    if (nameorpoints == 0) {
+        // Wanted name.
+        free(points);
+        ret = name;
+    }else{
+        // Wanted points.
+        free(name);
+        ret = points;
+    }
+
+    free(backup);
+
+    return ret;
 
 }
 
@@ -1233,8 +1263,6 @@ void startGame(void) {
     // Setting the new pause timer.
     setAlarm();
 
-    // Printing current connected clients.
-    printConnectedClients(head, NULL, 0, 0);
 
 }
 
@@ -1494,7 +1522,7 @@ void* clientHandler(void* voidclient) {
                 gameEndQueue(client);
                 localpauseon = 2;
             }else{
-                paolone;
+                sendMessage(client->socket_client_fd, MSG_PUNTI_FINALI, scoreboardstr);
                 localpauseon = 3;
             }
         
@@ -1520,7 +1548,7 @@ void* clientHandler(void* voidclient) {
                 // Continuing processing previous received request.
 
             }else if (pauseon && localpauseon == 2){
-                paolone2;
+                sendMessage(client->socket_client_fd, MSG_PUNTI_FINALI, scoreboardstr);
                 localpauseon = 3;
             }else{
                 // Normal message, nothing to do.
@@ -2132,7 +2160,24 @@ void createScoreboard(struct Queue** array, int arraylength) {
         // Error
     }
 
-    arinza nome,cognome;
+    size_t totallength = 0;
+    for (unsigned int i = 0; i < arraylength; i++) totallength += strlen(array[i]->m->data);
+    totallength++; // For ',' after points.
+    totallength++; // For '\0'.
+    scoreboardstr = (char*) malloc(sizeof(char) * totallength);
+    if (scoreboardstr == NULL) {
+        // Error
+    }
+    unsigned int counter = 0;
+    for (unsigned int i = 0; i < arraylength; i++) {
+        char* c = array[i]->m->data;
+        while (c[0] != '\0'){
+            scoreboardstr[counter++] = c[0];
+            c++;
+        } 
+        scoreboardstr[counter++] = ',';
+    }
+    scoreboardstr[counter - 1] = '\0';
 
 }
 
@@ -2168,7 +2213,7 @@ void gameEndQueue(struct ClientNode* e) {
     size_t length = e->name == NULL ? strlen(NO_NAME) + plength : strlen(e->name) + plength;
     m->length = length;
 
-    m->data = (char*) malloc(sizeof(char) * m->length );
+    m->data = (char*) malloc(sizeof(char) * m->length);
     if (m->data == NULL) {
         // Error
     }
@@ -2180,6 +2225,7 @@ void gameEndQueue(struct ClientNode* e) {
         if (m->data[counter] == '\0') break;
         counter++;
     }
+
     m->data[counter++] = ',';
     unsigned counter2 = 0;
     while(1) {
