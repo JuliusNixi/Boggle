@@ -7,6 +7,12 @@
 
 #define MSG_AIUTO "Comandi disponibili:\naiuto -> Mostra questa pagina.\nregistra_utente nome_utente -> Permette di registrarsi nel gioco.\nmatrice -> Ottiene la corrente matrice di gioco.\np parola_indicata -> Invia una parola trovata.\nfine -> Esce dal gioco.\n"
 
+// Support struct used to grab the user input of arbitrary length in the client.
+struct StringNode {
+    char* s;   // Pointer to an heap allocated string.
+    struct StringNode* n; // Pointer to the next list element.
+};
+
 int main(int argc, char** argv) {
 
     int retvalue; // To check system calls result (succes or failure).

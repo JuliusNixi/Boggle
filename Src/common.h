@@ -38,13 +38,6 @@ int socket_server_fd; // Socket server file descriptor.
 sigset_t signal_mask; // Signal mask to handle signals (SIGINT and SIGALRM).
 pthread_t sig_thr_id; // Thread that will handle the signals (SIGINT and SIGALRM).
 
-// Support struct used to grab the user input of arbitrary length in the client.
-// and to create the game ranking in the server.
-struct StringNode {
-    char* s;   // Pointer to an heap allocated string.
-    struct StringNode* n; // Pointer to the next list element.
-};
-
 // Functions used both in client and server, their implementation normally is
 // the same, is done in common.c.
 int parseIP(char*, struct sockaddr_in*);

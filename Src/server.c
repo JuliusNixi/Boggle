@@ -31,6 +31,8 @@ struct Queue* headq = NULL;
 struct Queue* tailq = NULL;
 unsigned int nclientsqueuedone = 0U;
 pthread_t queue;
+#define NO_NAME "unregistered"
+char* scoreboardstr = NULL;
 void* scorer(void* args) {
 
 
@@ -43,12 +45,16 @@ void* scorer(void* args) {
 
     ////////////////////////////// FOR TESTING ONLY //////////////////////////////
 
-    // CREATING A RANDOM PLAYERS QUEUE
+    // CREATING A RANDOM QUEUE FOR TESTING
 
+  /*
     int clients = 30;
     nclientsconnected = clients;
 
-    srand(42);
+    time_t t = time(NULL);
+    printf("TIME: %llu.\n", (unsigned long long) t);
+    srand(t);
+    //srand(1717086224);
     
     for (int i = 0; i < clients; i++) {
 
@@ -81,42 +87,19 @@ void* scorer(void* args) {
         // Rand name.
         int r = rand() % 10;
         if (r >= 5) {
-            char n[5];
+            char n[6];
             for (int j = 0; j < 5; j++) n[j] = ALPHABET[rand() % strlen(ALPHABET)];
+            n[6-1] = '\0';
             new->name = (char*) malloc(sizeof(char) * strlen(n));
             strcpy(new->name, n);
         }
 
-        // Createing a new queue element.
-        struct Queue* newq;
-        newq = (struct Queue*) malloc(sizeof(struct Queue));
-        if (newq == NULL) {
-            // Error
-        }
-        newq->next = NULL;
-        newq->e = new;
-
-        // Inserting in queue.
-        struct Queue* tmp = NULL;
-        if (headq == NULL || tailq == NULL) {
-            // Empty queue.
-            headq = newq;
-            tailq = newq;
-        }else{
-            // Not empty queue.
-            tmp = tailq;
-            tailq = newq;
-            tailq->next = tmp;
-        }
+        gameEndQueue(new);
 
     }
     //////////////////////////////////////////////////////////////////////////////
 
-
-
-
-
-
+*/
 
     // No players :(
     if (nclientsconnected == 0){
@@ -134,55 +117,60 @@ void* scorer(void* args) {
         currentl = currentl->next;
     }
 
-    // Sorting players by points.
-    qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPoints);
+    // Sorting players by points using message data.
+    // To use qsort i copied the list in the array.
+    qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPointsMessage);
 
     printf("\t\tFINAL SCOREBOARD\n");
-    printConnectedClients(NULL, array, nclientsconnected);
+    for (unsigned int i = 0; i < nclientsconnected; i++) {
+        char* s = serializeStrClient(array[i]->e);
+        printf("%s", s);
+        free(s);
+    }
     printf("\n\n");
 
-    if (array[0]->e->points == 0) {
+    char* pstr = csvNamePoints(array[0]->m, 1);
+    // p is max points.
+    int p = atoi(pstr);
+    free(pstr);
+    if (p == 0) {
         printf("No winners, all players have 0 points.\n");
         pthread_exit(NULL);
     }
 
-    unsigned int p = array[0]->e->points;
-
     counter = 0;
+    int cp;
     for (unsigned int i = 0; i < nclientsconnected; i++) {
-        if (p == array[i]->e->points) counter++;
+        pstr = csvNamePoints(array[i]->m, 1);
+        cp = atoi(pstr);
+        free(pstr);
+        if (p == cp) counter++;
         else break;
     }
     if (counter == 1) {
-        printf("The winner is: %s.\n", array[0]->e->name);
+        char* n = csvNamePoints(array[0]->m, 0);
+        printf("The winner is: %s with %d points.\n", n, p);
+        free(n);
         pthread_exit(NULL);
     }
 
-    printf("The winners are:\n");
+    printf("The winners with %d points are:\n", p);
     counter = 0;
     for (unsigned int i = 0; i < nclientsconnected; i++) {
-        if (p == array[i]->e->points)
-            printf("%s\n", array[i]->e->name);
+        pstr = csvNamePoints(array[i]->m, 1);
+        int cp = atoi(pstr);
+        free(pstr);
+        if (p == cp){
+            char* n = csvNamePoints(array[i]->m, 0);
+            printf("%s\n", n);
+            free(n);  
+        }
         else break;
     }
+
+    createScoreboard(array, nclientsconnected);
         
     pthread_exit(NULL);
-
-/*
-    struct StringNode* headstr = NULL;
-    struct Queue* currentq = headq;
-    for (unsigned int i = 0; i < nclientsconnected; i++) {
-        struct StringNode* new = (struct StringNode*) malloc(sizeof(struct StringNode));
-        new->n = NULL;
-        new->s = (char*) malloc(sizeof(char) * strlen(array[i]->name));
-        //if (headstr == NULL) {
-        //    headstr = new;
-        //}
-    }
-
-    */
-
-
 
 }
 
@@ -201,22 +189,41 @@ void* scorer(void* args) {
 
 
 
+char* csvNamePoints(struct Message* m, int nameorpoints) {
+
+    if (m == NULL) {
+        // Error
+    }
+
+    // Wanted name.
+    char* tmp = strtok(m, ",");
+    // Wanted points.
+    if (nameorpoints)
+        tmp = strtok(NULL, ",");
+
+    return tmp;
+
+}
 
 
-
-
-
-
-
-
-int sortPlayersByPoints(const void* a, const void* b) {
+int sortPlayersByPointsMessage(const void* a, const void* b) {
 
     struct Queue** x = (struct Queue**) a;
     struct Queue** y = (struct Queue**) b;
+
     struct Queue* xx = *x;
     struct Queue* yy = *y;
-    unsigned int px = xx->e->points;
-    unsigned int py = yy->e->points;
+
+    struct Message* mx = xx->m;
+    struct Message* my = yy->m;
+
+    char* s = csvNamePoints(mx, 1);
+    int px = atoi(s);
+    free(s);
+    s = csvNamePoints(my, 1);
+    int py = atoi(s);
+    free(s);
+
     return py - px;
 
 }
@@ -426,12 +433,22 @@ void* signalsThread(void* args) {
                 // The game is over.
                 printf("\n\nGame FINISHED!\n\n");
 
-                // Enabling pause.
+                struct ClientNode* current;
+
+
+
+
+
+
+
+
+
+                // Enabling pause and advising the threads handlers of end of game to stop read()
+                // and start working on queue.
                 mLock(&pausemutex);
                 mLock(&listmutex);
 
-                struct ClientNode* current = head;
-
+                current = head;
                 // Locking threads handlers, when they complete the current request.
                 while (1) {
                     if (current == NULL) break;
@@ -443,6 +460,7 @@ void* signalsThread(void* args) {
                 // on their mutexes or before on read() and cannot read pauseon.
                 pauseon = 1;
 
+                current = head;
                 // Advising the threads handlers of end of game to stop read().
                 while (1) {
                     if (current == NULL) break;
@@ -457,6 +475,7 @@ void* signalsThread(void* args) {
                 // on their mutexes (eventually read() are stopped),
                 // except for those in disconnectClient(), but these last are not relevant.
                 // Releasing all threads, now they can read the modified pauseon.
+                current = head;
                 while (1) {
                     if (current == NULL) break;
                     mULock(&(current->handlerequest));
@@ -474,10 +493,29 @@ void* signalsThread(void* args) {
 
                 // REMEMBER: pauseon is still active and conditions the responses.
 
+
+
+
+
+
+
+
+
                 // Threads working on queue...
+                // Those blocked on registerUser() return to the beginning of clientHandler()
+                // and can continue even in this task without having pausemutex,
+                // so there is no danger of deadlock.
                 // After threads can once again return to respond to clients requests...
 
-                // Checking completed threads fill queue.
+
+
+
+
+
+
+
+
+                // Checking if threads completed their jobs on queue.
                 while (1) {
                     mLock(&queuemutex);
                     // nclientsconnected remember to use it only after acquiring the listmutex!
@@ -492,8 +530,35 @@ void* signalsThread(void* args) {
                 mULock(&listmutex);
                 mULock(&queuemutex);
 
-                // Important to lock list since nclientsconnected is used inside the scorer thread.
+
+
+
+
+
+
+
+                // Creating and executing the score thread.
+                // Important to lock listmutex since nclientsconnected is used inside the scorer thread.
+                mLock(&pausemutex);
                 mLock(&listmutex);
+
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
+                    mLock(&(current->handlerequest));
+                    current = current->next;
+                }
+
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
+                    retvalue = pthread_kill(current->thread, SIGUSR1); 
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    current = current->next;
+                }
+
                 // Creating the score thread.
                 retvalue = pthread_create(&queue, NULL, scorer, NULL);
                 if (retvalue != 0) {
@@ -505,10 +570,37 @@ void* signalsThread(void* args) {
                 if (retvalue != 0){
                     // Error
                 }
-                mULock(&listmutex);
+
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
+                    mULock(&(current->handlerequest));
+                    current = current->next;
+                }
 
                 // registerUser() and disconnectClient() back again in running.
                 mULock(&pausemutex);
+                // Important to realease to not suspend during the pause the clients accepting.
+                mULock(&listmutex);
+
+
+
+
+
+
+
+
+
+                // Threads working on end game send message...
+                // After threads can once again return to respond to clients requests...
+
+
+
+
+
+
+
+
 
                 // Executing pause.
                 retvalue = pthread_create(&pausethread, NULL, gamePause, NULL);
@@ -523,13 +615,31 @@ void* signalsThread(void* args) {
 
                 }
 
-                // Clearing the queue.
+
+
+
+
+
+
+
+
+                // Clearing the queue, remember here the scorer thread is finished, due
+                // to our pthread_join.
                 clearQueue();
+
+
+
+
+
+
+
+
 
                 // Disabling pause and starting a new game.
                 mLock(&pausemutex);
                 mLock(&listmutex);
                 // Locking threads to avoid unsafe multithreading situations.
+                current = head;
                 while (1) {
                     if (current == NULL) break;
                     mLock(&(current->handlerequest));
@@ -543,6 +653,7 @@ void* signalsThread(void* args) {
                 // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
                 updateClients();
                 // Releasing clients locks.
+                current = head;
                 while (1) {
                     if (current == NULL) break;
                     mULock(&(current->handlerequest));
@@ -550,6 +661,19 @@ void* signalsThread(void* args) {
                 }
                 mULock(&listmutex);
                 mULock(&pausemutex);
+
+
+
+
+
+
+
+
+
+                // Releasing scoreboardstr.
+                if (scoreboardstr != NULL) free(scoreboardstr);
+                scoreboardstr = NULL;
+                
 
                 break;
             }default:
@@ -1110,7 +1234,7 @@ void startGame(void) {
     setAlarm();
 
     // Printing current connected clients.
-    printConnectedClients(head, NULL, 0);
+    printConnectedClients(head, NULL, 0, 0);
 
 }
 
@@ -1225,7 +1349,7 @@ void acceptClient(void) {
 // It takes a number and returns a pointer to an heap allocated string containing the char 
 // corresponding to the digits of the number received.
 // It is used to convert values in string to send it in the char* data field of the struct Message.
-// Specifically, for example, send the times.
+// Specifically, for example, send the times and the final score.
 char* itoa(uli n) {
 
     if ((int) n < 0 || n < 0) {
@@ -1357,6 +1481,7 @@ void* clientHandler(void* voidclient) {
 
         if (pauseon) {
             if (localpauseon == 0) localpauseon = 1;
+            else if (localpauseon == 1) localpauseon = 2;
         }else{
             localpauseon = 0;
         }
@@ -1365,8 +1490,14 @@ void* clientHandler(void* voidclient) {
         if (received == NULL) {
             // End of game message on queue.
             // Sending end game.
-            gameEndQueue(client);
-
+            if (localpauseon == 1) {
+                gameEndQueue(client);
+                localpauseon = 2;
+            }else{
+                paolone;
+                localpauseon = 3;
+            }
+        
             // Clearing previous received INCOMPLETED requests.
             while(1){
                 retvalue = read(client->socket_client_fd, NULL, BUFFER_SIZE);
@@ -1374,7 +1505,6 @@ void* clientHandler(void* voidclient) {
             } 
             sendMessage(client->socket_client_fd, MSG_IGNORATO, NULL);
 
-            localpauseon = 2;
             
             mULock(&(client->handlerequest));
             continue;
@@ -1389,6 +1519,9 @@ void* clientHandler(void* voidclient) {
 
                 // Continuing processing previous received request.
 
+            }else if (pauseon && localpauseon == 2){
+                paolone2;
+                localpauseon = 3;
             }else{
                 // Normal message, nothing to do.
                 ;
@@ -1947,84 +2080,66 @@ void updateClients(void) {
 
 }
 
-// Simply print all connected clients with their informations recursively.
-// IT ASSUME that listmutex is already acquired by the caller!
-// It takes as input an element of the clients list (a pointer to it) to start with.
-void printConnectedClients(struct ClientNode* list, struct Queue** array, int usearray) {
+char* serializeStrClient(struct ClientNode* c) {
 
-    char buf[INET_ADDRSTRLEN] = {0}; 
-    int port;
     // Preparing the string that will be printed.
     char st[] = "Name: %s - IP: %s - Port: %d - Points %u - Thread ID: %LU\n";
 
-    if (list == NULL && !usearray) return; 
-    if ((array == NULL || *array == NULL) && usearray) return;
-    if ((array == NULL || *array == NULL) && list == NULL) return;
-
-    // Calculating the needed name space.
+    // Name.
     size_t namelen;
-    char v[] = "unregistered";
+    if (c->name != NULL) namelen = strlen(c->name);
+    else namelen = strlen(NO_NAME); 
 
-    if (usearray) {
+    // Port.
+    int port = ntohs((c->client_addr).sin_port);
+    char* portstr = itoa(port);
+    size_t portlen = strlen(portstr);
+    free(portstr);
 
-        for (unsigned int i = 0; i < usearray; i++) {
-            struct ClientNode* c = array[i]->e;
-            if (c->name != NULL) namelen = strlen(c->name);
-            else namelen = strlen(v); 
-            // Allocating the needed heap memory to store the string to print.
-            char* s = (char*) malloc((namelen + INET_ADDRSTRLEN + strlen(st)) * sizeof(char));
-            if (s == NULL) {
-                // Error
-            }
-            // Getting as string the client IP, and the port.  
-            inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
-            port = ntohs((c->client_addr).sin_port);
-            // Filling the string with data.
-            if (c->name != NULL) sprintf(s, st, c->name, buf, port, c->points, (unsigned long) c->thread);
-            else namelen = sprintf(s, st, v, buf, port, c->points, (unsigned long) c->thread);
-            // Printing string.
-            printf("%s", s);
-            // Freeing the allocated heap memory.
-            free(s);
-        }
-        return;
-  
-    }
-    
-    if (list->name != NULL) namelen = strlen(list->name);
-    else namelen = strlen(v); 
+    // IP.
+    char buf[INET_ADDRSTRLEN] = {0}; 
+    inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
 
-    // Allocating the needed heap memory to store the string to print.
-    char* s = (char*) malloc((namelen + INET_ADDRSTRLEN + strlen(st)) * sizeof(char));
+    // Points.
+    char* pointsstr = itoa(c->points);
+    size_t pointslen = strlen(pointsstr);
+    free(pointsstr);
+
+    // Thread ID.
+    char* threadidstr = itoa((uli) c->thread);
+    size_t threadidstrlen = strlen(threadidstr);
+    free(threadidstr);
+
+    // Allocating the needed heap memory to store the string.
+    char* s = (char*) malloc((strlen(st) + namelen + INET_ADDRSTRLEN + portlen + pointslen + threadidstrlen) * sizeof(char));
     if (s == NULL) {
         // Error
     }
-
-    struct ClientNode* c = list;
-
-    // Getting as string the client IP, and the port.  
-	inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
-    port = ntohs((c->client_addr).sin_port);
-
     // Filling the string with data.
-    if (c->name != NULL) sprintf(s, st, c->name, buf, port, c->points, (unsigned long) c->thread);
-    else namelen = sprintf(s, st, v, buf, port, c->points, (unsigned long) c->thread);
+    if (c->name != NULL) sprintf(s, st, c->name, buf, port, c->points, (uli) c->thread);
+    else namelen = sprintf(s, st, NO_NAME, buf, port, c->points, (uli) c->thread);
 
-    // Printing string.
-    printf("%s", s);
+    return s;
 
-    // Freeing the allocated heap memory.
-    free(s);
+}
 
-    // Recursively print the next client in the clients list.
-    printConnectedClients(c->next, NULL, 0);
+
+void createScoreboard(struct Queue** array, int arraylength) {
+
+    // Input checks.
+    if (array == NULL || *array == NULL) return;
+    if (arraylength < 0) {
+        // Error
+    }
+
+    arinza nome,cognome;
 
 }
 
 // This function create (and add element to) a heap allocated queue.
-// Each struct Queue element contains a struct ClientNode* object and a pointer to the next element.
-// It's called by each clientHandler() function at end of game, if the player is registered 
-// (name != NULL).
+// Each struct Queue element contains a struct ClientNode* object,
+// a struct Message* object and a pointer to the next element.
+// It's called by each clientHandler() function at end of game with his handled client.
 // Is possible to use the queue by accessing to headq and tailq global struct Queue*.
 void gameEndQueue(struct ClientNode* e) {
 
@@ -2033,6 +2148,50 @@ void gameEndQueue(struct ClientNode* e) {
         // Error
     }
 
+    // Creating and filling message object.
+
+    // Allocating space for the message on the heap.
+    struct Message* m = (struct Message*) malloc(sizeof(struct Message));
+    if (m == NULL) {
+        // Error
+    }
+
+    m->type = MSG_PUNTI_FINALI;
+
+    // Points to string.
+    char* p = itoa(e->points);
+    size_t plength = strlen(p);
+
+    // For the character ','.
+    plength++;
+
+    size_t length = e->name == NULL ? strlen(NO_NAME) + plength : strlen(e->name) + plength;
+    m->length = length;
+
+    m->data = (char*) malloc(sizeof(char) * m->length );
+    if (m->data == NULL) {
+        // Error
+    }
+
+    // Creating: "name,points" string.
+    unsigned int counter = 0;
+    while (1) {
+        m->data[counter] = e->name == NULL ? NO_NAME[counter] : e->name[counter];
+        if (m->data[counter] == '\0') break;
+        counter++;
+    }
+    m->data[counter++] = ',';
+    unsigned counter2 = 0;
+    while(1) {
+        m->data[counter] = p[counter2];
+        if (p[counter2] == '\0') break;
+        counter++;
+        counter2++;
+    }
+
+    free(p);
+
+    // Creating and filling the new queue element.
     struct Queue* new;
     new = (struct Queue*) malloc(sizeof(struct Queue));
     if (new == NULL) {
@@ -2040,6 +2199,7 @@ void gameEndQueue(struct ClientNode* e) {
     }
     new->next = NULL;
     new->e = e;
+    new->m = m;
 
     // A simply mutex used only to sync with others threads in the queue.
     mLock(&queuemutex);
@@ -2072,20 +2232,21 @@ void gameEndQueue(struct ClientNode* e) {
 // This function clear the end game queue to prepare it for the next end game.
 void clearQueue(void) {
 
-    printf("pietro");
-
     if (headq == NULL || tailq == NULL) {
         // NO PLAYERS CONNECTED!
         return;
     }
+
     struct Queue* begin = tailq;
     struct Queue* tmp = NULL;
     while (1) {
         if (begin == NULL) break;
         tmp = begin->next;
+        destroyMessage(&(begin->m));
         free(begin);
         begin = tmp;
     }
+
     nclientsqueuedone = 0U;
     headq = NULL;
     tailq = NULL;

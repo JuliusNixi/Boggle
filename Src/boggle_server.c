@@ -8,12 +8,6 @@
 
 int main(int argc, char** argv) {
 
-
-
-    scorer(NULL);
-    return 0;
-
-
     int retvalue; // To check system calls result (succes or failure).
     unsigned int seed = 0U; // Random seed.
 

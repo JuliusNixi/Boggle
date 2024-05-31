@@ -47,6 +47,7 @@ struct ClientNode {
 
 struct Queue {
     struct ClientNode* e;
+    struct Message* m;
     struct Queue* next;
 };
 
@@ -84,9 +85,16 @@ int validateWord(char*);
 void disconnectClient(struct ClientNode**, int);
 void endGame(int);
 void updateClients(void);
-void printConnectedClients(struct ClientNode*, struct Queue**, int);
 void gameEndQueue(struct ClientNode*);
-void clearQueue(void);
 void* scorer(void*);
-int sortPlayersByPoints(const void*, const void*);
+int sortPlayersByPointsMessage(const void*, const void*);
+char* serializeStrClient(struct ClientNode*);
+char* csvNamePoints(struct Message*, int);
+void createScoreboard(struct Queue**, int);
+void clearQueue(void);
+
+
+
+
+
 
