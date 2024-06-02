@@ -1,47 +1,52 @@
-// Shared server files vars and libs.
+// Shared server cross files vars and libs.
 #include "server.h"
 
 // Current file vars and libs.
 #include <math.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-struct ClientNode* head = NULL; // Pointer to the client list head.
-struct ClientNode* tail = NULL; // Pointer to the client list tail.
+struct ClientNode* head = NULL; // Pointer to the clients list head.
+struct ClientNode* tail = NULL; // Pointer to the clients list tail.
+pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER; // Mutex that will used from threads to synchronize interactions with the list of clients.
 
-pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER; // Mutex that will used from threads to manage interactions with the list of clients.
-
-char** words = NULL;  // Pointer to a char[][] array that will be allocated on the heap. Each string rapresent a word/line on the dictionary file
-char** words_copy = NULL;  // Copy of "words" to be used when the dictionary is validated, will contains only words present BOTH in the dictionary and the current game matrix.
+char** words = NULL;  // Pointer to a char[][] array that will be allocated on the heap. Each string rapresent a word/line on the dictionary file, NULL terminated.
+char** words_copy = NULL;  // Copy of "words" above (char[][] array heap allocated) to be used when the dictionary is validated, will contains only the words present BOTH in the dictionary and the current game matrix. It will be updated every times that the current game matrix changes.
 unsigned int words_len = 0;   // Length of the BOTH char[][] above.
 
 unsigned long int matchtime = 0;  // Time of the last game startup.
 unsigned long int pausetime = 0;  // Time of the last pause startup.
-#define PAUSE_DURATION 15 // Duration of the pause in seconds.
+#define PAUSE_DURATION 1 // Duration of the pause in minutes.
 
-#define WORD_LEN 4  // If set to an integer greater than 0, the server will refuse all the words that not match this length.
+#define WORD_LEN 4  // If set to an integer greater than 0, the server will refuse all the words that not match this length, even if present in the dictionary and in the current game matrix.
 
-int pauseon = 0;
-pthread_mutex_t pausemutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_t pausethread;
+int pauseon = 0; // This var will be 1 if the game is in pause, and 0 otherwise. It is used by the clientHandler() threads to understand how to response to the clients requests.
+pthread_mutex_t pausemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads during switching pause/game-on phases.
+pthread_t pausethread; // This will be a thread dedicated to execute the game pause. It will sleep the pause duration.
 
-#define MAX_NUM_CLIENTS 32
-unsigned int nclientsconnected = 0U;
+#define MAX_NUM_CLIENTS 32 // This is the maximum number of connected clients to the server. It's use is optional since the clients data are stored in a (potentially unlimited) linked list.
+unsigned int nclientsconnected = 0U; // This rapresent the number of connected clients to the server. It's include BOTH registered and unregistered users.
 
-pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER;
-struct Queue* headq = NULL;
-struct Queue* tailq = NULL;
-unsigned int nclientsqueuedone = 0U;
-pthread_t queue;
-#define NO_NAME "unregistered"
-char* scoreboardstr = NULL;
+pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads ad the end of game and fill the queue.
+struct Queue* headq = NULL; // Pointer to the queue head.
+struct Queue* tailq = NULL; // Pointer to the queue tail.
+unsigned int nclientsqueuedone = 0U; // This will store the number of clients that have already filled the queue.
+pthread_t scorert; // This thread will execute the scorer() function.
+#define NO_NAME "unregistered" // This will be the default name assigned to unregistered players.
+char* scoreboardstr = NULL; // This will containt the final CSV sorted scoreboard heap allocated.
+// This thread is required by the assignment details project document.
+// It will be a thread.
+// At end of game will pick up the content of the queue to produce the final game scoreboard sorted and will put it in a heap allocated string sorted CSV pointed by scoreboardstr (above var) that all clientHandler() threads will send to each player (BOTH registered or not).
+// It will also determine the winner printing a message.
 void* scorer(void* args) {
 
 
     /////////////////////////////////////////////////////////////////////////////
-    // WARNING: NOW clientHandler() THREADS ARE RUNNING AGAIN AND CAN ACCESS TO
+    // CAUTION: NOW (at execution of this thread scorer()) clientHandler() THREADS
+    // ARE RUNNING AGAIN AND CAN ACCESS TO THEIR respective
     // struct ClientNode* OBJECT (but not the entire clients list)!
+    // However the pausemutex and listmutex MUST BE LOCKED BEFORE STARTING THIS THREAD!
     /////////////////////////////////////////////////////////////////////////////
-
-    // Game ranking creation.
 
     ////////////////////////////// FOR TESTING ONLY //////////////////////////////
 
@@ -100,9 +105,9 @@ void* scorer(void* args) {
     //////////////////////////////////////////////////////////////////////////////
     */
 
-    // No players :(
+    // No players, no one to send scoreboard... :(
     if (nclientsconnected == 0){
-        printf("No players... :(\n)");
+        printff(NULL, "No players... :(\n");
         pthread_exit(NULL);
     } 
 
@@ -117,104 +122,126 @@ void* scorer(void* args) {
     }
 
     // Sorting players by points using message data.
-    // To use qsort i copied the list in the array.
+    // To use qsort i copied the list in the temporary array.
      
     qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPointsMessage);
 
-    printf("\t\tFINAL SCOREBOARD\n");
+    printff(NULL, "\t\tFINAL SCOREBOARD\n");
     for (unsigned int i = 0; i < nclientsconnected; i++) {
-        char* s = serializeStrClient(array[i]->e);
-        printf("%s", s);
+        char* s = serializeStrClient(array[i]->client);
+        printff(NULL, "%s", s);
         free(s);
     }
-    printf("\n\n");
+    printff(NULL, "\n\n");
 
-    char* pstr = csvNamePoints(array[0]->m, 1);
-    // p is max points.
-    int p = atoi(pstr);
+    // Taking from the previously sorted array the maximum number of points.
+    char* pstr = csvNamePoints(array[0]->message, 1);
+    unsigned int p = (unsigned int) atoi(pstr);
+    free(pstr);
+    // All players have 0 points.
     if (p == 0) {
-        printf("No winners, all players have 0 points.\n");
+        printff(NULL, "No winners, all players have 0 points.\n");
     }
 
+    // Counting the number of players that scored the same maximum points.
     counter = 0;
-    int cp;
+    // Current points temp var.
+    unsigned int cp;
     for (unsigned int i = 0; i < nclientsconnected; i++) {
+        // Skipping this code if all players have 0 points.
+        // Remember p is the maximum scored points by players.
         if (p == 0) break;
-        pstr = csvNamePoints(array[i]->m, 1);
-        cp = atoi(pstr);
+        // Getting points.
+        pstr = csvNamePoints(array[i]->message, 1);
+        cp = (unsigned int) atoi(pstr);
+        free(pstr);
+        // Counting the number of players that scored the same maximum points.
         if (p == cp) counter++;
         else break;
     }
+    // Only one winner with maximum p points.
     if (counter == 1) {
-        char* n = csvNamePoints(array[0]->m, 0);
-        printf("The winner is: %s with %d points.\n", n, p);
+        char* n = csvNamePoints(array[0]->message, 0);
+        printff(NULL, "The winner is: %s with %u points.\n", n, p);
+        free(n);
     }
 
     if (p != 0 && counter != 1) {
-        printf("The winners with %d points are:\n", p);
+        printff(NULL, "The winners with %u points are:\n", p);
         counter = 0;
         for (unsigned int i = 0; i < nclientsconnected; i++) {
-            pstr = csvNamePoints(array[i]->m, 1);
-            int cp = atoi(pstr);
+            // Getting maximum "p" points.
+            pstr = csvNamePoints(array[i]->message, 1);
+            cp = (unsigned int) atoi(pstr);
+            free(pstr);
+            // Printing multiple winners with same maximum "p" points scored.
             if (p == cp){
-                char* n = csvNamePoints(array[i]->m, 0);
-                printf("%s\n", n);
+                char* n = csvNamePoints(array[i]->message, 0);
+                printff(NULL, "%s\n", n);
+                free(n);
             }
             else break;
         }
     }
 
+    // Creating and printing the CSV final game scoreboard.
     createScoreboard(array, nclientsconnected);
 
-    printf("\nCSV:\n%s\n", scoreboardstr);
+    printff(NULL, "\nCSV:\n%s\n", scoreboardstr);
         
     pthread_exit(NULL);
 
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// This function take as input a message.
+// The message MUST contains in the "data" field a string in the format "playername,points"
+// that will be tokenized.
+// The second function arg is an int. It can value 1 if we want the "playername", 0 if we want
+// the "points". In both cases the function will return a char* heap allocated.
+// This function is used in the scorer() thread.
 char* csvNamePoints(struct Message* m, int nameorpoints) {
 
     if (m == NULL) {
         // Error
+        // Not critical, trying to continue.
+        handleError(0, 0, 0, 1, "WARNING: Error in csvNamePoints(), null message received. Trying to continue killing scorer() thread.\n");
     }
 
+    if (nameorpoints != 0 && nameorpoints != 1) {
+        // Error
+        // Not critical, trying to continue.
+        handleError(0, 0, 0, 1, "WARNING: Error in csvNamePoints(), \"nameorpoints\" not 0 or 1. Trying to continue killing scorer() thread.\n");
+    }
+
+    // Copying message "data" field in a temporary string to use strtok().
     char* s = m->data;
     char* backup = (char*) malloc(sizeof(char) * strlen(s));
     if (backup == NULL) {
         // Error
+        // Not critical, trying to continue.
+        handleError(0, 0, 0, 1, "WARNING: Error in csvNamePoints(), in malloc() backup. Trying to continue killing scorer() thread.\n");
     }
     strcpy(backup, s);
 
-    // Name.
+    // Getting name.
     char* tmp = strtok(backup, ",");
     size_t namelen = strlen(tmp);
     char* name = (char*) malloc(sizeof(char) * namelen);
     if (name == NULL) {
         // Error
+        // Not critical, trying to continue.
+        handleError(0, 0, 0, 1, "WARNING: Error in csvNamePoints(), in malloc() name. Trying to continue killing scorer() thread.\n");
     }
     strcpy(name, tmp);
 
-    // Points.
+    // Getting points.
     tmp = strtok(NULL, ",");
     size_t pointslen = strlen(tmp);
     char* points = (char*) malloc(sizeof(char) * pointslen);
     if (points == NULL) {
         // Error
+        // Not critical, trying to continue.
+        handleError(0, 0, 0, 1, "WARNING: Error in csvNamePoints(), in malloc() points. Trying to continue killing scorer() thread.\n");
     }
     strcpy(points, tmp);        
 
@@ -235,7 +262,10 @@ char* csvNamePoints(struct Message* m, int nameorpoints) {
 
 }
 
-
+// This function is used in qsort (in the scorer() thread) to sort an array of struct Queue*
+// containing pointers to multiple struct Queue wich contain a message with the "data" field
+// in the format "playername,points".
+// Is used from qsort to create a sorted final game points scoreboard.
 int sortPlayersByPointsMessage(const void* a, const void* b) {
 
     struct Queue** x = (struct Queue**) a;
@@ -244,14 +274,14 @@ int sortPlayersByPointsMessage(const void* a, const void* b) {
     struct Queue* xx = *x;
     struct Queue* yy = *y;
 
-    struct Message* mx = xx->m;
-    struct Message* my = yy->m;
+    struct Message* mx = xx->message;
+    struct Message* my = yy->message;
 
     char* s = csvNamePoints(mx, 1);
-    int px = atoi(s);
+    unsigned int px = (unsigned int) atoi(s);
     free(s);
     s = csvNamePoints(my, 1);
-    int py = atoi(s);
+    unsigned int py = (unsigned int) atoi(s);
     free(s);
 
     return py - px;
@@ -260,6 +290,8 @@ int sortPlayersByPointsMessage(const void* a, const void* b) {
 
 
 // This function generate a random letters matrix of size as written in NCOL and NROWS.
+// The letters that will be used are only those present in the ALPHABET.
+// matrix, ALPHABET, NROWS and NCOLS are defined in the server.h.
 // The matrix (global char[NROWS][NCOL]) will be filled with these letters.
 void generateRandomMatrix(void) {
 
@@ -267,7 +299,7 @@ void generateRandomMatrix(void) {
     // Iterating on game matrix.
     for (unsigned int i = 0; i < NROWS; i++)
         for (unsigned int j = 0; j < NCOL; j++) {
-            // Choosing a random letter from alphabet (global #define) and filling the matrix.
+            // Choosing a random letter from ALPHABET (global #define) and filling the matrix.
             randint = rand() % strlen(ALPHABET);
             // The characters written in the alphabet are used all in UPPERCASE version,
             // regardless how hey are written in the #define global alphabet.
@@ -277,12 +309,13 @@ void generateRandomMatrix(void) {
     // Validating the new game matrix.
     validateMatrix();
 
-    printf("New random matrix created and validated succesfully.\n");
+    printff(NULL, "New random matrix created and validated succesfully.\n");
 
 }
 
-// This function fill the game matrix (global char[NROWS][NCOL]) of size as written in NCOL and NROWS
-// by reading a file (with file path) received from CLI.
+// This function fill the game matrix (matrix is a global char[NROWS][NCOL]) of size as written in NCOL and NROWS
+// by reading a file (with file path) received as arg from CLI.
+// matrix, NROWS and NCOLS are defined in the server.h.
 // By passing a valid path file as argument, the function will start to read matrices line
 // by line (assuming one matrix for file line ended with \n) beginning from the first to the end of file.
 // If NULL is passed as arg, the function will load the next
@@ -299,16 +332,16 @@ void loadMatrixFromFile(char* path) {
     // so as to avoid costly I/O operations during the game,
     // for that the pointer and the stat need to be static.
     static char* file = NULL;
-    // Stat to get file information.
+    // Stat to get file informations.
     static struct stat s;
 
     // i is static, so i can remember between functions call
-    // where I was left to read the buffer file.
+    // where I was left to read the file.
     static unsigned int i = 0;
 
     // String that will be allocated on the heap and will rapresent the matrix file path
     // (if present in the CLI args).
-    static char* MAT_PATH = 0;
+    static char* MAT_PATH = NULL;
     if (path != NULL) {
         // Releasing old path.
         if (MAT_PATH != NULL) free(MAT_PATH);
@@ -316,25 +349,24 @@ void loadMatrixFromFile(char* path) {
         MAT_PATH = (char*) malloc(strlen(path) * sizeof(char));
         if (MAT_PATH == NULL) {
             // Error
-            printf("Error in allocating heap memory for the matrices file path.\n");
+            handleError(0, 1, 0, 1, "Error in allocating heap memory for the matrices file path.\n");
         }
         // Copying the path to in the heap var.
         strcpy(MAT_PATH, path);
         // Resetting i, a new file is passed, so i must restart from line 1.
         i = 0;
         
-        // IMPORTANT: to avoid loading same matrix forever in startGame().
+        // IMPORTANT: To avoid loading same matrix forever in startGame().
         matpath = NULL;
     }else
         // First call with NULL path.
         if (MAT_PATH == NULL) {
             // Error
-            printf("Error, loadMatrixFromFile() has not been initialized. Recall it with a valid file path.\n");
+            handleError(0, 1, 0, 1, "Error, loadMatrixFromFile() has not been initialized. Recall it with a valid file path.\n");
         }
 
     int retvalue;
     unsigned int counter = 0;
-
 
     // Loading file content first time.
    if (path != NULL) {
@@ -342,13 +374,13 @@ void loadMatrixFromFile(char* path) {
         // Performing stat on file.
         retvalue = stat(MAT_PATH, &s);
         if (retvalue == -1) {
-                // Error
-                printf("Error in getting %s matrices file information.\n", MAT_PATH);
+            // Error
+            handleError(0, 1, 0, 1, "Error in getting %s matrices file information.\n", MAT_PATH);
         }
         // Check if the file is regular.
         if(!S_ISREG(s.st_mode)){
-                printf("Error %s matrices file is not a regular file.\n", MAT_PATH);
-                // Error
+            // Error
+            handleError(0, 1, 0, 1, "Error %s matrices file is not a regular file.\n", MAT_PATH);
         }
 
         // Releasing previous file content if present.
@@ -358,15 +390,14 @@ void loadMatrixFromFile(char* path) {
         file = (char*) malloc(sizeof(char) * s.st_size);
         if (file == NULL) {
             // Error
-            printf("Error in allocating memory for the matrix file content.");
+            handleError(0, 1, 0, 1, "Error in allocating memory for the matrix file content.");
         }
-
 
         // Opening the file in readonly mode.
         int fd = open(MAT_PATH, O_RDONLY, NULL);
         if (fd == -1) {
             // Error
-            printf("Error in opening %s matrices file.\n", MAT_PATH);
+            handleError(0, 1, 0, 1, "Error in opening %s matrices file.\n", MAT_PATH);
         }
 
         // Reading the file content using a buffer of BUFFER_SIZE length.
@@ -375,7 +406,7 @@ void loadMatrixFromFile(char* path) {
             retvalue = read(fd, buffer, BUFFER_SIZE);
             if (retvalue == -1) {
                 // Error
-                printf("Error in reading %s matrices file.\n", MAT_PATH);
+                handleError(0, 1, 0, 1, "Error in reading %s matrices file.\n", MAT_PATH);
             }
             // Exit while, end of file reached.
             if (retvalue == 0) break;
@@ -394,16 +425,16 @@ void loadMatrixFromFile(char* path) {
     // If i equals to the file size, I am at the end of it and I start reading all over again.
     if (i == s.st_size) i = 0;
     for (; i < s.st_size; i++) {
-        // Skipping spaces, and 'u' of 'Qu'.
-        if (file[i] == ' ' || file[i] == 'u') continue;
+        // Skipping spaces, '\r' and 'u' of 'Qu'.
+        if (file[i] == ' ' || file[i] == 'u' || file[i] == '\r') continue;
 
-        // New line found.
-        if (file[i] == '\n') {
+        // New line found or end of file reached.
+        if (file[i] == '\n' || i + 1 == s.st_size) {
             // Getting matrix index to fill.
             getMatrixNextIndexes(matrixnextindexes);
             if (counter != NROWS * NCOL || matrixnextindexes[0] != -1) {
                 // Error
-                printf("Error %s matrices file is in invalid format.\n", MAT_PATH);
+                handleError(0, 1, 0, 1, "Error %s matrices file has an invalid format.\n", MAT_PATH);
             }
             i++;
             break;
@@ -412,7 +443,7 @@ void loadMatrixFromFile(char* path) {
         getMatrixNextIndexes(matrixnextindexes);
         if (matrixnextindexes[0] == -1){
             // Error 
-            printf("Error %s matrices file is in invalid format.\n", MAT_PATH);
+            handleError(0, 1, 0, 1, "Error %s matrices file is in invalid format.\n", MAT_PATH);
         }else
             // The matrix are loaded with all characters UPPERCASE, regardless how
             // they are written in the file.
@@ -424,7 +455,7 @@ void loadMatrixFromFile(char* path) {
     // Validating the new matrix.
     validateMatrix();
 
-    printf("New matrix succesfully loaded and validated from %s matrix file.\n", MAT_PATH);
+    printff(NULL, "New matrix succesfully loaded and validated from %s matrix file.\n", MAT_PATH);
 
 }
 
@@ -443,6 +474,7 @@ void* signalsThread(void* args) {
 
     int sig;    
     int retvalue;
+    threadSetup();
     while (1){
         // Intercepting signals previously setted in the mask in the main.
         // sigwait() atomically get the bit from the signals pending mask and set it to 0.
@@ -456,6 +488,7 @@ void* signalsThread(void* args) {
         switch (sig){
             case SIGINT:{ 
                 // TODO
+                
                 break;
             }case SIGALRM:{
                 // This will manage the SIGALRM signal triggered by the timer when the game is over.
@@ -589,14 +622,14 @@ void* signalsThread(void* args) {
                     current = current->next;
                 }
 
-                // Creating the score thread.
-                retvalue = pthread_create(&queue, NULL, scorer, NULL);
+                // Creating the scorer thread.
+                retvalue = pthread_create(&scorer, NULL, scorer, NULL);
                 if (retvalue != 0) {
                     // Error
                 }
 
                 // Waiting the score thread to finish.
-                retvalue = pthread_join(queue, NULL);
+                retvalue = pthread_join(scorer, NULL);
                 if (retvalue != 0){
                     // Error
                 }
@@ -755,12 +788,12 @@ void getMatrixNextIndexes(int* matrixnextindexes) {
 
 }
 
-// This function check if the current matrix content (global char[][]) is legit
-// in accordance with the alphabet.
-// If is found in the matrix at least 1 character not present in the alphabet,
+// This function check if the current matrix content (global char[][] in server.h) is legit
+// in accordance with the ALPHABET (also defined in server.h).
+// If is found in the matrix at least 1 character not present in the ALPHABET,
 // the matrix is not valid, and a critical error is throw.
 // If the matrix is valid, nothing happen.
-// The alphabet is defined as a global #define in .h file.
+// The ALPHABET is defined as a global #define in server.h file.
 // This is useful to immediately notice any developmental errors that could lead
 // the matrix into an inconsistent state.
 void validateMatrix(void) {
@@ -771,7 +804,7 @@ void validateMatrix(void) {
             unsigned int found = 0;
             // Searching char of matrix in the alphabet.
             // Matrix chars are saved in UPPERCASE.
-            // Also the alphabet is always used in UPPERCASE.
+            // Also the ALPHABET is always used in UPPERCASE.
             for (unsigned int x = 0; x < strlen(ALPHABET); x++)
                 if (c == toupper(ALPHABET[x])) {
                     found = 1;
@@ -780,17 +813,18 @@ void validateMatrix(void) {
             // Character not found, error.
             if (found == 0) {
                 // Error
-                printf("Error invalid character %c in the matrix.\n", c);
+                handleError(0, 1, 0, 1, "Error invalid character %c in the matrix.\n", c);
             }
         }
     }
 
 }
 
-// This function initialize the game matrix (global server char[NROWS][NCOL]).
-// Is not mandatory but recommended, to avoid annoying bugs during the development.
+// This function initialize the game matrix (global server.h char[NROWS][NCOL]).
 // The function will simply fill the matrix with a special undefined char (VOID_CHAR).
-// The matrix is a char** that will contain the game characters.
+// matrix, NROWS, NCOLS, VOID_CHAR are defined in server.h.
+// Is not mandatory but recommended, to avoid annoying bugs during the development.
+// The matrix is a static char[][] that will contain the game characters.
 // Each matrix slot will rapresent a char of the game.
 // The symbol Qu is rapresented only with Q to save space.
 void initMatrix(void) {
@@ -800,7 +834,7 @@ void initMatrix(void) {
         for (unsigned int j = 0; j < NCOL; j++) 
             matrix[i][j] = VOID_CHAR;
     
-    printf("Game matrix succesfully initialized.\n");
+    printff(NULL, "Game matrix succesfully initialized.\n");
 
 }
 
@@ -830,7 +864,9 @@ char* serializeMatrixStr(void) {
     char* matrixstring = (char*) malloc(sizeof(char)* MAT_STR_LEN);
     if (matrixstring == NULL) {
         // Error
-        printf("Error in allocating heap memory for the matrix string.\n");
+        // Not critical trying to continue...
+        handleError(0, 0, 0, 0, "WARNING: Error in allocating heap memory for the matrix string. Trying to continue returning NULL.\n");
+        return NULL;
     }
 
     // Checking the matrix validation.
@@ -900,38 +936,39 @@ char* serializeMatrixStr(void) {
 // This function allocate and load in memory on the heap a char array[][] called "words".
 // "words" is a char** global var.
 // Each line is a char* to a word (allocated on the heap) of the dictionary file.
-// Assuming the dictionary file contains one word at each line terminated by \n.
+// Assuming the dictionary file contains one word at each line terminated by \n or \r\n.
 // Dictionary file is used to check if a word submitted by a client is legit,
 // in addition to the presence in the current game matrix.
 // It used when the optional --diz is setted by CLI with a file path passed as arg.
 // If --diz is not present, will be passed to this function DEFAULT_DICT #defined
-// in the main server file.
+// in the main.
 // The function takes as input the file path to the dictionary.
 // It set also a current file global var words_len, that rapresent the "words" length.
 void loadDictionary(char* path) {
+
+    // Empty path.
+    if (path == NULL) {
+        // Error
+        handleError(0, 1, 0, 1, "Error, loadDictionary() received an empty path.\n");
+    }
 
     // Dictionary already loaded, updating it.
     if (words != NULL) {
         // Cleaning words and words_copy.
         // Clear also words_copy is a good idea to not create a possible insubstantial state.
-        for (int i = 0; i < words_len; i++)
+        for (unsigned int i = 0; i < words_len; i++)
             free(words[i]);
         free(words);
         words = NULL;
         words_len = 0;
 
+        // Cleaning words_copy.
         if (words_copy != NULL) {
-            for (int i = 0; i < words_len; i++)
+            for (unsigned int i = 0; i < words_len; i++)
                 free(words_copy[i]);  
             free(words_copy);
             words_copy = NULL;      
         }
-    }
-
-    // Empty path.
-    if (path == NULL) {
-        // Error
-        printf("Error, loadDictionary() received an empty path.\n");
     }
 
    // Stat to get file information, retvalue to check syscalls returns.
@@ -941,23 +978,25 @@ void loadDictionary(char* path) {
    // Performing stat on file.
    retvalue = stat(path, &s);
    if (retvalue == -1) {
-    // Error
-    printf("Error in getting %s dictionary file informations.\n", path);
+        // Error
+        handleError(0, 1, 0, 1, "Error in getting %s dictionary file informations.\n", path);
    }
    // Check if the file is regular.
    if(!S_ISREG(s.st_mode)){
         // Error
-        printf(" %s dictionary is not a regular file.\n", path);
+        handleError(0, 1, 0, 1, " %s dictionary is not a regular file.\n", path);
     }
 
     // To store file content.
-    char file[s.st_size]; /* Total size, in bytes */
+    // Total size, in bytes + 1 for the '\0'. 
+    char file[s.st_size + 1];
+    char file_copy[s.st_size + 1];
 
     // Opening the file in readonly mode.
     int fd = open(path, O_RDONLY, NULL);
     if (fd == -1) {
         // Error
-        printf("Error in opening %s dictionary file.\n", path);
+        handleError(0, 1, 0, 1, "Error in opening %s dictionary file.\n", path);
     }
 
     // Reading the file content using a buffer of BUFFER_SIZE length.
@@ -967,7 +1006,7 @@ void loadDictionary(char* path) {
         retvalue = read(fd, buffer, BUFFER_SIZE);
         if (retvalue == -1) {
             // Error
-            printf("Error in reading %s dictionary file.\n", path);
+            handleError(0, 1, 0, 1, "Error in reading %s dictionary file.\n", path);
         }
         // Exit while, end of file reached.
         if (retvalue == 0) break;
@@ -977,52 +1016,55 @@ void loadDictionary(char* path) {
             file[counter++] = buffer[i];
     }
 
+    // Terminating the file content.
+    file[s.st_size] = '\0';
+    // Copying the file content, to use strtok() on the first instance.
+    strcpy(file_copy, file);
+
     // Counting file lines and allocating heap space.
+    char* str = file;
     counter = 0;
-    for (unsigned int i = 0; i < s.st_size; i++)
-        // End of line or end of file reached.
-        if (file[i] == '\n' || i + 1 == s.st_size)
-            counter++;
-    words_len = counter;
+    while (str != NULL) {
+        // strtok() modifies the string content (with "s", the "file" also is modified).
+        // It tokenize all '\n' '\r' '\n\r' '\r\n'.
+        // This tokens are replaced with '\0'
+        // The first time strtok() need to be called with string pointer, then with NULL.
+        if (counter == 0) str = strtok(str, "\n\r");
+        else str = strtok(NULL, "\n\r");
+        counter++;
+    }
+
+    // Allocating heap spaces for "words" and setting "words_len".
+    words_len = --counter;
     words = (char**) malloc(sizeof(char*) * words_len);
     if (words == NULL) {
         // Error
-        printf("Error in allocating heap space for the dictionary file content.\n");
+        handleError(0, 1, 0, 1, "Error in allocating heap space for the dictionary file content.\n");
     }
 
-    // Array counter.
+    // Copying each words (line) of the file in "words[i]".
     counter = 0;
-    // Word length counter.
-    unsigned int wl = 0;
-    // Word character copying counter.
-    unsigned int c = 0;
-    // Reading the file content through the file char[].
-    for (unsigned int i = 0; i < s.st_size; i++) {
-        // A word is detecting when a \n is reached or the end of file is reached.
-        if (file[i] == '\n' || i + 1 == s.st_size) {
-            // Calculating word length.
-            // +1 for the string terminator. +2 for the last char and the string terminator.
-            int l = (file[i] == '\n' ? wl + 1 : wl + 2);
-            // Allocating space for the new word.
-            words[counter++] = (char*) malloc(sizeof(char) * l);
-            if (words[counter - 1] == NULL) {
-                // Error
-                printf("Error in allocating heap space for the %u word of the dictionary file.\n", counter);
-            }
-            c = 0;
-            // Copying the word (char by char) in the allocated space if it is not '\n'.
-            // The dictionary words are loaded with all characters UPPERCASE, regardless how
-            // they are written in the file.
-            for (unsigned int j = i - wl; j <= i; j++) 
-                if (file[j] != '\n') words[counter - 1][c++] = toupper(file[j]);
-            // Inserting string terminator.
-            words[counter - 1][c] = '\0';
-            wl = 0;
-        }  else 
-            wl++;
+    str = file_copy;
+    while (str != NULL) {
+        // Totkenizing with strtok().
+        if (counter == 0) str = strtok(str, "\n\r");
+        else str = strtok(NULL, "\n\r");
+        if (str == NULL) break;
+        // ALlocating heap space.
+        words[counter++] = (char*) malloc(sizeof(char) * strlen(str));
+        if (words[counter - 1] == NULL) {
+            // Error
+            handleError(0, 1, 0, 1, "Error in loadDictionary() while allocating heap space for a word.\n");
+        }
+        // Copying the word in the new words[i] heap space.
+        strcpy(words[counter - 1], str);
     }
 
-    printf("Words dictionary succesfully loaded from %s file with %u words.\n", path, counter);
+    // Converting all words to UPPERCASE.
+    for (unsigned int i = 0; i < words_len; i++)
+        toLowerOrUpperString(words[i], 'U');
+
+    printff(NULL, "Words dictionary succesfully loaded from %s file with %u words.\n", path, counter);
 
 }
 
@@ -1049,7 +1091,7 @@ void validateDictionary(void) {
     // Dictionary not loaded.
     if (words == 0) {
         // Error
-        printf("Error, cannot validate the words if a dictionary has not been previously loaded.\nCall loadDictionary() before and retry.\n");
+        handleError(0, 1, 0, 1, "Error, cannot validate the words if a dictionary has not been previously loaded.\nCall loadDictionary() before and retry.\n");
     }
 
     // Realising (if already present) words_copy.
@@ -1060,58 +1102,76 @@ void validateDictionary(void) {
     words_copy = (char**) malloc(sizeof(char*) * words_len);
     if (words_copy == 0) {
         // Error
-        printf("Error, cannot allocate heap memory for the words_copy var.\n");
+        handleError(0, 1, 0, 1, "Error, cannot allocate heap memory for the words_copy var.\n");
     }
 
-    // Copyinig pointers from "words" current file global var.
+    // Copyinig pointers from "words" current file global var to the new "words_copy".
     for (unsigned int i = 0; i < words_len; i++)
         words_copy[i] = words[i];
 
-    // Iterate on all words loaded in "words" current file var from the dictionary file.
+    // Iterate on all words loaded in "words" (current file var) from the dictionary file.
     for (unsigned int x = 0; x < words_len; x++) {
         int found = 0;
+
         // Iterating on each character of the game matrix.
-        for (unsigned int i = 0; i < NROWS; i++)
-            for (unsigned int j = 0; j < NCOL; j++)
-            // If at least one occurrence of the x-word of the loaded dictionary file
-            // is found in the current game matrix, I will come out from these for.
-            // This is done thanks to the Short-circuit evaluation.
-                if((found = searchWordInMatrix(i, j, words[x])) && (i = NROWS) && (j = NCOL))
+        for (unsigned int i = 0; i < NROWS; i++) {
+            for (unsigned int j = 0; j < NCOL; j++){
+                // If the word is founded in the current game matrix, 1 is returned by searchWordInMatrix(),
+                // 0, otherwise. When the word is founded the first time (found == 1),
+                // we will set NROWS and NCOL to exit for prematurely.
+                // If at least one occurrence of the x-word of the loaded dictionary file
+                // is found in the current game matrix, I will come out from these for.
+                // This is done thanks to the Short-circuit evaluation.
+                if((found = searchWordInMatrix(i, j, words[x])) && (i = NROWS) && (j = NCOL)) 
                 ;
+            }
+        }         
+
         // Deleting (BY INCREASING ONLY THE COPY OF "WORDS" POINTERS) the x-word not found.
         // At the end "words_copy" var will contain only all words from the previously loaded
         // dictionary file AND present in the current game matrix. 
         // The other words will be represented by '\0'.
-        if (!found)
-            while(words_copy[x][0] != '\0') words_copy[x]++;
+        if (!found) {
+            while(words_copy[x][0] != '\0'){
+                words_copy[x] = words_copy[x] + 1;
+            } 
+        }
     }
 
     // Printing results.
-    printf("Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
+    printff(NULL, "Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
     for (unsigned int i = 0; i < words_len; i++)
         if (words_copy[i][0] != '\0')
-            printf("%s\n", words_copy[i]);
+            printff(NULL, "%s\n", words_copy[i]);
 
 }
 
 // This function can be used in two ways:
-// - to simply check if a connected user is registered or not (by passing a NULL name as arg).
-//   it returns 1 if registered, 0 otherwise.
-// - to register a new user if the proposed username is not already registered.
-//   it returns -1 if registered succesfully, -2 if the name is already present and c if 
-//   the proposed name does not match the alphabet of allowed chars (global #define), 
+// - to simply check if a connected user is registered or not by passing a NULL "name" as arg.
+//   It returns 1 if registered, 0 otherwise.
+// - to register a new user if the proposed username is not already registered from someone else.
+//   It returns -1 if registered succesfully, -2 if the name is already present and c if 
+//   the proposed name does not match the ALPHABET of allowed chars (global #define in server.h), 
 //   where c is the first invalid char code.
 //   So, in these last two cases, no registration will be made.
-//   If successful it also initialize the struct ClientNode name and words_validated fields.
-// In the second use case, It's possible a deadlock situation during the end of the game,
-// in which case the function resolves the deadlock, saves the message to process later,
-// and returns -3.
+//   If successful, on the other hand, it fill the "name" struct ClientNode user
+//   (by using its pointer) field, by setting it to a new char* heap allocated string, that
+//   will contain the new player registered name.
+//   It also initialize the "words_validated" struct ClientNode user (by using its pointer) field,
+//   by setting it to a new char* heap allocated array containing the copied pointers from
+//   "words_copy", but only the words that were not previously already accepted for the interested user.
+//   In the second use case, it's possible a deadlock situation during the end of the game,
+//   in that case, the function resolves the deadlock, saves the message "m" in the struct
+//   to process later, and returns -3.
+// If name != NULL and an other strange error happens, the registerUser() throw a NON CRITICAL ERROR.
+// It simply unlock all the acquired mutexes and returns 0, trying to continue.
 int registerUser(char* name, struct ClientNode* user, struct Message* m) {
 
     // Invalid user arg check.
     if (user == NULL) {
         // Error
-        printf("Invalid user in registerUser().\n");
+        handleError(0, 0, 0, 0, "WARNING: Invalid user in registerUser().\nTrying to continue without registering the user.\n");
+        return 0;
     }
 
     // Only check if the user is registered without registering it when name == NULL is passed.
@@ -1123,7 +1183,7 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     // Normalizing in UPPERCASE the player name.
     toLowerOrUpperString(name, 'U');
 
-    // Checking the conformity of the name against the alphabet.
+    // Checking the conformity of the name against the ALPHABET.
     for (unsigned int x = 0; x < strlen(name); x++) {
         int found = 0;
         for (unsigned int i = 0; i < strlen(ALPHABET); i++) {
@@ -1145,10 +1205,11 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
             // thread clientHandler() -> acquire lock client->handlerequest
             // signalsThread() -> acquire listmutex lock list.
             // registerUser() (this function called by clientHandler()) -> wait on listmutex lock list.
-            // signalsThread() -> wait on lock client->handlerequest
+            // signalsThread() -> wait on lock client->handlerequest.
             // Mutual waiting!
             // DEADLOCK!!!!
             // For this we have used pthread_mutex_trylock() and pausemutex here.
+
             // Saving the message to process it later.
             user->queuedmessage = m;
             // Pre-releasing the mutex to fix the deadlock.
@@ -1158,16 +1219,26 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
             return -3;
         }else{
             // Error
+            user->queuedmessage = m;
+            mULock(&(user->handlerequest));
+            usleep(100);
+            handleError(0, 0, 0, 0, "WARNING: Error in registerUser(), cannot acquire the \"pausemutex\".\nContinuing without registering.\n");
+            return 0;
         }
     }
     // TryLock success.
-    // listmutex CANNOT BE acquired by the signalsThread() thanks to pausemutex, acquiring it,
-    // acquiring by other threads is not a problem.
+    // listmutex CANNOT BE acquired by the signalsThread() thanks to pausemutex, acquiring listmutex,
+    // acquiring it before by other threads is not a problem because they always release it.
     mLock(&listmutex);
     // If registerUser() is called, it means at least 1 player should be in the clients list.
+    // Remember the clients list contains also the unregistered players, but currently connected to the server.
     if (head == NULL || tail == NULL) {
         // Error
-        printf("Error, called registerUser() and the clients list is empty.\n");
+        user->queuedmessage = m;
+        mULock(&(user->handlerequest));
+        mULock(&listmutex);
+        handleError(0, 0, 0, 0, "WARNING: Error, called registerUser() and the clients list is empty.\nTrying to continue ignoring it.\n");
+        return 0;
     }
     // Going through the list.
     // If registerUser() is called, it means at least 1 player should be in the clients list.
@@ -1194,7 +1265,8 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     char* str = (char*) malloc(sizeof(char) * strlen(name));
     if (str == NULL) {
         // Error
-        printf("Error registering a new user name.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error registering a new user name: %s.\nTrying to continue without registering it.\n");
+        return 0;
     }
     // Copying the new username in heap memory.
     strcpy(str, name);
@@ -1208,43 +1280,37 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     user->words_validated = (char**) malloc(sizeof(char*) * words_len);
     if (user->words_validated == NULL) {
         // Error
-        printf("Error in allocating heap memory for words_validated of a client/player in registerUser().\n");
+        handleError(0, 0, 0, 0, "WARNING: Error in allocating heap memory for \"words_validated\" of a client/player in registerUser().\nTrying to continue without registering it.\n");
     }
     for (unsigned int i = 0; i < words_len; i++) (user->words_validated)[i] = words_copy[i];
 
-    printf("Registered user with new name %s.\n", user->name);
+    printff(NULL, "Registered user succesfully with the new name %s.\n", user->name);
 
     // Registered succesfully.
     return -1;
 
 }
 
-// This function simply set a POSIX timer using the global var gameduration, to handle the game time.
-// The default gameduration is 3 minutes setted in main.
+// This function simply set a POSIX timer using the global var "gameduration",
+// to handle the game time.
+// The default gameduration is 3 minutes setted in main().
 // The gameduration can also be inserted by a CLI arg.
 void setAlarm(void) {
 
     // Alarm takes as input seconds, but the user input (gameduration var) is in minutes.
-    // alarm(60 * gameduration);
+    alarm(60 * gameduration);
 
-    /*
-    Time remaining to the next match: 1716168197 seconds.
-    */
-
-
-    gameduration = 15LU;
-    alarm(gameduration);
-    printf("The game duration is now setted to %lu minutes.\n", gameduration);
+    printff(NULL, "The game duration is now setted to %lu minutes.\n", gameduration);
 
 }
 
-// This function start a new game.
+// This function starts a new game.
 void startGame(void) {
 
-    printf("A new game is started right now.\n");
+    printff(NULL, "A new game is started right now.\n");
 
     // Getting new game start timestamp in POSIX.
-    matchtime = (unsigned long) time(NULL);
+    matchtime = (uli) time(NULL);
 
     // Changing game matrix.
     if (usematrixfile)
@@ -1254,7 +1320,7 @@ void startGame(void) {
 
     // Print the new current game matrix.
     char* mat = serializeMatrixStr();
-    printf("Current new matrix:\n%s", mat);
+    printff(NULL, "Current new matrix:\n%s", mat);
     free(mat);
 
     // Validate the dictionary with the new game matrix.
@@ -1263,19 +1329,20 @@ void startGame(void) {
     // Setting the new pause timer.
     setAlarm();
 
-
 }
 
 // This function will run in a dedicated thread.
+// Will simply sleep for a PAUSE_DURATION
 void* gamePause(void* args) {
 
     // Getting new starting pause timestamp in POSIX time.
     pausetime = (unsigned long) time(NULL);
 
     // Executing the pause.
-    sleep(PAUSE_DURATION);
+    // PAUSE_DURATION in minutes, but sleep takes seconds.
+    sleep(PAUSE_DURATION * 60);
 
-    // Terminating the thread. This WILL NOT EVEN return.
+    // Terminating the thread. This WILL NOT return.
     pthread_exit(NULL);
 
 }
@@ -1283,10 +1350,12 @@ void* gamePause(void* args) {
 // This function will wait a new client connection.
 // It will accept it when present, will create a new client-list node on the heap.
 // Will link the new node with the global current file list.
+// Will initialize the new node to prepare it for the associated new player.
 // Finally will start a new pthread to handle the new client connected.
-// ClientNode is a global struct defined in .h file.
+// ClientNode is a global struct defined in server.h file.
 // This function will wait forever (as long as the a new connection happen).
 // This function is called forever (as long as the process lives) in a main while(1);.
+// This function will be executed always from the the main thread.
 void acceptClient(void) {
 
     // Pre-allocating heap memory for a new client node.
@@ -1294,7 +1363,7 @@ void acceptClient(void) {
     new = (struct ClientNode*) malloc(sizeof(struct ClientNode));
     if (new == NULL) {
         // Error
-        printf("Error in allocating heap memory for a new player/client.\n");
+        handlerError(0, 1, 0, 1, "Error in allocating heap memory for a new player/client.\n");
     }
 
     // Waiting for a new client connection.
@@ -1304,31 +1373,29 @@ void acceptClient(void) {
         new->socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(new->client_addr)), &(new->client_address_len));
         if (new->socket_client_fd == -1) {
             // Error
-            printf("Error in accepting a new client i will try again.\n");
+            // errno
+            handleError(1, 0, 0, 0, "WARNING: Error in accepting a new client i will try again in 1 second.\n");
+            sleep(1);
         }else
             break;
     }
-    printf("New client accepted.\n");
+    printff(NULL, "New client succesfully accepted.\n");
 
-    // Initializing new client.
-    new->next = NULL;
-
-    // PTHREAD_MUTEX_ERRORCHECK
-    // This type of mutex provides error checking. 
+    // Initializing a mutex of type PTHREAD_MUTEX_ERRORCHECK.
+    // This type of mutex provides error checking that will be used in disconnectClient(). 
     // A thread attempting to relock this mutex without first unlocking it shall return with an error. 
     // A thread attempting to unlock a mutex which another thread has locked shall return with an error.
-    // A thread attempting to unlock an unlocked
-    // mutex shall return with an error.
+    // A thread attempting to unlock an unlocked mutex shall return with an error.
     retvalue = pthread_mutexattr_init(&(new->handlerequestattr));
     if (retvalue != 0) {
         // Error
-        printf("Error in mutex handle request attributes initialization.\n");
+        handleError(0, 1, 0, 1, "Error in mutex attributes initializing in acceptClient().\n");
     }
 
     retvalue = pthread_mutexattr_settype(&(new->handlerequestattr), PTHREAD_MUTEX_ERRORCHECK);
     if (retvalue != 0) {
         // Error
-        printf("Error in setting mutex handle request attributes.\n");
+        handleError(0, 1, 0, 1, "Error in mutex attributes setting in acceptClient().\n");
     }
 
     // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
@@ -1336,9 +1403,11 @@ void acceptClient(void) {
     retvalue = pthread_mutex_init(&(new->handlerequest), &(new->handlerequestattr));
     if (retvalue != 0) {
         // Error
-        printf("Error in mutex handle request initialization.\n");
+        handleError(0, 1, 0, 1, "Error in mutex initializing in acceptClient().\n");
     }
 
+    // Initializing new client.
+    new->next = NULL;
     new->points = 0U;
     // These below fields are truly initalized when the client is registered in registerUser().
     new->words_validated = NULL;
@@ -1358,31 +1427,33 @@ void acceptClient(void) {
         tail->next = new;
         tail = tail->next;
     }
-    printf("New client added to the list.\n");
+    printff(NULL, "New client succesfully added to the list.\n");
     
     // Starting a new pthread to handle the new client.
     // The executed function will be clientHandler().
     // It receives as input the pointer to the node (of its client to be managed)
     // of the clients list.
+    // So, it won't have to cross through the list to operate with the client,
+    // and that makes it a little easier to synchronize with others threads.
     retvalue = pthread_create(&(new->thread), NULL, clientHandler, new);
     if (retvalue != 0) {
         // Error
-        printf("Error in starting a new client handler thread.\n");
+        handleError(0, 1, 0, 1, "Error in starting a new client handler thread.\n");
     }
-    printf("New client thread started.\n");
+    printff(NULL, "New client thread started succesfully.\n");
 
 }
 
 // This function is the "inverse" of atoi().
-// It takes a number and returns a pointer to an heap allocated string containing the char 
-// corresponding to the digits of the number received.
+// It takes a number (unsigned long) and returns a pointer to an heap allocated string
+// containing the char corresponding to the digits of the number received.
 // It is used to convert values in string to send it in the char* data field of the struct Message.
-// Specifically, for example, send the times and the final score.
 char* itoa(uli n) {
 
-    if ((int) n < 0 || n < 0) {
+    if ((int) n < 0) {
         // Error
-        printf("Error itoa() received a negative number, must be positive.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error, itoa() received a negative number, should be positive. Trying to continue returning NULL.\n");
+        return NULL;
     }
 
     // Below i calculate the number of digits of the received n as input.
@@ -1394,7 +1465,8 @@ char* itoa(uli n) {
     char* strint = (char*) malloc(sizeof(char) * ndigits);
     if (strint == NULL) {
         // Error
-        printf("Error in casting integer to string, in itoa().\n");
+        handleError(0, 0, 0, 0, "WARNING: Error in allocating heap memory, in itoa(). Trying to continue returning NULL.\n");
+        return NULL;
     }
 
     // Inserting in the string the number received as input.
@@ -1404,14 +1476,15 @@ char* itoa(uli n) {
 
 }
 
-// This function is a support to calculate the times needed.
+// This function is used as support to calculate the times needed.
 uli timeCalculator(uli matchorpausetime, char mode) {
 
     mode = toupper(mode);
 
     if (mode != 'T' && mode != 'A') {
         // Error
-        printf("Error in timeCalculator(), the second arg must be 'T' or 'A'.");
+        handleError(0, 0, 0, 0, "WARNING: Error in timeCalculator(), the second arg must be 'T' or 'A'. Trying to continue returning 0.\n");
+        return 0LU;
     }
 
     uli timenow = (uli) time(NULL);
@@ -1424,7 +1497,7 @@ uli timeCalculator(uli matchorpausetime, char mode) {
         timeremaining = gameduration - timeremaining;
     else
         // MSG_TEMPO_ATTESA 'A' Time remaining to the start of a new game, pause left time.
-        timeremaining = (uli) PAUSE_DURATION - timeremaining;
+        timeremaining = ((uli) PAUSE_DURATION) - timeremaining;
 
     return timeremaining;
 
@@ -1436,13 +1509,14 @@ void sendCurrentMatrix(struct ClientNode* client) {
 
     if (client == NULL) {
         // Error
-        printf("Error, sendCurrentMatrix() received an empty client.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error, sendCurrentMatrix() received a NULL client. Trying to continue without doing nothing...\n");
+        return;
     }
 
     char* mat = serializeMatrixStr();
     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
     free(mat);
-    printf("Matrix get request %s satisfied.\n", client->name);
+    printff(NULL, "Matrix get request from %s satisfied.\n", client->name);
 
 }
 
@@ -1744,17 +1818,21 @@ void* clientHandler(void* voidclient) {
 
 // This function is used when a player submit a word.
 // This function validate a word sent by the client/player.
-// It takes as input a player struct pointer, and a char*
-// rapresenting the word submitted to validate.
+// It takes as input a player struct ClientNode* pointer, and a char*
+// rapresenting the word submitted to validate, NULL terminated.
 // It returns:
-// - The points added to the player, if the word is correct (founded) and never submitted before.
-// - 0, if the word is correct (founded) but ALREADY submitted before in the game.
-// - -1, if the word is not correct (not founded) in the current game matrix.
+// - The points added to the player, if the word is correct (founded) and never submitted before
+// from the interested player.
+// - 0, if the word is correct (founded) but ALREADY submitted (from the interested player)
+// before in the game.
+// - -1, if the word is not correct (not founded) in the current game matrix, but
+// could be present in the dictionary.
 int submitWord(struct ClientNode* player, char* word) {
 
     if (word == NULL || player == NULL) {
         // Error
-        printf("Error in submitWord(), invalid player or word received.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error in submitWord(), NULL player or word received. Trying to continue refusing the request.\n");
+        return -1;
     }
 
     // Normalizing the word to UPPERCASE.
@@ -1764,7 +1842,7 @@ int submitWord(struct ClientNode* player, char* word) {
     // "words_copy" mantain only the words present BOTH in the dictionary
     // AND in the current game matrix.
     // For more info see validateDictionary() function.
-    int i = validateWord(word);
+    unsigned int i = validateWord(word);
 
     // If -1 the word has not been found in the "words_copy" var.
     // This means that the searched word is not present in the current game matrix.
@@ -1778,12 +1856,12 @@ int submitWord(struct ClientNode* player, char* word) {
     if (player->words_validated[i][0] == '\0') return 0;
     else {
         // Calculating the points to return.
-        int p = (int) strlen(word);
+        unsigned int p = (unsigned int) strlen(word);
         // Adding the points to the player's total.
         player->points += p;
         // 'Qu' correction, in strlen 'Q' and 'u' are counted as 2.
         // But we only want it to be worth 1 point.
-        int qu = 0;
+        unsigned int qu = 0;
         for (unsigned int j = 0; j < p; j++)
             if (j + 1 != p && word[j] == 'Q' && word[j + 1] == 'U') qu++; 
         player->points -= qu;
@@ -1796,16 +1874,13 @@ int submitWord(struct ClientNode* player, char* word) {
 
 }
 
-
 // This function search a word in the current game matrix passed by char* word.
 // It starts from a matrix element indicated by
 // i and j, respectively the row and column indexes.
-// It continues to search recursively on adjacent elements.
+// It continues to search recursively on adjacent elements (but not the diagonal ones).
+// A letter of the matrix CANNOT be USED MULTIPLE times to compose the word.
 // It returns 1 if at least one occurrence of the word was found in the matrix, 0 otherwise.
 int searchWordInMatrix(int i, int j, char* word) {
-
-    // Validate matrix only at beginning.
-    if (i == 0 && j == 0) validateMatrix();
 
     // Matrix access out of bounds.
     if (i < 0 || i > NROWS - 1 || j < 0 || j > NCOL - 1) return 0;
@@ -1815,17 +1890,23 @@ int searchWordInMatrix(int i, int j, char* word) {
     // Checking if the current matrix element is equal to the next character of the word searched.
     if (matrix[i][j] == c) {
         // Handle Qu case.
-        if (word[1] == 'U') word++;
+        if (c == 'Q' && word[1] == 'U') word++;
         word++;
-        return searchWordInMatrix(i - 1, j, word) + searchWordInMatrix(i, j - 1, word) + searchWordInMatrix(i, j + 1, word) + searchWordInMatrix(i + 1, j, word) > 0 ? 1 : 0;
+        // Temporarily marking the character as VOID_CHAR, to indicate that it has already
+        // been used in subsequent function calls.
+        matrix[i][j] = VOID_CHAR;
+        int s = searchWordInMatrix(i - 1, j, word) + searchWordInMatrix(i, j - 1, word) + searchWordInMatrix(i, j + 1, word) + searchWordInMatrix(i + 1, j, word) > 0 ? 1 : 0;
+        // Restoring the original character in the matrix and returning the result.
+        matrix[i][j] = c;
+        return s;
     }
     return 0;
 
 }
 
-// This function returns the index of the searched word in the dictionary 
-// (and so the same as "words_copy").
-// If the word is not valid (and so not present in the dict) it returns -1.
+// This function returns the index of the searched word in the dictionary, so in the "words" var
+// (and so the same as "words_copy" because the array are aligned).
+// If the word is not valid (and so not present in the dictionary, so not in "words") it returns -1.
 // Takes as input a pointer to the word (string) to search.
 int validateWord(char* word) {
 
@@ -1835,32 +1916,34 @@ int validateWord(char* word) {
     // Dictionary not previous loaded.
     if (words == NULL) {
         // Error
-        printf("Error, validateWord() cannot continue if loadDictionary() hasn't been called before.\n");
+        handleError(0, 1, 0, 1, "Error, validateWord() cannot continue if loadDictionary() hasn't been called before.\n");
     }
 
     // Dictionary not previous validated.
     if (words_copy == NULL && words != NULL) {
         // Error
-        printf("Error, validateWord() cannot continue if loadDictionary() has been called, but the validateDictionary() after not.\n");
+        handleError(0, 1, 0, 1, "Error, validateWord() cannot continue if loadDictionary() has been called, but the validateDictionary() after not.\n");
     }
 
     // Empty word.
     if (word == NULL) {
         // Error
-        printf("Error, validateWord() received an empty word.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error, validateWord() received an empty word. Trying to continue returning -1.\n");
+        return -1;
     }
 
     // Word length.
     int s = (int) strlen(word);
     // 'Qu' correction.
-    for (unsigned int i = 0; i < WORD_LEN; i++)
-        if (i + 1 != WORD_LEN && word[i] == 'Q' && word[i + 1] == 'U') s--;
-    // If is set a constraint (WORD_LEN > 0) on the word length, it is applied.
+    int cs = s;
+    for (unsigned int i = 0; i < cs; i++)
+        if (i + 1 != cs && word[i] == 'Q' && word[i + 1] == 'U') s--;
+    // If is set a constraint (WORD_LEN > 0) on the minimum word length, it is applied.
     if (WORD_LEN > 0 && s < WORD_LEN) return -1;
 
     // The client submitted word is totally converted
     // to the UPPERCASE version, format in which the characters in the game matrix, 
-    // the words in the dictionary file and the alphabet used to generate random matrices,
+    // the words in the dictionary file and the ALPHABET used to generate random matrices,
     // are loaded into memory.
     // There will be no difference between a client input like "home"
     // or "HoMe" or "HOME".
@@ -1877,14 +1960,210 @@ int validateWord(char* word) {
 
 }
 
-// This function is a cleanupper called before the exit of the program.
-void clearExit(void){
+// This function is registered by the main thread with atexit().
+// Will be executed before exiting by the main thread.
+void atExit(void) {
 
-    // TODO
-    return;
+    // I am the main thread mandatorily.
+
+    int retvalue;
+    // Not using mLock() and mULock() wrapper to avoid recursive errors.
+    // Acquiring all locks to block all threads.
+    retvalue = pthread_mutex_lock(&pausemutex);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+    }
+    retvalue = pthread_mutex_lock(&listmutex);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+    }
+    retvalue = pthread_mutex_lock(&queuemutex);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+    }
+    struct ClientNode* c = head;
+    while (1) {
+        if (c == NULL) break;
+        retvalue = pthread_mutex_lock(&(c->handlerequest));
+        if (retvalue != 0) {
+            // Error
+            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        }     
+        c = c->next;
+    }
+
+    // Cancelling the signal thread.
+    retvalue = pthread_cancel(sig_thr_id);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+    }
+
+    // Closing clients sockets connections.
+    c = head;
+    while (1) {
+        if (c == NULL) break;
+        sendMessage(c->socket_client_fd, MSG_ESCI, NULL);
+        retvalue = close(c->socket_client_fd);
+        if (retvalue == -1){
+            // Error
+            handleError(1, 1, 1, 1, RECURSIVE_MSG_ERR);
+        }
+        c = c->next;
+    }
+
+    // Cancelling clients threads.
+    c = head;
+    while (1) {
+        if (c == NULL) break;
+        retvalue = pthread_cancel(c->thread);
+        if (retvalue != 0) {
+            // Error
+            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        }
+        c = c->next;
+    }
+
+    // Destroying clients mutexes.
+    c = head;
+    while (1) {
+        if (c == NULL) break;
+        retvalue = pthread_mutex_destroy(&(c->handlerequest));
+        if (retvalue != 0) {
+            // Error
+            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        }
+        retvalue = pthread_attr_destroy(&(c->handlerequestattr));
+        if (retvalue != 0) {
+            // Error
+            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        }
+        c = c->next;
+    }
+
+    // Freeing heap allocated clients.
+    c = head;
+    while (1) {
+        if (c == NULL) break;
+        free(c->name);
+        free(c->words_validated);
+        if (c->queuedmessage != NULL){
+            free(c->queuedmessage->data);
+            free(c->queuedmessage);
+        } 
+        free(c->queuedmessage);
+        free(c->queuedmessage);
+        struct ClientNode* tmp = c->next;
+        free(c);
+        c = tmp;
+    }
+
+    // Freeing dictionary file data.
+    for (unsigned int i = 0; i < words_len; i++)
+        free(words[i]);
+    free(words);
+    free(words_copy);
+
+    // Cancelling the pause thread.
+    // If not in running nothing happens.
+    retvalue = pthread_cancel(pausethread);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+    }
+
+    nclientsconnected = 0U;
+
+    // Cancelling the scorer thread.
+    // If not in running nothing happens.
+    retvalue = pthread_cancel(scorert);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+    }
+
+    // Freeing the queue struct.
+    struct Queue* cq = tailq;
+    while(1) {
+        if (cq == NULL) break;
+        if (cq->message != NULL) {
+            free(cq->message->data);
+            free(cq->message);
+        }
+        struct Queue* tmp;
+        tmp = cq->next;
+        free(cq);
+        cq = tmp;
+    }
+
+    // Freeing scoreboard.
+    if (scoreboardstr != NULL) free(scoreboardstr);
+
+    // Closing server socket.
+    retvalue = close(socket_server_fd);
+    if (retvalue == -1){
+        // Error
+        handleError(1, 1, 1, 1, RECURSIVE_MSG_ERR);
+    }
+
+    printff(NULL, "Main thread cleaner executed succesfully!\n");
+
+    _exit(0);
 
 }
 
+/*
+void threadDestructor(void* args) {
+
+    if (pthread_self() == sig_thr_id)
+        signalsThreadDestructor(NULL);
+
+}
+
+void signalsThreadDestructor(void* args){
+
+    // TODO
+
+}
+
+void makeKey(void){
+
+    int retvalue;
+    retvalue = pthread_key_create(&key, threadDestructor);
+    if (retvalue != 0){
+        // Error
+        handleError(0, 1, 0, "Error in pthread_key_create().\n");
+    }
+
+}
+
+void threadSetup(void){
+    void* ptr;
+
+    int retvalue;
+    retvalue = pthread_once(&key_once, makeKey);
+    if (retvalue != 0){
+        // Error
+        handleError(0, 1, 0, "Error in pthread_once().\n");
+    }
+    if ((ptr = pthread_getspecific(key)) == NULL) {
+        ptr = malloc(sizeof(char));
+        if (ptr == NULL) {
+            // Error
+            handleError(0, 1, 0, "Error in malloc() in threadSetup().\n");
+        }
+        retvalue = pthread_setspecific(key, ptr);
+        if (retvalue != 0){
+            // Error
+            handleError(0, 1, 0, "Error in pthread_setspecific().\n");
+        }
+    }
+    
+}
+*/
 // This function disconnect a client, it before removes the client from the clients list.
 // Then free all the heap allocated objects and destroy the relative mutex.
 // It takes as input a struct ClientNode** clienttodestroy that rapresent the interested client.
@@ -2075,7 +2354,7 @@ void disconnectClient(struct ClientNode** clienttodestroy, int terminatethread) 
 }
 
 // This function is the SIGUSR1 signal handler.
-// It executed by every clientHandler() thread, when received the signal from signalsThread()
+// It executed by every clientHandler() thread, when received the signal SIGUSR1 from signalsThread()
 // which corresponds to the end of the game.
 void endGame(int signum) {
 
@@ -2085,6 +2364,8 @@ void endGame(int signum) {
 }
 
 // Update players info at start of a new game.
+// Resetting points and setup the "words_validated", filling it with the words present in
+// the current game matrix (using "words_copy").
 // IT ASSUME that all mutexes are ALREADY LOCKED and loadDictionary() and validateDictionary()
 // has been called before!
 void updateClients(void) {
@@ -2092,6 +2373,7 @@ void updateClients(void) {
     // loadDictionary() and/or validateDictionary() not called before.
     if (words == NULL || words_copy == NULL) {
         // Error
+        handleError(0, 1, 0, 1, "Error in updateClients(), \"words\" or \"words_copy\" are NULL. Call loadDictionary() and validateDictionary() before.\n");
     }
 
     // Going through the list.
@@ -2108,40 +2390,50 @@ void updateClients(void) {
 
 }
 
+// This function take as input a struct ClientNode* rapresenting a client.
+// It allocate on the heap a string, it fills it with all the client informations, and
+// finally return the strin pointer.
 char* serializeStrClient(struct ClientNode* c) {
 
-    // Preparing the string that will be printed.
+    // Preparing the string format.
     char st[] = "Name: %s - IP: %s - Port: %d - Points %u - Thread ID: %LU\n";
 
-    // Name.
+    // Calculating name length.
     size_t namelen;
     if (c->name != NULL) namelen = strlen(c->name);
     else namelen = strlen(NO_NAME); 
 
-    // Port.
+    // Calculating port length (as string).
     int port = ntohs((c->client_addr).sin_port);
     char* portstr = itoa(port);
     size_t portlen = strlen(portstr);
     free(portstr);
 
-    // IP.
+    // Calculating IP length.
     char buf[INET_ADDRSTRLEN] = {0}; 
-    inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
+    char* s = inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
+    if (s == NULL){
+        // Error
+        handleError(1, 0, 0, 0, "WARNING: Error in serializeStrClient(), in the IP to string inet_ntop(). Trying to continue returning NULL.\n");
+        return NULL;
+    }
 
-    // Points.
+    // Calculating points length (as string).
     char* pointsstr = itoa(c->points);
     size_t pointslen = strlen(pointsstr);
     free(pointsstr);
 
-    // Thread ID.
+    // Calculating Thread ID length (as string).
     char* threadidstr = itoa((uli) c->thread);
     size_t threadidstrlen = strlen(threadidstr);
     free(threadidstr);
 
     // Allocating the needed heap memory to store the string.
-    char* s = (char*) malloc((strlen(st) + namelen + INET_ADDRSTRLEN + portlen + pointslen + threadidstrlen) * sizeof(char));
+    s = (char*) malloc((strlen(st) + namelen + INET_ADDRSTRLEN + portlen + pointslen + threadidstrlen) * sizeof(char));
     if (s == NULL) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in serializeStrClient(), in the malloc. Trying to continue returning NULL.\n");
+        return NULL;
     }
     // Filling the string with data.
     if (c->name != NULL) sprintf(s, st, c->name, buf, port, c->points, (uli) c->thread);
@@ -2151,32 +2443,44 @@ char* serializeStrClient(struct ClientNode* c) {
 
 }
 
-
+// This function should be called at the end of the scorer() thread.
+// It creates the end game final scoreboard string.
+// The format is CSV with "playername,playerpoints".
+// The functions allocate the string on the heap and set the char* "scoreboardstr" to it.
+// It takes as input an array of Queue* and its length (as second arg).
 void createScoreboard(struct Queue** array, int arraylength) {
 
     // Input checks.
     if (array == NULL || *array == NULL) return;
     if (arraylength < 0) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in createScoreboard(), received a negative array length. Trying to continue without creating the scoreboard.\n");
+        return;
     }
 
+    // Calculating string length and allocating the corresponding heap space.
     size_t totallength = 0;
-    for (unsigned int i = 0; i < arraylength; i++) totallength += strlen(array[i]->m->data);
-    totallength++; // For ',' after points.
+    for (unsigned int i = 0; i < arraylength; i++) totallength += strlen(array[i]->message->data);
+    totallength++; // For ',' after points (next couple "playername,playerpoints").
     totallength++; // For '\0'.
     scoreboardstr = (char*) malloc(sizeof(char) * totallength);
     if (scoreboardstr == NULL) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in createScoreboard(), in malloc(). Trying to continue without creating the scoreboard.\n");
+        return;
     }
+
+    // Copying all data from the Queue* [] (array) by accessing to each "message->data" field.
     unsigned int counter = 0;
     for (unsigned int i = 0; i < arraylength; i++) {
-        char* c = array[i]->m->data;
+        char* c = array[i]->message->data;
         while (c[0] != '\0'){
             scoreboardstr[counter++] = c[0];
             c++;
         } 
         scoreboardstr[counter++] = ',';
     }
+    // Inserting string terminator.
     scoreboardstr[counter - 1] = '\0';
 
 }
@@ -2184,13 +2488,18 @@ void createScoreboard(struct Queue** array, int arraylength) {
 // This function create (and add element to) a heap allocated queue.
 // Each struct Queue element contains a struct ClientNode* object,
 // a struct Message* object and a pointer to the next element.
-// It's called by each clientHandler() function at end of game with his handled client.
-// Is possible to use the queue by accessing to headq and tailq global struct Queue*.
+// It's called by each clientHandler() thread at end of game.
+// Is possible to use the queue by accessing to "headq" and "tailq" global struct Queue*.
+// It takes as input a struct ClientNode* pointer rapresenting the client to add to the queue.
+// The struct Message will contain in the "data" field a CSV string message with the
+// format "playername,playerpoints".
 void gameEndQueue(struct ClientNode* e) {
 
     // Invalid client.
     if (e == NULL) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in gameEndQueue(), NULL client received. Trying to continue ignoring it.\n");
+        return;
     }
 
     // Creating and filling message object.
@@ -2199,26 +2508,33 @@ void gameEndQueue(struct ClientNode* e) {
     struct Message* m = (struct Message*) malloc(sizeof(struct Message));
     if (m == NULL) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in gameEndQueue(), in malloc() of message. Trying to continue ignoring it.\n");
+        return;
     }
 
     m->type = MSG_PUNTI_FINALI;
 
-    // Points to string.
+    // Casting points to string and calculating points length (as string).
     char* p = itoa(e->points);
     size_t plength = strlen(p);
 
     // For the character ','.
     plength++;
 
+    // Calculating name string length and total string length.
     size_t length = e->name == NULL ? strlen(NO_NAME) + plength : strlen(e->name) + plength;
     m->length = length;
 
+    // Allocating string heap space.
     m->data = (char*) malloc(sizeof(char) * m->length);
     if (m->data == NULL) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in gameEndQueue(), in malloc() of message->data. Trying to continue ignoring it.\n");
+        return;
     }
 
     // Creating: "name,points" string.
+    // Copying name string.
     unsigned int counter = 0;
     while (1) {
         m->data[counter] = e->name == NULL ? NO_NAME[counter] : e->name[counter];
@@ -2226,6 +2542,7 @@ void gameEndQueue(struct ClientNode* e) {
         counter++;
     }
 
+    // Copying points as string.
     m->data[counter++] = ',';
     unsigned counter2 = 0;
     while(1) {
@@ -2242,10 +2559,13 @@ void gameEndQueue(struct ClientNode* e) {
     new = (struct Queue*) malloc(sizeof(struct Queue));
     if (new == NULL) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in gameEndQueue(), in malloc() of struct Queue. Trying to continue ignoring it.\n");
+        return;
     }
+    // Setupping the new queue element.
     new->next = NULL;
-    new->e = e;
-    new->m = m;
+    new->client = e;
+    new->message = m;
 
     // A simply mutex used only to sync with others threads in the queue.
     mLock(&queuemutex);
@@ -2269,13 +2589,18 @@ void gameEndQueue(struct ClientNode* e) {
         tailq->next = tmp;
     }
     nclientsqueuedone++;
-    printf("New object pushed to the tail queue.\n");
     mULock(&queuemutex);
 
+    // Printing.
+    char* namestr = csvNamePoints(m, 0);
+    char* pointsstr = csvNamePoints(m, 1);
+    printff(NULL, "New object pushed to the tail queue. Player's name: %s. Player's points: %s.\n", namestr, pointsstr);
+    free(namestr);
+    free(pointsstr);
 
 }
 
-// This function clear the end game queue to prepare it for the next end game.
+// This function clear the end game queue to prepare it for the next game end.
 void clearQueue(void) {
 
     if (headq == NULL || tailq == NULL) {
@@ -2283,16 +2608,18 @@ void clearQueue(void) {
         return;
     }
 
+    // Freeing heap allocated memory.
     struct Queue* begin = tailq;
     struct Queue* tmp = NULL;
     while (1) {
         if (begin == NULL) break;
         tmp = begin->next;
-        destroyMessage(&(begin->m));
+        destroyMessage(&(begin->message));
         free(begin);
         begin = tmp;
     }
 
+    // Resetting queue.
     nclientsqueuedone = 0U;
     headq = NULL;
     tailq = NULL;
@@ -2306,7 +2633,7 @@ void clearQueue(void) {
 
 Let's assume that loadDictionary("/path/to/file.txt") has been called, now we will
 have "char** words" var, filled with all the words present in the dictionary
-file "/path/to/file.txt" (assuming a word for line terminated by \n).
+file "/path/to/file.txt" (assuming a word for line terminated by \n or by \r\n).
 
 Being the content of /path/to/file.txt:
 hello\n
@@ -2329,7 +2656,7 @@ E T m u
 The characters in the matrix are all uppercase.
 In the notation of this example, I wrote some lowercase characters
 to denote those that form the words of interest (present in the file).
-Also, let's assume there is not the constraint of the word length.
+Also, let's assume there is not the constraint on the word length.
 
 Now let's call validateDictionary(); At the end we will have "char** words_copy" global var
 filled with:
@@ -2347,13 +2674,6 @@ The "dog\0" word was not deleted, we simply updated the copied pointer, incremen
 Note that we are operating by exploiting the power of pointers, with their arithmetic,
 without having two copies of the strings in memory, but only two arrays with their pointers (char*).
 
-Now let's simulate a client action, it sends us "mum".
-We call validateWord("mum");
-We simply iterate on the "char** words_copy" by skipping the strings terminator.
-When we found something different from the '\0' it means that word is present in the current
-game matrix, and the "hard" part is finished, we will just check that it is identical to the
-one received as input from the user and if so the word will be valid, invalid otherwise.
-
 */
 
 /*
@@ -2361,12 +2681,12 @@ one received as input from the user and if so the word will be valid, invalid ot
  ########   SOME INFORMATIONS ON SYNCHRONIZATION BETWEEN THREADS AND SIGNAL MANAGEMENT  ########
     
 sigwait() handles all SIGINT and SIGALRM signals running in a dedicated thread
-called signalsThread().
+called signalsThread(), started in the main after blocking them.
 If more signals arrive, the first one to arrive is put in pending, the others lost.
 Therefore, I cannot be interrupted by a new signal (of these) while handling the previous one.
-When a game is over the alarm() (setted on start of new game) trigger an SIGALRM signal.
+When a game is over, the alarm() (setted on start of new game) trigger an SIGALRM signal caugth by signalsThread().
 So, the signalsThread() waits all threads to complete the current response in processing, then
-it acquires their mutex (each clientHandler() has its own mutex).
+it acquires their mutex (each clientHandler() has its own mutex that release after completing the client response).
 Then, we use pthread_kill() to inform each clientHandler() thread that the game is over
 with a SIGUSR1 signal.
 In this way, all threads (both those blocked on the read and those blocked immediately afterwards
@@ -2382,7 +2702,8 @@ no thread can perform unsafe multithreaded actions.
 Then we release all clientHandler() mutexes (for each client, its own).
 Now all the clients will acquire their locks and will detect the end of game, so they
 will fill the end-game queue, which the thread scorer will subsequently take care of as
-required by the project text.
+required by the project text. Finally now all the threads can receive and response to all
+the clients requests considering the variable “pauseon” the fact that the game is paused.
 
 */
 

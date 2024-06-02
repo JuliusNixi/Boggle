@@ -1,81 +1,88 @@
-// Shared server files vars and libs.
+// Shared server cross files vars and libs.
 #include "server.h"
 
 // Current file vars and libs.
 #include <getopt.h>
-#define USAGE_MSG "Invalid args. Usage: ./%s nome_server porta_server [--matrici data_filename] [--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario].\n" // Message to print when the user insert wrong args.
+#define USAGE_MSG "Invalid args. Usage: ./%s server_ip server_port [--matrici matrix_filepath] [--durata game_duration] [--seed rnd_seed] [--diz dictionary].\n" // Message to print when the user insert wrong args.
 #define DEFAULT_DICT "../Data/dictionary_ita.txt" // Default dict used when --diz is not present.
 
 int main(int argc, char** argv) {
 
-    int retvalue; // To check system calls result (succes or failure).
+    // Initializing local vars.
+    int retvalue = 0; // To check system calls result (succes or failure).
     unsigned int seed = 0U; // Random seed.
-
-    // Creating a mask, that will block the SIGINT and SIGALRM signals for all thread except
-    // the dedicated thread signal handler. Important to do it as soon as possible.
-    sigemptyset(&signal_mask);
-    sigaddset(&signal_mask, SIGINT);
-    sigaddset(&signal_mask, SIGALRM);
-
-    // Enabling the mask.
-    retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
-    if (retvalue != 0) {
-        // Error
-        printf("Error in setting the pthread signals mask.\n");
-    }
-    printf("Threads signals mask enabled correctly.\n");
-
-    struct sigaction sigusr1; // SIGUSR1 signal struct, will be used to handle the game end.
-  
-    // Setting the endGame handler.
-    sigusr1.sa_flags = 0;
-    sigusr1.sa_handler = endGame;   
-    retvalue = sigaction(SIGUSR1, &sigusr1, NULL);
-    if (retvalue == -1) {
-        // Error
-        printf("Error in setting SIGUSR1 signal handler.\n");
-    }           
-    printf("SIGUSR1 signal handler registered correctly.\n");
-
-    /* Any newly created threads INHERIT the signal mask with SIGALRM, SIGINT signals blocked. */
-
-    // Creating the thread that will handle ALL AND EXCLUSIVELY SIGINT and SIGALRM signals by
-    // waiting with waitsignal() forever.
-    retvalue = pthread_create(&sig_thr_id, NULL, signalsThread, NULL);
-    if (retvalue != 0) {
-        // Error
-        printf("Error in creating the pthread signals handler.\n");
-    }
-
-    printf("Signals registered and thread handler started succesfully.\n");
 
     // Initializing shared vars.
     gameduration = 0LU;
     matpath = NULL;
     usematrixfile = 0;
+    socket_server_fd = 0;
+    mainthread = pthread_self();
 
     // Printing banner.
-    printf("\n\n##################\n#     SERVER     #\n##################\n\n");
+    printff(NULL, "\n\n##################\n#     SERVER     #\n##################\n\n");
+
+    // Creating a mask, that will block the SIGINT and SIGALRM signals for all threads except
+    // the dedicated thread signalsThread(). Important to do it as soon as possible.
+    sigemptyset(&signal_mask);
+    sigaddset(&signal_mask, SIGINT);
+    sigaddset(&signal_mask, SIGALRM);
+
+    // Registering exit function for main.
+    retvalue = atexit(atExit);
+    if (retvalue != 0) {
+        // Error
+        // errno
+        // Possible not execution of atExit(), for that errofromprintff = 1.
+        handleError(1, 1, 1, 1, "Error in registering exit cleanupper main function.\n");
+    }
+    printff(NULL, "Exit safe function (cleanup for the main) registered correctly.\n");
+
+    // Enabling the mask.
+    retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 0, 1, "Error in setting the pthread signals mask.\n");
+    }
+    printff(NULL, "Threads signals mask enabled correctly.\n");
+
+    struct sigaction sigusr1; // SIGUSR1 sigaction struct, will be used to handle the game end.
+  
+    // SIGUSR1 will NOT be blocked.
+    // Setting the endGame() handler.
+    sigusr1.sa_flags = 0;
+    sigusr1.sa_handler = endGame;   
+    retvalue = sigaction(SIGUSR1, &sigusr1, NULL);
+    if (retvalue == -1) {
+        // Error
+        // errno
+        handleError(1, 1, 0, 1, "Error in setting SIGUSR1 signal handler.\n");
+    }           
+    printff(NULL, "SIGUSR1 signal handler registered correctly.\n");
+
+    // Any newly created threads INHERIT the signal mask with SIGALRM, SIGINT signals blocked. 
+
+    // Creating the thread that will handle ALL AND EXCLUSIVELY SIGINT and SIGALRM signals by
+    // waiting with sigwait() forever.
+    retvalue = pthread_create(&sig_thr_id, NULL, signalsThread, NULL);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 0, 1, "Error in creating the pthread signals handler.\n");
+    }
+
+    printff(NULL, "Signals registered and thread handler started succesfully.\n");
 
     // Check number of args.
     if (argc < 3 || argc > 11 || ((argc > 3) && (argc != 5 && argc != 7 && argc != 9 && argc != 11))) {
         // Error
-        printf(USAGE_MSG, argv[0]);
+        handleError(0, 1, 0, USAGE_MSG, argv[0]);
     }
-
-    // Registering exit functions.
-    retvalue = atexit(clearExit);
-    if (retvalue == -1) {
-        // Error
-        printf("Error during the registration of the safe function exit (cleanup).\n");
-    }
-    printf("Exit safe exit function (cleanup) registered correctly.\n");
 
     // Parsing port.
     unsigned int port = atoi(argv[2]);
-    if (port > 65535U || (int) port <= 0U) {
+    if (port > 65535U || (int) port <= 0) {
         // Error
-        printf("Invalid port %u. It should be less than 65535 and higher than 0.\n", port);
+        handleError(0, 1, 0, "Invalid port %d. It should be less than 65535 and higher than 0.\n", (int) port);
     }
     server_addr.sin_port = htons(port);
 
@@ -85,10 +92,10 @@ int main(int argc, char** argv) {
     retvalue = parseIP(argv[1], &server_addr);
     if (retvalue != 1) {
         // Error
-        printf("Invalid IP: %s.\n", argv[1]);
+        handleError(0, 1, 0, "Invalid IP: %s.\n", argv[1]);
     }
 
-    // Checking optional args.
+    // Checking optionals args.
     char* filemath = NULL;
     char* filedict = NULL;
     for (int i = 3; i < argc; i += 2) {
@@ -96,44 +103,44 @@ int main(int argc, char** argv) {
         if (strcmp(argv[i], "--matrici") == 0)
             filemath = argv[i + 1];
         else if (strcmp(argv[i], "--durata") == 0) {
-            gameduration = atoi(argv[i + 1]);
+            gameduration = (uli) atoi(argv[i + 1]);
             if ((int) gameduration <= 0) {
                 // Error
-                printf("Invalid game duration, cannot be negative %d.\n", (int) gameduration);
+                handleError(0, 1, 0, "Invalid game duration, cannot be negative %d.\n", (int) gameduration);
             }
         }else if (strcmp(argv[i], "--seed") == 0){
-            seed = atoi(argv[i + 1]);
+            seed = (unsigned int) atoi(argv[i + 1]);
             if ((int) seed <= 0) {
                 // Error
-                printf("Invalid seed %d. Must be greater than 0.\n", (int) seed);
+                handleError(0, 1, 0, "Invalid seed %d. Must be greater than 0.\n", (int) seed);
             }
         }else if (strcmp(argv[i], "--diz") == 0){
             filedict = argv[i + 1];
         }else{
             // Error
-            printf(USAGE_MSG, argv[0]);
+            handleError(0, 1, 0, USAGE_MSG, argv[0]);
         }
     }
-    printf("Starting server on IP: %s and port: %u.\n", argv[1], port);
+    printff(NULL, "Starting server on IP: %s and port: %u.\n", argv[1], port);
 
     // Setting default args and printing infos.
     if (filemath != NULL) {
         matpath = filemath;
         usematrixfile = 1;
-        printf("Trying to use matrix file at: %s.\n", matpath);
+        printff(NULL,"Trying to use matrix file at: %s.\n", matpath);
     }else
-        printf("Using random matrices.\n");
+        printff(NULL, "Using random matrices.\n");
     if (gameduration != 0)
-        printf("Using inserted match time duration %lu minutes.\n", gameduration);
+        printff(NULL, "Using inserted match time duration %lu minutes.\n", gameduration);
     else {
         gameduration = 3LU;
-        printf("Using default match time duration %lu minutes.\n", gameduration);
+        printff(NULL, "Using default match time duration %lu minutes.\n", gameduration);
     }
     if (seed != 0)
-        printf("Using inserted seed %u.\n", seed);
+        printff(NULL, "Using inserted seed %u.\n", seed);
     else {
         seed = 42U;
-        printf("Using default seed %u.\n", seed);
+        printff(NULL, "Using default seed %u.\n", seed);
     }
 
     // Further checks added after the suggestion given by Prof.
@@ -143,7 +150,7 @@ int main(int argc, char** argv) {
     optind = 3;
     // Suppressing opt library error messages, will be used mine.
     opterr = 0;
-    // C will be the character read.
+    // c will be the character read.
     int c; 
     while (1) {
         int option_index = 0;
@@ -163,71 +170,73 @@ int main(int argc, char** argv) {
         // Parsing character read.
         switch (c) {
             case 0:
-                    // long_options[option_index].name // Is the arg name.
-                    // optarg // Is the arg value.
+            // long_options[option_index].name // Is the arg name.
+            // optarg // Is the arg value.
             // All OK, all other controls have been performed previously.
             break;
 
             case '?':  // Unrecognized or not allowed character parsed.
             default:
-                   // Error
-                   printf("Error while parsing args with getopt_long().\n");
-                   printf(USAGE_MSG, argv[0]);
+                // Error
+                printff(NULL, "Error while parsing args with getopt_long().\n");
+                printff(NULL, USAGE_MSG, argv[0]);
+                handleError(0, 1, 0, 1, "");
         }
     }
 
     if (optind < argc) {
         // Error
-        printf("Error, unrecognized args: ");
-        while (optind < argc) printf("%s ", argv[optind++]);
-        printf("\n");
-        printf(USAGE_MSG, argv[0]);
+        printff(NULL, "Error, unrecognized args: ");
+        while (optind < argc) printff(NULL, "%s ", argv[optind++]);
+        printff(NULL, "\n");
+        printff(NULL, USAGE_MSG, argv[0]);
+        handleError(0, 1, 0, 1, "");
     }
 
-    printf("The args seems to be ok...\n");
+    printff(NULL, "The args seems to be ok...\n");
 
     // Setting rand seed.
     srand(seed);
-    printf("Initialized random seed %u.\n", seed);
+    printff(NULL, "Initialized random seed %u.\n", seed);
 
-    
     // Loading words dictionary in memory.
     if (filedict != NULL)
-        printf("Trying to use dictionary file at: %s.\n", filedict);
+        printff(NULL, "Trying to use dictionary file at: %s.\n", filedict);
     else{
         filedict = DEFAULT_DICT;
-        printf("Trying to use default dictionary file at %s.\n", filedict);
+        printff(NULL, "Trying to use default dictionary file at %s.\n", filedict);
     }
     loadDictionary(filedict);
 
     // Initializing game matrix.
     initMatrix();
-    
+
     // Creating socket.
     socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
     if (socket_server_fd == -1) {
         // Error
-        printf("Error in creating the socket.\n");
+        handleError(0, 1, 0, 1, "Error in creating the socket.\n");
     }
-    printf("Socket created.\n");
+    printff(NULL, "Socket created.\n");
     
     // Binding socket.
     retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
     if (retvalue == -1){
         // Error
-        printf("Error in binding.\n");
+        handleError(0, 1, 0, 1, "Error in binding.\n");
     }
-    printf("Binding completed.\n");
+    printff(NULL, "Binding completed.\n");
 
     // Listening for incoming connections.
     retvalue = listen(socket_server_fd, SOMAXCONN);
     if (retvalue == -1) {
         // Error
-        printf("Error in listening.\n");
+        // errno
+        handleError(1, 1, 0, 1, "Error in listening.\n");
     }
-    printf("Listening...\n");
+    printff(NULL, "Listening...\n");
 
-    // Starting the game.
+    // Starting the first game.
     startGame();
 
     // Accepting new clients.

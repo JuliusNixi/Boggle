@@ -94,6 +94,9 @@ void* responseHandler(void* args) {
                 printf("Punti: %s.\n", tmp);
             }
             break;
+        }case MSG_ESCI : {
+
+            break;
         }default:
             // Error
             printf("Error, received an unknown server response!\n");

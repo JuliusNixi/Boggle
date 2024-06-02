@@ -9,7 +9,14 @@ List of things to work on.
 - [ ] client stampa prompt thread safe
 - [ ] ClientNode* tails used?
 - [ ] Masked signals.
+- [ ] common.c
+- [ ] signalsThread
+- [ ] clientHandler
+- [ ] disconnectClient
+- [ ] pthread_t queue?
 
 ### Done ✓
 
-- [x] 0
+- [x] common.h
+- [x] server.h
+- [x] boggle_server.c
