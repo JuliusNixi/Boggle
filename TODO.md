@@ -4,19 +4,24 @@ List of things to work on.
 
 ### Todo
 
-- [ ] Testing with small/large/not quadratic matrix size. 
+
 - [ ] acceptClient write stdout error without printf on failing mutex acquire.
 - [ ] client stampa prompt thread safe
-- [ ] ClientNode* tails used?
-- [ ] Masked signals.
 - [ ] common.c
 - [ ] signalsThread
 - [ ] clientHandler
 - [ ] disconnectClient
-- [ ] pthread_t queue?
+- [ ] WRAPPING THREAD DESTRUCOTR IN ATEXIT
+- [ ] restore time duration pause game changed to perform test.
+- [ ] Disconnect client, handle it to avoid deadlock iin server.
+- [ ]  client segnali
 
 ### Done ✓
 
 - [x] common.h
 - [x] server.h
 - [x] boggle_server.c
+- [x] Testing with small matrix size. 
+- [x] ClientNode* tail used? Yes in acceptClient().
+- [x] Masked signals SIGALRM and SIGUSR1.
+- [x] pthread_t scorer.

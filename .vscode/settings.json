@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "math.h": "c",
+        "fcntl.h": "c",
+        "stdarg.h": "c",
+        "errno.h": "c",
+        "pthread.h": "c",
+        "client.h": "c",
+        "common.h": "c"
+    }
+}
