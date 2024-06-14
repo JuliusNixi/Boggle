@@ -48,6 +48,8 @@ pthread_t mainthread; // Main thread.
 pthread_key_t key;  // Used to set custom threads destructors.
 pthread_once_t key_once; // Used to set custom threads destructors.
 
+char testmode;
+
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 void* signalsThread(void*);
 void atExit(void);

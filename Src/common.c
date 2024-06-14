@@ -358,7 +358,7 @@ void handleError(int printerrno, int killmain, int errorfromprintff, int killthi
     || (killthisthread != 0 && killthisthread != 1)
     || errorfromprintff) {
         // Critical recursive error handler or wrong params.
-        fprintf(stderr, "%s", format);
+        fprintf(stderr, "%s", RECURSIVE_MSG_ERR);
         fflush(stderr);
         // exit(EXIT_FAILURE); -> Recursive error if something happens in atExit()... use instead:
         _exit(1);
@@ -381,6 +381,8 @@ void handleError(int printerrno, int killmain, int errorfromprintff, int killthi
         printff(args, format);
         va_end(args);
     }
+
+     if (testmode) return;
     
     // Main thread killer.
     if (killmain) {

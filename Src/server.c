@@ -436,7 +436,7 @@ void loadMatrixFromFile(char* path) {
         if (file[i] == ' ' || file[i] == 'u' || file[i] == '\r') continue;
 
         // New line found or end of file reached.
-        if (file[i] == '\n' || i + 1 == s.st_size) {
+        if (file[i] == '\n') {
             // Getting matrix index to fill.
             getMatrixNextIndexes(matrixnextindexes);
             if (counter != NROWS * NCOL || matrixnextindexes[0] != -1) {
@@ -451,12 +451,12 @@ void loadMatrixFromFile(char* path) {
         if (matrixnextindexes[0] == -1){
             // Error 
             handleError(0, 1, 0, 1, "Error %s matrices file is in invalid format.\n", MAT_PATH);
-        }else
+        }else {
             // The matrix are loaded with all characters UPPERCASE, regardless how
             // they are written in the file.
             matrix[matrixnextindexes[0]][matrixnextindexes[1]] = toupper(file[i]);
-        
-        counter++;
+            counter++;
+        }
     }
 
     // Validating the new matrix.

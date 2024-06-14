@@ -1,0 +1,2 @@
+# Studies
+This folder contains a collection of test and study codes, useful for making sure the behavior of specific isolated features behaves, in such a way that when they are incorporated into the project, the probability of running into incomprehensible (also due to the complexity of all the project) errors should decrease.
