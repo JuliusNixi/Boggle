@@ -1,5 +1,14 @@
 #include "../Src/server.h"
 
+
+int main(void) {
+    printf("Hello World!\n");
+    return 0;
+}
+
+
+
+/*
 extern unsigned int duration;
 
 
@@ -96,15 +105,17 @@ int main(void) {
         free(s);
     }
 
-  /*
+
+
     TO TEST
 void loadDictionary(char*);
 int searchWordInMatrix(int, int, char*);
 void validateDictionary(void);
 int validateWord(char*);
   
-  */
+
   
     return 0;
     
 }
+*/

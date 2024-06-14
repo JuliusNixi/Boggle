@@ -3,11 +3,15 @@
 
 // Common client only cross files used vars and libs.
 int client_fd;  // Client/Server file descriptor.
+#define CHECK_RESPONSES_SECONDS 3 // Time in seconds. Each time a signal SIGALRM will be triggered and the responses received from the server, printed.
+pthread_t responses_thread; // It will handle the responses received from the server asynchronously.
 
 // Functions signature client used. Implementation and infos in the client main file.
-void* responseHandler(void*);
-
-void printResponse(void); // Used to print a server's response. 
+void* responsesHandler(void*);
+void printResponses(void);
+void inputHandler(void); 
+void checkResponses(int); 
+void* cleanerSTDIN(void*);
 
 // Defined, commented and implemented all in common.h and common.c
 // int parseIP(char*, struct sockaddr_in*); -> common.h

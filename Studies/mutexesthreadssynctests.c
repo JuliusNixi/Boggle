@@ -1,9 +1,9 @@
 /*
 
-    THESE ARE EXPERIMENT ON RACE CONDITIONS, THREADS AND MUTEX
-    TO BETTER UNDERSTAND WHAT HAPPENS AND DO NOT CAUSE TROUBLE IN THE PROJECT,
-    I WILL TRY TO FLIP A BIT READING/WRITING IT FROM MAIN AND CONCURRENTLY 
-    FROM A DEDICATED SIGINT THREAD.
+    These are tests on race conditions, threads and mutexes
+    to better understand what happens and do not cause troubles in the project,
+    I will try to flip a bit reading/writing it from main and concurrently 
+    from a dedicated SIGINT thread handler.
 
 */
 
@@ -14,23 +14,32 @@
 #include <signal.h>
 #include <unistd.h>
 
-sigset_t   signal_mask;  /* signals to block         */
+sigset_t signal_mask;  // Signals to block.
+// WARNING: Only the static mutexes could be initialized in this way!
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 int secret = 0;
 
-void* signal_thread(void* arg)
-{
-    int       sig_caught;    /* signal caught       */
-    int       rc;            /* returned code       */
+void* signalsThread(void* args){
+
+    int signum; // Sig number caught. Should be 2 == SIGINT.
+    int retvalue;
 
     while (1){
-        rc = sigwait(&signal_mask, &sig_caught);
+        retvalue = sigwait(&signal_mask, &signum);
+
+        if (signum != SIGINT) {
+            printf("Unrecognized signal, can handle only SIGINT.\n");
+            exit(EXIT_FAILURE);
+        }
+
         pthread_mutex_lock(&mutex);  // -> ADDED TO SOLVE RACE CONDITION 1
         printf("THREAD: %d.\n", secret);
-        if (rc != 0) {
-            /* handle error */
+        if (retvalue != 0) {
             printf("Error in sigwait().\n");
+            exit(EXIT_FAILURE);
         }
+        // Flipping secret.
         if (secret == 0) secret = 1;
         else secret = 0;
         pthread_mutex_unlock(&mutex);  // -> ADDED TO SOLVE RACE CONDITION 1
@@ -43,52 +52,30 @@ void* signal_thread(void* arg)
 
 int main(void) {
 
-    pthread_t  sig_thr_id;      /* signal handler thread ID */
-    int        rc;              /* return code              */
+    pthread_t sig_thr_id; // Signals handler ID (signalsThread()).
+    int retvalue;
 
     // Creating a mask, that will block the SIGINT signal, and enabling
     // it for the current main thread.
-    sigemptyset (&signal_mask);
-    sigaddset (&signal_mask, SIGINT);
-    rc = pthread_sigmask (SIG_BLOCK, &signal_mask, NULL);
-    if (rc != 0) {
-        /* handle error */
-        printf("Error in setting the pthread mask.\n");
-        exit(EXIT_FAILURE);
-        
-    }
+    sigemptyset(&signal_mask);
+    sigaddset(&signal_mask, SIGINT);
+    retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
 
-    /* any newly created threads INHERIT the signal mask */
+    retvalue = pthread_create(&sig_thr_id, NULL, signalsThread, NULL);
 
-    // Creating the thread that will handle the SIGINT blocked signal (and eventually others).
-    // Is COUNTERINTUITIVE that the handler has the SIGNINT blocked, when
-    // is the same one that should handle it.
-    // But this is the implementation of the sigwait() and how it works.
-    // From manual:
-    /*
-    [...] The signals specified by set should be blocked, but not ignored, at the
-    time of the call to sigwait(). [...]
-    */
-    rc = pthread_create (&sig_thr_id, NULL, signal_thread, NULL);
-    if (rc != 0) {
-        // handle error 
-        printf("Error in creating the pthread signal handler.\n");
-        exit(EXIT_FAILURE);  
-    }
-    /* APPLICATION CODE */
     while(1) {
         pthread_mutex_lock(&mutex);  // -> ADDED TO SOLVE RACE CONDITION 1
 
         printf("THREAD MAIN: %d.\n", secret);
         sleep(5); // -> USE WITH NO MUTEX TO OBTAIN THE RACE CONDITION 1 BEHAVIOUR.
-        // The sleep is to "artificially force" a behaviour.
+        // The sleep is to "artificially force" a possible behaviour.
 
         //------------------------------------------------------------
         if (secret == 0) secret = 1;
         else secret = 0;
         //------------------------------------------------------------
         // sleep(5); // -> USE WITH NO MUTEX TO OBTAIN THE EXPECTED BEHAVIOUR.
-        // The sleep is to "artificially force" a behaviour.
+        // The sleep is to "artificially force" a possible behaviour.
 
         pthread_mutex_unlock(&mutex); // -> ADDED TO SOLVE RACE CONDITION 1
 
@@ -118,6 +105,9 @@ THREAD MAIN: 0.
 CTRL + C THREAD: 1.
 ----------------
 
+
+
+
 POSSIBLE RACE CONDITION 1:
 
 THREAD MAIN     THREAD SIGNAL       SECRET VALUE MEMORY
@@ -135,6 +125,7 @@ CTRL+C THREAD: 0.
 
 */
 
-// Let's try to use pthread_mutex_t to solve the issue (forcing the NORMAL - EXPECTED behaviour while using the RACE CONDITION 1 setup)... 
+// Let's try to use pthread_mutex_t to solve the issue (forcing the NORMAL - EXPECTED
+// behaviour while using the RACE CONDITION 1 setup)... 
 
 

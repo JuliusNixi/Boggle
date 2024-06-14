@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <pthread.h>
+// from man
+// errno is thread-local; setting it in one thread does not affect its value in any other thread.
 #include <errno.h>
 #include <stdarg.h>
 

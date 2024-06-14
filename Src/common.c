@@ -54,9 +54,20 @@ void toLowerOrUpperString(char* string, char lowerupper) {
 // It returns a pointer to the new struct Message allocated on the heap with the readed data.
 /*
 
-If a read is interrupted by a signal...
+If a read is interrupted by a signal...  
 https://linux.die.net/man/3/read
 https://stackoverflow.com/questions/66987029/can-a-read-or-write-system-call-continue-where-it-left-off-after-being-inter
+
+Are read() and write() Thread-Safe?
+https://en.wikipedia.org/wiki/Thread_safety
+https://stackoverflow.com/questions/42442387/is-write-safe-to-be-called-from-multiple-threads-simultaneously
+https://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_09_01
+https://stackoverflow.com/questions/467938/stdout-thread-safe-in-c-on-linux
+https://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_09_07
+https://stackoverflow.com/questions/29331651/is-c-read-thread-safe
+Not directly about the topic, but also clear:
+https://stackoverflow.com/questions/56150004/thread-safety-vs-atomicity-in-c
+
 
 ##############################################################################
 WARNING: The server's use of this function, ASSUMES that the client always sends a message ENTIRELY
@@ -203,6 +214,7 @@ readdata:
         writingpointer = (void*) tmp;
         goto readdata;
     }
+
 
     return readed;
 
@@ -389,8 +401,10 @@ void handleError(int printerrno, int killmain, int errorfromprintff, int killthi
 // If it's not null it means it has been called by the handleError() above function.
 // In this last case the va_list struct is passed to vgprintf() to print on stderr.
 // The const char* format and the elipsis (...) is used to forward all the other args to the printf().
+
 // Thread safety of printf? No mixed output, but interleaving admitted.
 // https://stackoverflow.com/questions/47912874/printf-function-on-multi-thread-program
+// https://stackoverflow.com/questions/22366776/is-reading-and-writing-to-the-same-file-thread-safe
 // Thread safety of fflush? Yes.
 // https://stackoverflow.com/questions/39053670/can-a-program-call-fflush-on-the-same-file-concurrently
 void printff(va_list errorargs, const char* format, ...) {

@@ -3,7 +3,7 @@
 
 // Current file vars and libs.
 #include <getopt.h> // Used to check optionals args.
-#define USAGE_MSG "Invalid args. Usage: ./%s server_ip server_port [--matrices matrices_filepath] [--duration game_duration] [--seed rnd_seed] [--dic dictionary].\n" // Message to print when the user insert wrong args.
+#define USAGE_MSG "Invalid args. Usage: ./%s server_ip server_port [--matrices matrices_filepath] [--duration game_duration_in_minutes] [--seed rnd_seed] [--dic dictionary_filepath].\n" // Message to print when the user insert wrong args.
 #define DEFAULT_DICT "../Data/dictionary_ita.txt" // Default dict used when --dic is not present.
 
 int main(int argc, char** argv) {
@@ -217,6 +217,7 @@ int main(int argc, char** argv) {
     printff(NULL, "Disconnections detector pthread handler started succesfully.\n");
 
     // Creating socket.
+    // READ man socket, there are useful infos.
     socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
     if (socket_server_fd == -1) {
         // Error
