@@ -35,7 +35,7 @@ unsigned int finalinputsize = 0U;
 char* finalinput = NULL;
 char input[BUFFER_SIZE]; // An input buffer, but in this way we will handle arbitrary input length by using more BUFFER_SIZE heap allocated strings.
 
-char returnfromsignal[1] = "0";
+char returnfromsignal[2] = "0";
 
 // This function will be executed in a dedicated thread started as soon as possible in the main.
 // It will run forever (as long as the process lives) looping in a while(1);.
@@ -311,11 +311,11 @@ void inputHandler(void) {
             // 1. Nothing to do.
 
             // 2. 
-            if (strcmp(returnfromsignal, "1") == 0 && retvalue > 0) {
+            /*if (strcmp(returnfromsignal, "1") == 0 && retvalue > 0) {
                 read(STDIN_FILENO, NULL, )
                 toexit = 1U;
                 break;
-            }
+            }*/
 
             // 3.
             if (strcmp(returnfromsignal, "1") == 0 && retvalue == -1 && errno == EINTR) {

@@ -76,17 +76,17 @@ $(EXET): $(OBJT) $(OBJSS) $(OBJSU)
 	
 # Binaries, compiling objects.
 $(OBJS): $(SRCS) $(HS)
-	$(GC) $(CFLAGS) -c $(SRCS)
+	$(GC) $(CFLAGS) -c $(SRCS) -o $(OBJS)
 $(OBJSS): $(SRCS2) $(HS)
-	$(GC) $(CFLAGS) -c $(SRCS2)
+	$(GC) $(CFLAGS) -c $(SRCS2) -o $(OBJSS)
 $(OBJC): $(SRCC) $(HC)
-	$(GC) $(CFLAGS) -c $(SRCC)
+	$(GC) $(CFLAGS) -c $(SRCC) -o $(OBJC)
 $(OBJSC): $(SRCC2) $(HC)
-	$(GC) $(CFLAGS) -c $(SRCC2)
+	$(GC) $(CFLAGS) -c $(SRCC2) -o $(OBJSC)
 $(OBJT): $(SRCT) $(HS)
-	$(GC) $(CFLAGS) -c $(SRCT)
+	$(GC) $(CFLAGS) -c $(SRCT) -o $(OBJT)
 $(OBJSU): $(SRCU) $(HU)
-	$(GC) $(CFLAGS) -c $(SRCU)
+	$(GC) $(CFLAGS) -c $(SRCU) -o $(OBJSU)
 
 # Some useful default args for testing.
 export IP=localhost
