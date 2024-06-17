@@ -1,35 +1,38 @@
 #include "common.h"
 
-// This function parse an IP and return the result code of inet_aton().
+// This function parse an IP string and return the result code of inet_aton().
 // If different by 1, there was an error.
-// It also execute a inet_aton on a struct sockaddr_in* to initialize it.
+// It also execute the inet_aton() on a struct sockaddr_in* to initialize it.
+// It takes as input a char* (string) to the IP to parse, and the struct sockaddr_in*.
 int parseIP(char* ip, struct sockaddr_in* sai) {
 
     if (ip == NULL || sai == NULL) {
         // Error
-        handleError(0, 1, 0, 1, "Error, parseIP() received a NULL IP or sockaddr_in*.\n");
+        handleError(0, 1, 0, 0, "Error, parseIP() received a NULL IP or sockaddr_in*.\n");
     }
 
     // Lowering the string, LoCalhost and localhost and LOCALHOST, are now identical.
     toLowerOrUpperString(ip, 'L');
 
-    // Converting localhost to 127.0.0.1.
+    // Converting localhost to 127.0.0.1 and executing inet_aton().
     int retvalue;
     if (strcmp(ip, "localhost") == 0)
         retvalue = inet_aton("127.0.0.1", &sai->sin_addr);
     else
         retvalue = inet_aton(ip, &sai->sin_addr);
+
     return retvalue;
 
 }
 
 // This function normalize a string trasforming it in all lower/upper case.
-// 'L' means lowercase, 'U' uppercase that is is specified by the input char lowerupper.
+// 'L' means lowercase, 'U' uppercase that is specified by the input char lowerupper.
 void toLowerOrUpperString(char* string, char lowerupper) {
 
     if (string == NULL) {
         // Error
-        handleError(0, 1, 0, 1, "Error, toLowerOrUpperString() received an empty string.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error in toLowerOrUpperString() received an empty string. Trying to continue.\n");
+        return;
     }
 
     // Checking if lowerupper input is 'L' (means to change the string in lowercase),
@@ -38,6 +41,7 @@ void toLowerOrUpperString(char* string, char lowerupper) {
     if (lowerupper != 'L' && lowerupper != 'U') {
         // Error
         handleError(0, 0, 0, 0, "WARNING: Error in toLowerOrUpperString(), the second arg must be 'L' for lower or 'U' for upper. Trying to continue with UPPERCASE.\n");
+        lowerupper = 'U';
     }
 
     // Casting the received string char by char.
@@ -49,24 +53,19 @@ void toLowerOrUpperString(char* string, char lowerupper) {
 }
 
 // This function receive a message from the client or the server.
-// There is no difference since the message format is the  (struct Message).
+// There is no difference since the message format is the same (struct Message).
 // It takes as input the socket file descriptor from which read data.
 // It returns a pointer to the new struct Message allocated on the heap with the readed data.
 /*
 
 If a read is interrupted by a signal...  
-https://linux.die.net/man/3/read
 https://stackoverflow.com/questions/66987029/can-a-read-or-write-system-call-continue-where-it-left-off-after-being-inter
 
 Are read() and write() Thread-Safe?
 https://en.wikipedia.org/wiki/Thread_safety
 https://stackoverflow.com/questions/42442387/is-write-safe-to-be-called-from-multiple-threads-simultaneously
-https://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_09_01
 https://stackoverflow.com/questions/467938/stdout-thread-safe-in-c-on-linux
-https://pubs.opengroup.org/onlinepubs/9699919799/functions/V2_chap02.html#tag_15_09_07
 https://stackoverflow.com/questions/29331651/is-c-read-thread-safe
-Not directly about the topic, but also clear:
-https://stackoverflow.com/questions/56150004/thread-safety-vs-atomicity-in-c
 
 
 ##############################################################################
@@ -74,18 +73,20 @@ WARNING: The server's use of this function, ASSUMES that the client always sends
 (even if it is split into its fields) or NOT AT ALL.
 Specifically:
     - If the client sends no message (i.e., no part of it) everything works of course.
-    - If the server receive data that does not align with the data structure of the message,
-      the behavior is undefined.
+    - If the server receive alla data, but that does not align with the data structure of
+      the message, the behavior is undefined.
     - If the server receive LESS bytes than necessary (e.g., the client sends only the type
       field of the message struct), the server will wait INDEFINITELY, compromising the match
-      for all users. Specifically, at the end of the match, the play/pause handler, i.e.,
-      the thread executing signalsThread(), will send a SIGUSR1 signal to the thread stopped on read()
-      that will abort the syscall, upon the handler's return, however, if nothing has been
+      for all users. Specifically, at the end of the match, the play/pause game
+      handler, (signalsHandler()) will send a SIGUSR1 signal to the thread
+      handling the user (clientHandler()) stopped on the read(), waiting for the client,
+      that will abort the syscall, upon the signal handler's return, however, if nothing has been
       received the receiveMessage() function will return NULL and the control will pass normally
       to the calling clientHandler() function, but if, instead, something has been already written,
       the thread will expect all the rest of the message to arrive, waiting. At this point,
       the signalsThread() thread will wait for the clientHandler() thread to insert its result
-      into the queue, but this may never happen if the client is uncooperative...
+      into the queue, but this may never happen if the client is uncooperative (not send
+      the other missing part of the message)...
 ##############################################################################
 
 */
@@ -93,20 +94,22 @@ struct Message* receiveMessage(int fdfrom) {
 
     if (fdfrom < 0) {
         // Error
-        printf("Error, the receiver of the message is invalid.\n");
+        handleError(0, 0, 0, 1, "Error, the receiver of the message is invalid.\n");
     }
 
     int retvalue = 0;
+
     struct Message* readed = NULL;
+
     unsigned long toread;
-    char* tmp;
     void* writingpointer;
+    char* tmp;
 
     // Allocating heap memory to store the received message.
     readed = (struct Message*) malloc(sizeof(struct Message));
     if (readed == NULL) {
         // Error
-        printf("Error in allocating heap memory for the received message.\n");
+        handleError(0, 0, 0, 1, "Error in allocating heap memory for the received message.\n");
     }
 
     // Reading/Waiting for the message type.
@@ -115,44 +118,57 @@ struct Message* receiveMessage(int fdfrom) {
 readtype:
     retvalue = read(fdfrom, writingpointer, toread);
     // https://stackoverflow.com/questions/33053507/econnreset-in-send-linux-c
-    if (retvalue == 0 || errno == ECONNRESET) {
-        // Probably disconnection.
+    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+        // Probably a disconnection happened.
         free(readed);
-        readed = NULL;
+        // sizeof(void*) = 8
+        // sizeof(struct Message*) = 8
+        // sizeof(long int) = 8
+        // Trick to return a "special" value, since NULL is already used in another case.
         return (void*)-1L;   
     }
+    if (retvalue == 0 && errno == ETIMEDOUT) {
+        // Probably a disconnection happened.
+        free(readed);
+        return (void*)-1L;
+    }
     if (retvalue == -1) {
-        // Error
-        // Server:  destroying message, nothing has been received yet.
-        //          Interrupted by a SIGNAL (end of game reached).
+        // Destroying message, nothing has been received yet.
+        // Interrupted by a signal.
         if (errno == EINTR) {
             free(readed);
             readed = NULL;
             return readed;
         }
+        // Error
         // Another unmanageable error.
-        printf("Error in reading a message type.\n");
+        handleError(1, 0, 0, 1, "Error in reading a message type.\n");
     }
-
-    // Server: Interrupted before of end reading (in the middle of a reading).
-    //         Readed less bytes returned in retvalue.
-    //         When i will return from the (end of game reached) SIGNAL management,
-    //         I come back to read where i was left, reading only the unread data from the stream.
+    if (retvalue == 0) {
+        // 0 bytes read.
+        free(readed);
+        readed = NULL;
+        return readed;     
+    }
+    // Interrupted before of end reading (in the middle of a reading).
+    // Readed less bytes returned in retvalue.
+    // When i will return from the (end of game reached) SIGNAL management,
+    // I come back to read where i was left, reading only the unread data from the stream.
     if (retvalue < sizeof(readed->type)) {
         toread = sizeof(readed->type) - retvalue;
-        // Server:  Incrementing the writingpointer to read to at offset position.
-        //          Otherwise, i will read the new bytes, but i will overwrite the old ones
-        //          (already readed previously).
-        //          writingpointer += retvalue; --> CANNOT DO THIS due to a
-        //          Warning by the compiler: arithmetic on a pointer to void is a GNU extension
-        //          [-Wgnu-pointer-arith]
-        //          To fix simply use char* and not void*.
-        //          But since read() operates on bytes, are we sure that the lengths will match?
-        //          Yes, sizeof(char) == 1 always, read here:
-        //          https://stackoverflow.com/questions/3922958/void-arithmetic
-        //          https://stackoverflow.com/questions/2215445/are-there-machines-where-sizeofchar-1-or-at-least-char-bit-8
+        // Incrementing the writingpointer to read to at offset position.
+        // Otherwise, i will read the new bytes, but i will overwrite the old ones
+        // (already readed previously).
+        // writingpointer += retvalue; --> CANNOT DO THIS due to a
+        // Warning by the compiler: arithmetic on a pointer to void is a GNU extension
+        // [-Wgnu-pointer-arith]
+        // To fix simply use char* and not void*.
+        // But since read() operates on bytes, are we sure that the lengths will match?
+        // Yes, sizeof(char) == 1 always, read here:
+        // https://stackoverflow.com/questions/3922958/void-arithmetic
+        // https://stackoverflow.com/questions/2215445/are-there-machines-where-sizeofchar-1-or-at-least-char-bit-8
         tmp = (char*) writingpointer;
-        tmp += sizeof(char) * retvalue;
+        tmp += (sizeof(char) * retvalue);
         writingpointer = (void*) tmp;
         goto readtype;
     }
@@ -162,16 +178,26 @@ readtype:
 readlength:
     // Reading/Waiting for the message length.
     retvalue = read(fdfrom, writingpointer, toread);
-    if (retvalue == 0 || errno == ECONNRESET) {
-        // Probably disconnection.
+    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+        // Probably a disconnection happened.
         free(readed);
-        readed = NULL;
         return (void*)-1L;   
     }
+    if (retvalue == 0 && errno == ETIMEDOUT) {
+        // Probably a disconnection happened.
+        free(readed);
+        return (void*)-1L;
+    }
     if (retvalue == -1) {
-        // Error
+        // Interrupted by a signal.
         if (errno == EINTR) goto readlength;
-        printf("Error in reading a message length.\n");
+        // Error
+        // Another unmanageable error.
+        handleError(1, 0, 0, 1, "Error in reading a message length.\n");
+    }
+    if (retvalue == 0) {
+        // 0 bytes read.
+        goto readlength;   
     }
     if (retvalue < sizeof(readed->length)) {
         toread = sizeof(readed->length) - retvalue;
@@ -186,7 +212,7 @@ readlength:
     bufferstr = (char*) malloc(sizeof(char) * readed->length);
     if (bufferstr == NULL){
         // Error
-        printf("Error in allocating heap memory for the message received data.\n");
+        handleError(0, 0, 0, 1, "Error in allocating heap memory for the message received data.\n");
     }
     readed->data = bufferstr;
 
@@ -195,17 +221,28 @@ readlength:
 readdata:
     // Reading/Waiting for the message data.
     retvalue = read(fdfrom, writingpointer, toread);
-    if (retvalue == 0 || errno == ECONNRESET) {
-        // Probably disconnection.
+    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+        // Probably a disconnection happened.
         free(readed->data);
         free(readed);
-        readed = NULL;
         return (void*)-1L;   
     }
+    if (retvalue == 0 && errno == ETIMEDOUT) {
+        // Probably a disconnection happened.
+        free(readed->data);
+        free(readed);
+        return (void*)-1L;
+    }
     if (retvalue == -1) {
-        // Error
+        // Interrupted by a signal.
         if (errno == EINTR) goto readdata;
-        printf("Error in reading a message data.\n");
+        // Error
+        // Another unmanageable error.
+        handleError(1, 0, 0, 1, "Error in reading a message data.\n");
+    }
+    if (retvalue == 0) {
+        // 0 bytes read.
+        goto readdata;   
     }
     if (retvalue < sizeof(char) * readed->length) {
         toread = (sizeof(char) * readed->length) - retvalue;
@@ -215,27 +252,31 @@ readdata:
         goto readdata;
     }
 
-
     return readed;
 
 }
 
 
 // This function send a message client -> server or server -> client.
-// There is no difference since the message format is the same.
+// There is no difference since the message format is the same (struct Message).
 // It takes as input the file descriptor of the socket to wich the message will be send.
 // Then it takes the struct Message fields, the type of the message and the data as char* (string).
 // Note that the length of the length Message field will be automatically calculated based on data
 // length with strlen().
-void sendMessage(int fdto, char type, char* data) {
+void* sendMessage(int fdto, char type, char* data) {
 
     if (fdto < 0) {
         // Error
-        printf("Error, the recipient of the message is invalid.\n");
+        handleError(0, 0, 0, 1, "Error, the recipient of the message is invalid.\n");
     }
 
     struct Message tosend;
+
     int retvalue;
+
+    unsigned long towrite;
+    void* writingpointer;
+    char* tmp;
 
     tosend.type = type;
 
@@ -248,52 +289,116 @@ void sendMessage(int fdto, char type, char* data) {
     if (data == NULL)
         tosend.data = 0;
 
-    // Sending message type.
-    retvalue = write(fdto, &(tosend.type), sizeof(tosend.type));
+    
+    towrite = sizeof(tosend.type);
+    writingpointer = &(tosend.type);
+sendtype:
+    // Writing the message type.
+    retvalue = write(fdto, writingpointer, towrite);
+    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+        // Probably a disconnection happened.
+        return (void*)-1L;   
+    }
+    if (retvalue == 0 && errno == ETIMEDOUT) {
+        // Probably a disconnection happened.
+        return (void*)-1L;
+    }
     if (retvalue == -1) {
+        // Interrupted by a signal.
+        if (errno == EINTR) goto sendtype;
         // Error
-        if (errno == EPIPE) {
-            // Disconnection.
-            printf("Cannot sendMessage(). Maybe a disconnection is happened.\n");
-            return;
-        }
-        printf("Error in sending message type. Error: %d\n",retvalue);
+        // Another unmanageable error.
+        handleError(1, 0, 0, 1, "Error in writing a message type.\n");
+    }
+    if (retvalue == 0) {
+        // 0 bytes read.
+        goto sendtype;   
+    }
+    if (retvalue < sizeof(tosend.type)) {
+        towrite = sizeof(tosend.type) - retvalue;
+        tmp = (char*) writingpointer;
+        tmp += sizeof(char) * retvalue;
+        writingpointer = (void*) tmp;
+        goto sendtype;
     }
 
-    // Sending message length.
-    retvalue = write(fdto, &(tosend.length), sizeof(tosend.length));
+    towrite = sizeof(tosend.length);
+    writingpointer = &(tosend.length);
+sendlength:
+    // Writing the message length.
+    retvalue = write(fdto, writingpointer, towrite);
+    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+        // Probably a disconnection happened.
+        return (void*)-1L;   
+    }
+    if (retvalue == 0 && errno == ETIMEDOUT) {
+        // Probably a disconnection happened.
+        return (void*)-1L;
+    }
     if (retvalue == -1) {
+        // Interrupted by a signal.
+        if (errno == EINTR) goto sendlength;
         // Error
-        if (errno == EPIPE) {
-            // Disconnection.
-            printf("Cannot sendMessage(). Maybe a disconnection is happened.\n");
-            return;
-        }
-        printf("Error in sending message length.\n");
+        // Another unmanageable error.
+        handleError(1, 0, 0, 1, "Error in writing a message length.\n");
+    }
+    if (retvalue == 0) {
+        // 0 bytes read.
+        goto sendlength;   
+    }
+    if (retvalue < sizeof(tosend.length)) {
+        towrite = sizeof(tosend.length) - retvalue;
+        tmp = (char*) writingpointer;
+        tmp += sizeof(char) * retvalue;
+        writingpointer = (void*) tmp;
+        goto sendlength;
     }
 
-    // Sending message data.
-    retvalue = write(fdto, tosend.data, tosend.length);
-    if (retvalue == -1) {
-        // Error
-        if (errno == EPIPE) {
-            // Disconnection.
-            printf("Cannot sendMessage(). Maybe a disconnection is happened.\n");
-            return;
-        }
-        printf("Error in sending message data.\n");
+    towrite = tosend.length * sizeof(char);
+    writingpointer = &(tosend.data);
+senddata:
+    // Writing the message data.
+    retvalue = write(fdto, writingpointer, towrite);
+    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+        // Probably a disconnection happened.
+        return (void*)-1L;   
     }
+    if (retvalue == 0 && errno == ETIMEDOUT) {
+        // Probably a disconnection happened.
+        return (void*)-1L;
+    }
+    if (retvalue == -1) {
+        // Interrupted by a signal.
+        if (errno == EINTR) goto senddata;
+        // Error
+        // Another unmanageable error.
+        handleError(1, 0, 0, 1, "Error in writing a message data.\n");
+    }
+    if (retvalue == 0) {
+        // 0 bytes read.
+        goto senddata;   
+    }
+    if (retvalue < tosend.length * sizeof(char)) {
+        towrite = (sizeof(char) * tosend.length) - retvalue;
+        tmp = (char*) writingpointer;
+        tmp += sizeof(char) * retvalue;
+        writingpointer = (void*) tmp;
+        goto senddata;
+    }
+
+    return NULL;
 
 }
 
-// This function destroy a Message sent o received by releasing allocated memory.
+// This function destroys a Message sent o received by releasing allocated memory.
 // It also modifies the value of the caller used pointer, setting it to NULL.
 // This to avoid referring by mistake to memory released.
 void destroyMessage(struct Message** m) {
 
     if (m == NULL || *m == NULL) {
         // Error
-        printf("Error, cannot destroy an invalid message.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error, cannot destroy an invalid message. Trying ignore it.\n");
+        return;
     }
 
     // Releasing allocated memory and destroying the vars content.
@@ -306,59 +411,64 @@ void destroyMessage(struct Message** m) {
 
 }
 
-// Wrapper lock/unlock mutexes to catch errors.
+// Wrapper lock mutexes to catch errors.
 void mLock(pthread_mutex_t* m) {
 
     if (m == NULL) {
         // Error
-        printf("Error, mLock() received an empty mutex.\n");
+        handleError(0, 1, 0, 0, "Error, mLock() received an empty mutex.\n");
     }
-    int retvalue;
-    retvalue = pthread_mutex_lock(m);
+    int retvalue = pthread_mutex_lock(m);
     if (retvalue != 0) {
         // Error
-        printf("Error in acquiring a mutex.\n");
+        handleError(0, 1, 0, 0, "Error in acquiring (locking) a mutex.\n");
     }
 
 }
 
-// Wrapper lock/unlock mutexes to catch errors.
+// Wrapper unlock mutexes to catch errors.
 void mULock(pthread_mutex_t* m) {
 
     if (m == NULL) {
         // Error
-        printf("Error, mULock() received an empty mutex.\n");
+        handleError(0, 1, 0, 0, "Error, mULock() received an empty mutex.\n");
     }
 
-    int retvalue;
-    retvalue = pthread_mutex_unlock(m);
+    int retvalue = pthread_mutex_unlock(m);
     if (retvalue != 0) {
         // Error
-        printf("Error in releasing a mutex.\n");
+        handleError(0, 1, 0, 0, "Error in releasing (UNlocking) a mutex.\n");
     }
 
 }
 
 // This function is called every time an error happens.
-// The first int taken is 1 if we want print the errno value setted by some functions in case of error,
-// 0 otherwise. The second int taken is 1 if we want kill the main thread, 0 otherwise. It is
-// used for the errors that are critical for which continuing execution would be unsafe.
-// The third int is used when an error is throw by the function printff(), a 
-// custom wrapper of printf(). In this case handleError() could call printff() and printff()
-// could call handleError() starting a mutual infinite recursion. To prevent this if the third
-// int taken is 1 it means the error comes from printff() and so, the program exit without calling printff().
-// The fourth int if setted to 1 if we want to kill the handleError() calling thread.
+// The first char taken is 1 if we want print the errno value setted by some functions 
+// in case of error, 0 otherwise. 
+// The second char taken is 1 if we want to kill the main thread, 0 otherwise.
+// It is used for the errors that are critical for which continuing execution would be unsafe.
+// The third char is used when an error is throw by the function printff(), a 
+// custom wrapper of printf(), used also in this case to print error messages. 
+// In this case handleError() could call printff() and printff()
+// could call handleError(), starting a mutual infinite recursion. To prevent this if the third
+// char taken is 1, it means the error comes from printff() and so,
+// the program exit without calling again printff().
+// The fourth char is setted to 1 if we want to kill the handleError() calling thread.
+// Useful for example if we want to suppress a clientHandler() thread.
 // The last parameter format and the elipsis are used to pass all the others args received to
 // the printf().
-void handleError(int printerrno, int killmain, int errorfromprintff, int killthisthread, const char* format,  ...) {
+void handleError(char printerrno, char killmain, char errorfromprintff, char killthisthread, const char* format,  ...) {
 
     // Wrong args or recursive error.
-    if ((printerrno != 0 && printerrno != 1) || (killmain != 0 && killmain != 1)
+    if ((printerrno != 0 && printerrno != 1)
+    || (killmain != 0 && killmain != 1)
     || (errorfromprintff != 0 && errorfromprintff != 1)
     || (killthisthread != 0 && killthisthread != 1)
+    || (killmain != 0 && killthisthread != 0) // No sense, both options simultaneously active. If i kill the main (by exiting, from the whole program), all threads will die, so obviously also this one.
     || errorfromprintff) {
         // Critical recursive error handler or wrong params.
-        fprintf(stderr, "%s", RECURSIVE_MSG_ERR);
+        // This stops all the program.
+        fprintf(stderr, "%s", RECURSIVE_ERR_MSG);
         fflush(stderr);
         // exit(EXIT_FAILURE); -> Recursive error if something happens in atExit()... use instead:
         _exit(1);
@@ -372,7 +482,7 @@ void handleError(int printerrno, int killmain, int errorfromprintff, int killthi
         if (retvalue == EOF) {
             // Error
             // Critical recursive error.
-            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+            handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
         }
     }else {
         // Normal print error (without errno).
@@ -382,17 +492,23 @@ void handleError(int printerrno, int killmain, int errorfromprintff, int killthi
         va_end(args);
     }
 
+    // To disable below options when used in test mode by Tests/tests.
      if (testmode) return;
     
     // Main thread killer.
     if (killmain) {
+        // We are the main.
         if (pthread_self() == mainthread) exit(EXIT_FAILURE); // atExit() called.
-        retvalue = pthread_cancel(mainthread);
+        // We are not the main, we are another thread.
+        // Cannot use pthread_cancel(), since it kills the main thread, but we want
+        // not only the main thread, but the whole program.
+        retvalue = pthread_kill(mainthread, SIGUSR2);
         // Critical recursive error.
-        if (retvalue != 0) handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
-        else ; // Dead...
+        if (retvalue != 0) handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
+        else return;
     } 
 
+    // Current (this function caller) thread killer.
     if (killthisthread) pthread_exit(NULL);
 
 }
@@ -401,12 +517,12 @@ void handleError(int printerrno, int killmain, int errorfromprintff, int killthi
 // It takes as first arg a va_list struct.
 // It's null if the printff() is normally called to print a message.
 // If it's not null it means it has been called by the handleError() above function.
-// In this last case the va_list struct is passed to vgprintf() to print on stderr.
-// The const char* format and the elipsis (...) is used to forward all the other args to the printf().
+// In this last case the va_list struct is passed to vfprintf() to print on stderr.
+// The const char* format and the elipsis (...) are used to forward all the
+// other args to the printf().
 
 // Thread safety of printf? No mixed output, but interleaving admitted.
 // https://stackoverflow.com/questions/47912874/printf-function-on-multi-thread-program
-// https://stackoverflow.com/questions/22366776/is-reading-and-writing-to-the-same-file-thread-safe
 // Thread safety of fflush? Yes.
 // https://stackoverflow.com/questions/39053670/can-a-program-call-fflush-on-the-same-file-concurrently
 void printff(va_list errorargs, const char* format, ...) {
@@ -429,43 +545,66 @@ void printff(va_list errorargs, const char* format, ...) {
     if (retvalue < 0 || retvalue2 == EOF) {
          // Error
          // Critical recursive error.
-        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
     }
 
 }
 
+
+
+// Executed only once (from the first calling thread) to create a once key.
+// Used the thread key to register a thread destructor.
 void makeKey(void){
 
     int retvalue;
     retvalue = pthread_key_create(&key, threadDestructor);
     if (retvalue != 0){
         // Error
-        handleError(0, 1, 0, 1, "Error in pthread_key_create().\n");
+        handleError(0, 1, 0, 0, "Error in pthread_key_create().\n");
     }
 
 }
 
+// This function MUST be executed by all threads to register the thread destructor.
 void threadSetup(void){
-    void* ptr;
+
+    void* ptr = NULL;
 
     int retvalue;
+    // Executed only once (from the first calling thread).
     retvalue = pthread_once(&key_once, makeKey);
     if (retvalue != 0){
         // Error
-        handleError(0, 1, 0, 1, "Error in pthread_once().\n");
+        handleError(0, 1, 0, 0, "Error in pthread_once().\n");
     }
+
+    // Setting LOCAL thread's data.
+    char data;
+    pthread_t current = pthread_self();
+    if (current == mainthread) data = 'M';
+    else data = 'O';
+
+    // This if is executed only the first time (by each thread) to setup the data.
     if ((ptr = pthread_getspecific(key)) == NULL) {
         ptr = malloc(sizeof(char));
         if (ptr == NULL) {
             // Error
-            handleError(0, 1, 0, 1, "Error in malloc() in threadSetup().\n");
+            handleError(0, 1, 0, 0, "Error in malloc() in threadSetup().\n");
         }
+        *((char*)(ptr)) = data;
+        // ... Other things that may be necessary carried out ONLY the FIRST TIME FOR EACH THREAD. ...
         retvalue = pthread_setspecific(key, ptr);
         if (retvalue != 0){
             // Error
-            handleError(0, 1, 0, 1, "Error in pthread_setspecific().\n");
+            handleError(0, 1, 0, 0, "Error in pthread_setspecific().\n");
         }
     }
+
+    // Retrieve thread specific data (not necessary in this usage).
+    // char* dataptr = pthread_getspecific(key)
+    ;
+
+    return;
     
 }
 

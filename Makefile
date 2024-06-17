@@ -3,7 +3,9 @@
 .PHONY: all clear tests clean execs execc
 
 all: 
-	$(MAKE) -C ./Src/ $(MAKECMDGOALS)
+	cd Src/ && $(MAKE) -C . $(MAKECMDGOALS)
+
+clear: all
 
 tests: all 
 

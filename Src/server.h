@@ -4,7 +4,6 @@
 // Common server only cross files used vars and libs.
 int socket_server_fd; // Socket server file descriptor.
 
-typedef unsigned long int uli; // Shortcut used when time needs to be managed.
 uli gameduration; // Game duration, for each match, in minutes. 
 
 pthread_t disconnectdetector; // Thread to check clients disconnections.

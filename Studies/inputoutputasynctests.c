@@ -1,14 +1,18 @@
 // This file contains all the tests needed to develop the async client.
-// Async, in this case, means that the client waits for the user's input, but
-// periodically, checks if there are some received server's responses.
+// Async, in this case, means that the client waits for the user's input in a ThreadA.
+// a ThreadB stays listening to capture responses from the server
+// and places them in a list. 
+// Periodically, the ThreadA interrupts the read() of the user input and checks if there 
+// are any server responses in the list to be printed.
 // In this latter case, it prints the server's responses and then come back
 // to waits for user's input.
 
-// CLARIFICATIONS: It's not asynchronous in the true meaning of the word,
-// when a response is received from the server, it is NOT printed INSTANTANEOUSLY,
-// instead, at regular intervals, it is checked for server's responses and printed them,
-// but since this time interval can be chosen very low, the user will perceive almost
-// pure asynchronous behavior.
+// CLARIFICATIONS: It's not 100% asynchronous in the true meaning of the word,
+// the server's responses are received from the server, and inserted into the list
+// asynchronously by the ThreadB, but aren't printed INSTANTANEOUSLY ASYNC,
+// instead, at regular intervals, the ThreadA stops waiting for user's input and checks
+// for server's responses in the list and prints them, but since this time interval
+// can be chosen very low, the user will perceive almost a pure asynchronous behavior.
 
 /*
 The key concept on which the client development was structured is the cleanup of the printing
@@ -28,8 +32,8 @@ I identified two different ways to deal with the problem:
 
 1) Prevent the problem (of the "dirty" STDIN buffer).
 Develop the client as a single thread, which waits for the user to complete the input
-(pressing ENTER which via '\n' interrupts the read()) and then execute the command and
-finally check if there are any queued server's responses to be printed and afterwards start
+(pressing ENTER which via '\n' interrupts the read()) and then executes the command and
+finally checks if there are any queued server's responses to be printed and afterwards starts
 the loop again.
 Or, alternatively, develop the client as multithreaded and synchronize the thread that handles
 the input with the one that prints the server's responses. 
@@ -46,14 +50,14 @@ Never a final solution...
 I ended up going crazy with a library called "curses.h":
 https://en.wikipedia.org/wiki/Curses_(programming_library)
 That allows you to manage the terminal in detail, but it was like using bazooka to kill a fly.
-Solbing the problem but generated many others.
+Solving the problem but generated many others.
 
 I finally found and adapted a method used in this below code.
 
 To summarize, I interrupt the read() very often.
 If there are server's responses I print them, clean up the STDIN with a NON-BLOCKING getchar()
-and return to the clean prompt, so if the user has typed something incomplete they can retype
-it or change it (following the response received). Instead, if there is no server response,
+and return to the clean prompt, so if the user has typed something incomplete can retype
+it or changes it (following the response received). Instead, if there is no server response,
 the read resumes with the user's entered STDIN and nothing happens.
 
 See termiostest.h to better understand.
@@ -246,12 +250,8 @@ int main(void) {
 
                 // MAY or MAY NOT have read ALL the data that the user would want to.
                 // The user may have entered LESS data than N but with '\n', so it's completed,
-                // OR a signal is arrived and so the input is NOT completed ('\n' missing).
+                // OR the input is NOT completed ('\n' missing).
                 
-                // If a read is interrupted by a signal...  
-                // https://linux.die.net/man/3/read
-                // https://stackoverflow.com/questions/66987029/can-a-read-or-write-system-call-continue-where-it-left-off-after-being-inter
-
                 // Checking if the input contains a '\n', to detect if it is completed or not,
                 // to know if it's necessary or not printing the newline and prompt and 
                 // to process the input.
@@ -273,6 +273,7 @@ int main(void) {
                 }
         }else{
             // -1.
+            // EAGAIN
             if (errno == 35){
                 // Interrupt to display server's responses received.
 
@@ -280,9 +281,9 @@ int main(void) {
                 // 1. ->
                 // 2. -> USERINPUT...
 
-                    // To know what to do (printing and clearing input), we need to know 
-                    // whether there are server's responses to print or not.
-                    // So we defer this task to the function printResponses(), setting this flag.
+                // To know what to do (printing and clearing input), we need to know 
+                // whether there are server's responses to print or not.
+                // So we defer this task to the function printResponses(), setting this flag.
                 printprompt = 3;
 
             }else {

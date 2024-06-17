@@ -2,124 +2,484 @@
 #include "client.h"
 
 // Current file vars and libs.
+#include <fcntl.h>
+#include <termios.h>
 
 #define PROMPT_STR "[PROMPT BOGGLE]--> " // Prompt string.
-#define MSG_HELP "Avaible commands:\nhelp -> Show this page.\nregister_user user_name -> To register in the game.\nmatrix -> Get the current game matrix.\np word -> Submit a word.\nend -> Exit from the game.\n" // Help message.
 
-// Support struct used to grab the user input of arbitrary length in the client using a
-// heap allocated linked list of char* (these also heap allocated).
-struct StringNode {
+#define HELP_MSG "Avaible commands:\nhelp -> Show this page.\nregister_user user_name -> To register in the game.\nmatrix -> Get the current game matrix.\np word -> Submit a word.\nend -> Exit from the game.\n" // Help message.
+
+char* inputfinal;  // This heap allocated string will contain the full user input.
+char input[BUFFER_SIZE + 1]; // An input temporary buffer, we will handle arbitrary input length by using more BUFFER_SIZE heap allocated strings in a list. +1 for the '\0'.
+
+#define CHECK_RESPONSES_MICROSECONDS 100 // Time in microseconds. Each time, the responses received from the server (if present), will be printed.
+struct termios oldChars; // To save current terminal stteings.
+struct termios newChars; // To set new terminal stteings.
+int oldfl;
+char printprompt = 1; // This var is used to determine what to print and what not to print.
+
+struct StringNode { // Support struct used to grab the user input of arbitrary length in the client using a heap allocated linked list of char* (these also heap allocated).
     char* s;   // Pointer to an heap allocated string.
     struct StringNode* n; // Pointer to the next list element.
 };
 struct StringNode* heads = NULL;
-pthread_mutex_t mstringnode = PTHREAD_MUTEX_INITIALIZER;
 
-// This will be a messages list.
-// Will be filled asynchronously when a server response is received.
-struct MessageNode {
+struct MessageNode { // This will be a messages list. Will be filled asynchronously when a server's response is received by the responsesHandler() thread. The presence of the response in the list indicates that it has yet to be printed (shown to the user).
     struct Message* m; // Pointer to the Message struct.
     struct MessageNode* next; // Pointer to the next element of the list.
 };
-struct MessageNode* head = NULL; // Head of the list.
-pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER; // This mutex is used by the threads to synchronize on list operations.
+struct MessageNode* head = NULL; // Head of the messages list.
+pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER; // This mutex is used by the threads to synchronize on messages list operations.
 
-pthread_mutex_t mio = PTHREAD_MUTEX_INITIALIZER;
-unsigned int receivedsignal = 0U;
-unsigned int promptready = 0U;
+// This function destroy the strings list.
+void destroyStringList(void) {
 
-pthread_t cleanerthread;
-unsigned int completedprint = 0U;
-
-unsigned int finalinputsize = 0U;
-char* finalinput = NULL;
-char input[BUFFER_SIZE]; // An input buffer, but in this way we will handle arbitrary input length by using more BUFFER_SIZE heap allocated strings.
-
-char returnfromsignal[2] = "0";
-
-// This function will be executed in a dedicated thread started as soon as possible in the main.
-// It will run forever (as long as the process lives) looping in a while(1);.
-// Will only deal with the management of SIGINT, SIGALRM, SIGPIPE signals, but
-// all others could also be added without any problems.
-// The SIGINT is sent when CTRL + C are pressed on the keyboard.
-// All other threads will block these signals.
-// This way should be better then registering the signal handler with the sigaction().
-// Because we won't be interrupted and thus solve the very annoying problem of using
-// async-safe-signals functions (reentrant functions).
-// Note that still the problem of inter-thread competition persists and needs to be handled.
-void* signalsThread(void* args) {
-
-    int sig;    
-    int retvalue;
-    // TODO
-    //threadSetup();
-    while (1){
-        // Intercepting signals previously setted in the mask in the main.
-        // sigwait() atomically get the bit from the signals pending mask and set it to 0.
-        // https://stackoverflow.com/questions/2575106/posix-threads-and-signals
-        retvalue = sigwait(&signal_mask, &sig);
-
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 1, 0, 1, "Error in sigwait().\n");
-        }
-
-        // Treatment of different signals.
-        switch (sig){
-            case SIGINT:{ 
-                // TODO
-                break;
-            }case SIGALRM:{
- 
-                mLock(&mio);
-                // After prompt or user input i need to start a new line.
-                printff(NULL, "\n");
-                //printResponses();
-                printff(NULL,"\n\nV\n\n");
-
-                int retvalue;
-                completedprint = 0U;
-                retvalue = pthread_create(&cleanerthread, NULL, cleanerSTDIN, NULL);
-                if (retvalue != 0){
-                    // Error
-                    // TODO
-                }
-                while (1){  
-                    if (completedprint){
-                        retvalue = pthread_cancel(cleanerthread);
-                        if (retvalue != 0) {
-                            // Error
-                        }
-                        break;
-                    }
-                }
-
-                alarm(CHECK_RESPONSES_SECONDS);
-                
-                mULock(&mio);
-
-                break;
-            }case SIGPIPE:{
-                // Nothing, already handled by the single threads.
-                break;
-            }default:{
-                // TODO
-                break;
-            }
-        }
-    
+    struct StringNode* current = heads;
+    while (1) {
+        if (current == NULL) break;
+        memset(current->s, '\0', BUFFER_SIZE + 1);
+        free(current->s);
+        struct StringNode* tmp = current->n;
+        free(current);
+        current = tmp;
     }
-
-    
-    return NULL;
+    heads = NULL;
 
 }
 
+// This function is used to transform the getchar() function from blocking to unblocking.
+void setUnblockingGetChar(void){
+
+  oldfl = fcntl(0, F_GETFL); // Saving current fcntl settings.
+  if (oldfl == -1) {
+        // Error
+        handleError(1, 1, 0, 0, "Error in fcntl() in setUnblockingGetChar().\n");
+   }
+  int retvalue = fcntl(0, F_SETFL, O_NONBLOCK);
+  if (retvalue == -1) {
+    // Error
+    handleError(1, 1, 0, 0, "Error in fcntl() in setBlockingGetChar().\n");
+  }
+  tcgetattr(0, &oldChars); // Saving current terminal settings.
+  newChars = oldChars;
+  newChars.c_lflag &= ~ICANON; // Disabling buffering.
+  // newChars.c_lflag &= echo ? ECHO : ~ECHO; // Modifying echo mode.
+  tcsetattr(0, TCSANOW, &newChars); // Setting new terminal settings.
+
+}
+
+// This function is used to restore the getchar() function from unblocking to blocking.
+void setBlockingGetChar(void) {
+
+    int retvalue = fcntl(0, F_SETFL, oldfl & ~O_NONBLOCK); // Setting old fcntl settings.
+    if (retvalue == -1) {
+        // Error
+        handleError(1, 1, 0, 0, "Error in fcntl() in setBlockingGetChar().\n");
+    }
+    tcsetattr(0, TCSANOW, &oldChars);  // Setting old terminal settings.
+
+}
+
+// This function clears the user's input.
+// It clears the input temporary buffer.
+// It clears the input strings list.
+// It clears (if present) the char* finalinput.
+// It also clears the user's STDIN buffer, for that an unblocking getchar() was needed.
+// It returns 1 if at least one char has been removed from STDIN, 0 otherwise.
+char clearInput(void) {
+
+    // Resetting temporary input buffer.
+    memset(input, '\0', BUFFER_SIZE);
+
+    // Destroying the strings list.
+    destroyStringList();
+
+    // Clearing char* finalinput.
+    if (inputfinal != NULL) {
+        free(inputfinal);
+        inputfinal = NULL;
+    }
+
+    // Clearing STDIN buffer.
+    char cleared = 0;
+    setUnblockingGetChar();
+    while (1) {
+        char c = getchar();
+        // No more chars in the STDIN, break.
+        if (c == -1) break;
+        else cleared = 1;
+    }
+    setBlockingGetChar();
+
+    // This extra line is needed because the fcntl is changed.
+    // It has been restored to the original, but this change is missing (also in the original).
+    // It is needed to periodically stop the read() and check for server's responses to print.
+    fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+
+    return cleared;
+
+}
+
+// This function substitute all the '\n' with '\0' in the input. 
+// It returns 1 if at least a '\n' is found in the input, 0 otherwise.
+char sanitizeCheckInput(void){
+
+    struct StringNode* current = heads;
+    char validinputlastline = 0;
+
+    while (1) {
+        if (current == NULL) break;
+        char* currentstr = current->s;
+        while(currentstr[0] != '\0'){
+            if (currentstr[0] == '\n') {
+                // An additional check.
+                // The new line must be in the last input line read.
+                if (current->n == NULL) validinputlastline = 1;
+                currentstr[0] = '\0';
+            }
+            currentstr++;
+        }
+        current = current->n;
+    }
+
+    return validinputlastline;
+
+}
+
+// This function insert a string in strings list.
+void insertStringInList(void) {
+
+    // Creating the new element.
+    struct StringNode* new;
+    new = (struct StringNode*) malloc(sizeof(struct StringNode));
+    if (new == NULL) {
+        // Error
+        handleError(0, 1, 0, 0, "Error in malloc() of the new strings list element in the insertStringInList().\n");
+    }
+    new->n = NULL;
+
+    new->s = (char*) malloc(sizeof(char) * (BUFFER_SIZE + 1));
+    if (new->s == NULL) {
+        // Error
+        handleError(0, 1, 0, 0, "Error in malloc() of the new string in the strings list element in the insertStringInList().\n");
+    }
+    // Copying current temporary line buffer in the string element list.
+    strcpy(new->s, input);
+    // Setting string terminator.
+    uli l = strlen(input);
+    new->s[l] = '\0';
+
+    // Adding the new element to the strings list.
+    if (heads == NULL) {
+        // Empty list.
+        heads = new;
+    }else {
+        // Not empty list.
+        struct StringNode* current = heads;
+        while (1) {
+            if (current->n == NULL) break;
+            current = current->n;
+        }
+        current->n = new;
+    }
+
+}
+
+// This function check if there is/are some server's response/s to print.
+// It handles the various cases and decides what to print or not to print using the
+// previously setted var printprompt.
+void checkResponses(void) {
+
+    // There is/are something to print only if the messages list is not empty (head == NULL).
+    char somethingtoprint = head == NULL ? 0 : 1;
+
+    if (somethingtoprint == 1) {
+
+        if (printprompt == 2) {
+            // The input is not completed, clearing the input. Maybe there is 
+            // a situation like this:
+            // -> USERINPUT...
+            clearInput();
+            printff(NULL, "\n");
+        }
+
+        if (printprompt == 3) {
+            // Two cases:
+            // 1. ->
+            // 2. -> USERINPUT...
+            char i = clearInput();
+            if (i == 0) {
+                // First case.
+                printff(NULL, "\n");
+            }else {
+                // Second case.
+                printff(NULL, "\n");
+            }
+            // No difference.
+            // But for readability better to distinguish them.
+        }
+
+        if (printprompt == 1) {
+            ;
+            // Nothing to do.
+            // But for readability better to distinguish.
+        }
+
+        // Here the server's response/s is/are printed.
+        printResponses();
+
+        printprompt = 1;
+
+    }else{
+
+        // Nothing from server to print.
+
+        // No printing prompt.
+        // Resetting flag.
+        if (printprompt == 2)
+            printprompt = 0;
+        if (printprompt == 3)
+            printprompt = 0;
+
+        // The prompt must be printed.
+        if (printprompt == 1)
+            ;
+
+        // The prompt must NOT be printed.
+        if (printprompt == 0)
+            ;
+        // Nothing to do.
+        // For readability better to distinguish them.
+
+    }
+        
+    return;
+
+}
+
+// This function process a completed user's input.
+void processInput(void) {
+
+       // ALL lines readed.
+       // Completed input.
+
+       // Converting input from list to static array.
+
+       // Allocating a new input, but this will not a buffer, this will content exactly 
+       // the input, without wasting space.
+
+        // Removing (if present) the current char* inputfinal.
+       if (inputfinal != NULL) free(inputfinal);
+
+       // Counting the total numbers of characters of all the strings in the list.
+       struct StringNode* current = heads;
+       uli totalchars = 0LU;
+       while(1) {
+            if (current == NULL) break;
+            totalchars += strlen(current->s);
+            current = current->n;
+       } 
+
+       // Allocating memory for the final string input.
+       inputfinal = (char*) malloc(sizeof(char) * ++totalchars);
+       if (inputfinal == NULL) {
+            // Error
+            handleError(0, 1, 0, 0, "Error in malloc() of the processInput().\n");
+       }
+
+       current = heads;
+       uli counter = 0LU;
+       while(1) {
+            if (current == NULL) break;
+            char* s = current->s;
+            // Copying char by char from string list element to the final char* finalinput.
+            while(s[0] != '\0') {
+                inputfinal[counter++] = s[0];
+                s++;
+            }
+            inputfinal[counter] = s[0];
+            current = current->n;
+       }      
+       // Manually settings the string terminator.
+       inputfinal[totalchars] = '\0';
+
+        // Destroying the string list.
+        destroyStringList();
+
+       // Now, after all this effort, we have the user input in "input[]" var and
+       // we are ready to process it.
+
+        // Normalize to lowercase the input.
+        toLowerOrUpperString(inputfinal, 'L');
+
+        // Processing the user request.
+        if (strcmp("end", inputfinal) == 0){
+            printff(NULL, "Bye, bye, see you soon! Thanks for playing.\n");
+            sendMessage(client_fd, MSG_ESCI, NULL);
+            // TODO Exit program
+            return;
+        }
+        if (strcmp("help", inputfinal) == 0) {
+            printff(NULL, HELP_MSG);
+            return;
+        }
+        // TODO control sendMessage return -1.
+        if (strcmp("matrix", inputfinal) == 0) {
+            sendMessage(client_fd, MSG_MATRICE, NULL);
+            return;
+        }
+
+        // Tokenizing using a space (' ') the user input.
+        // I don't care to destroy the string, since will be no used in the future.
+        char* firstword = strtok(inputfinal, " ");
+        if (firstword != NULL) {
+            char* secondword = strtok(NULL, " ");
+            if (secondword != NULL) {
+                if (strcmp("register_user", firstword) == 0 && secondword != NULL) {
+                    sendMessage(client_fd, MSG_REGISTRA_UTENTE, secondword);
+                    return;
+                }
+                if (strcmp("p", firstword) == 0 && secondword != NULL) {
+                    sendMessage(client_fd, MSG_PAROLA, secondword);
+                    return;
+                }
+            }
+        }
+
+        printff(NULL, "Unknown command. Use 'help' to know the available options.\n");
+        return;
+
+
+}
+
+// This functions handles the user's input.
+void inputHandler(void) {
+
+    // Initializing is needed (to set the read() timeout).
+    clearInput();
+
+    while (1){
+
+        // The part that follows is the reading of the user input performed in a VERY VERBOSE
+        // and complicated way. It would have been much simpler to allocate a static fixed-length buffer.
+        // But in this way we will have 2 problems, the first is that if the user input size is 
+        // less than of the fixed size buffer, we will waste memory space. The second problem is 
+        // the opposite, if the user input size is greater than the fixed size buffer, we will
+        // not able to handle the entire input. This leads us (to avoid this last unsolvable 
+        // problem) to allocate a very large buffer, and this makes the previous point worse and worse.
+        // Instead, with the following code, we will dynamically allocate only the space
+        // needed to handle the input of arbitrary length. 
+
+        /*
+        
+        The main problem, is not knowing the length of the user input before space allocation.
+        A possible simpler way might be to read character by character the input to the end
+        (e.g., with a getchar()), count the characters, allocate the required space, and 
+        finally start over from the beginning of the input (perhaps with a seek() or rewind()) 
+        to copy it to the allocated destination. However, reading on the internet, I learned that it is
+        impossible to restart reading the standard input safely on every platforms, there are some ways,
+        but the result is not always guaranteed.
+
+        So my solution was to dynamically save the content in a string list, containing each element, 
+        a temporarily buffer of fixed size, while counting its length and afterwards
+        allocate the total space required, copy the input from the list, and then destroy the list.
+        Each line length will be maximum BUFFER_SIZE. If the user input is greater than
+        BUFFER_SIZE, it will be splitted in more lines (more elements of the strings list).
+        
+        */
+
+        // TL;DR: Solves the problem of not knowing the length of user input.
+        
+
+        // Printing prompt.
+        if (printprompt == 1)
+            printff(NULL, PROMPT_STR);
+        else printprompt = 0;
+
+        while (1) {
+                
+            // Executed to read MULTIPLE lines.
+
+            // Waiting for the user's input.
+            // After this time the read() is automatically interrupted to check if there
+            // are server's responses to print.
+            // However, it is taken back and the user does not notice it.
+            usleep(CHECK_RESPONSES_MICROSECONDS);
+
+            // Reading from STDIN the user input.
+            int retvalue;
+            retvalue = read(STDIN_FILENO, input, BUFFER_SIZE);
+            input[BUFFER_SIZE] = '\0';
+
+            // Inserting the new input in the strings list.
+            if (retvalue > 0) insertStringInList();
+
+            if (retvalue != -1) {
+                    // Something has been read (r > 0) or r == 0.
+
+                    // MAY or MAY NOT have read ALL the data that the user would want to.
+                    // The user may have entered LESS data but with '\n', so it's completed,
+                    // OR the input is NOT completed ('\n' missing).
+                    
+                    // Checking if the input contains a '\n', to detect if it is completed or not,
+                    // to know if it's necessary or not printing the newline and prompt and 
+                    // to process the input.
+                    if (sanitizeCheckInput() == 1) {
+                        // The input is completed, we can process it.
+                        // Processing...
+                        processInput();
+                        printprompt = 1;
+                    }else {
+                        // The input is not completed, clearing the input. Maybe there is 
+                        // a situation like this:
+                        // -> USERINPUT...
+
+                        // To know what to do (printing and clearing input), we need to know 
+                        // whether there are server's responses to print or not.
+                        // So we defer this task to the function checkResponses(), setting this flag.
+                        printprompt = 2;
+                    }
+            }else{
+                // -1.
+                // EAGAIN == 35
+                if (errno == 35){
+                    // Normal interrupt to display server's responses received.
+
+                    // Two cases:
+                    // 1. ->
+                    // 2. -> USERINPUT...
+
+                    // To know what to do (printing and clearing input), we need to know 
+                    // whether there are server's responses to print or not.
+                    // So we defer this task to the function checkResponses(), setting this flag.
+                    printprompt = 3;
+
+                }else {
+                    // Unexpected strange error.
+                    handleError(1, 1, 0, 0, "Unexpected error while handling the user's input.\n");
+                }
+            }
+
+            // Checking for server's responses.
+            checkResponses();
+
+            // Printing prompt is needed.
+            if (printprompt == 1) break;
+
+        } // End first while.
+
+        // To remember the second while.
+       continue;
+
+    }
+
+
+}
 
 // This function will be executed in a dedicated thread started after the socket connection in the main.
 // It will run forever (as long as the process lives) looping in a while(1);.
 // It will handle asynchronously all the responses received from the server to our requests,
-// by adding them to a list of messages..
+// by adding them to a list of messages.
 void* responsesHandler(void* args) {
 
     struct Message* received = NULL;
@@ -128,12 +488,11 @@ void* responsesHandler(void* args) {
        
        // Wait to receive a message.
        received = receiveMessage(client_fd);  
-  
 
        if ((long) received == -1L) {
             // Error
             // Probably disconnection.
-            handleError(0, 1, 0, 1, "Probably disconnected by the server.\n");
+            handleError(0, 1, 0, 0, "Probably disconnected by the server.\n");
        }
 
         // Allocating a new heap element.
@@ -141,7 +500,7 @@ void* responsesHandler(void* args) {
         new = (struct MessageNode*) malloc(sizeof(struct MessageNode));
         if (new == NULL) {
             // Error
-            handleError(0, 1, 0, 1, "Error in allocating heap memory for a new message of the list.\n");
+            handleError(0, 1, 0, 0, "Error in allocating heap memory for a new received message for the list.\n");
         }
 
         // Filling the new element.
@@ -170,22 +529,88 @@ void* responsesHandler(void* args) {
     
 }
 
+void threadDestructor(void* args) {
+
+    // TODO
+    if (pthread_self() == responses_thread) {
+
+    }else{
+        // Error
+        handleError(0, 1, 0, 0, "Error, this thread shouldn't exist!\n");
+    }
+
+}
+
+// This function is registered by the main thread with atexit().
+// Will be executed before exiting by the main thread.
+void atExit(void) {
+
+    // TODO
+
+}
+
+// This function will be executed in a dedicated thread started as soon as possible in the main.
+// It will run forever (as long as the process lives) looping in a while(1);.
+// Will only deal with the management of SIGINT, SIGPIPE signals, but
+// all others could also be added without any problems.
+// The SIGINT is sent when CTRL + C are pressed on the keyboard.
+// All other threads will block these signals.
+// This way should be better then registering the signal handler with the sigaction().
+// Because we won't be interrupted and thus solve the very annoying problem of using
+// async-safe-signals functions (reentrant functions).
+// Note that still the problem of inter-thread competition persists and needs to be handled.
+void* signalsThread(void* args) {
+
+    // To setup the thread destructor.
+    threadSetup();
+
+    int sig;    
+    int retvalue;
+    while (1){
+        // Intercepting signals previously setted in the mask in the main.
+        // sigwait() atomically get the bit from the signals pending mask and set it to 0.
+        // https://stackoverflow.com/questions/2575106/posix-threads-and-signals
+        retvalue = sigwait(&signal_mask, &sig);
+
+        if (retvalue != 0) {
+            // Error
+            handleError(0, 0, 0, 0, "WARNING: Error in sigwait(). Trying to continue by ignoring the signal.\n");
+            continue;
+        }
+
+        // Treatment of different signals.
+        switch (sig){
+            case SIGINT:{ 
+                // TODO
+                break;
+            }case SIGPIPE:{
+                // Nothing, already handled by the single threads.
+                break;
+            }default:{
+                // TODO
+                break;
+            }
+        }
+    
+    }
+
+    
+    return NULL;
+
+}
+
 // This function when called process a list of messages received from the server.
-// It prints them and it remove them from the messages list.
-void printResponses(void){
+// It prints them and it removes them from the messages list.
+void printResponses(void) {
 
     mLock(&listmutex);
-    struct MessageNode* c = head;
-
+    struct MessageNode* current = head;
     while(1) {
+        if (current == NULL) break;
 
-        if (c == NULL) break;
-
-        struct Message* received = c->m;
-       // Printing the server response based on the message type.
-
-       switch (received->type)
-       {
+        struct Message* received = current->m;
+        // Printing the server's responses based on the message type.
+        switch (received->type){
         case MSG_MATRICE: {
             printff(NULL, "%s", received->data);
             break;
@@ -202,18 +627,17 @@ void printResponses(void){
             printff(NULL, "The game is ongoing. Seconds left to the end of the game: %lu.\n", strtoul(received->data, NULL, 10));
             break;
         }case MSG_PUNTI_PAROLA: {
-            unsigned int p = strtoull(received->data, NULL, 10);
-            if (p == 0U)
-                printff(NULL, "Word already claimed. You got %u points.\n", p);
+            uli p = strtoul(received->data, NULL, 10);
+            if (p == 0LU)
+                printff(NULL, "Word already claimed. You got %lu points.\n", p);
             else
-                printff(NULL, "Word claimed succesfully, nice guess! You got %u points.\n", p);
+                printff(NULL, "Word claimed succesfully, nice guess! You got %lu points.\n", p);
             break;
         }case MSG_PUNTI_FINALI: {
             printff(NULL, "The game is over, this is the scoreboard.\n");
-            char* s = received->data;
-            char* tmp = s;
+            char* tmp = received->data;
             while (1) {
-                if (tmp == received->data) tmp = strtok(s, ",");
+                if (tmp == received->data) tmp = strtok(tmp, ",");
                 else tmp = strtok(NULL, ",");
                 if (tmp == NULL) break;
                 printff(NULL, "Name: %s. ", tmp);
@@ -229,315 +653,24 @@ void printResponses(void){
             break;
         }default:
             // Error
-            handleError(0, 0, 0, 0, "WARNING: Received an unknown server response, ignoring it!\n");
+            handleError(0, 0, 0, 0, "WARNING: Received an unknown server response, trying to continue by ignoring it!\n");
             break;
        }
-       // Destroying message and element list.
-
+        // Destroying message and element list.
        struct MessageNode* tmp;
-       tmp = c->next;
+       tmp = current->next;
        destroyMessage(&received);
-       free(c);
-       c = tmp;
-
+       free(current);
+       current = tmp;
     }
-
     mULock(&listmutex);
-
-}
-
-// This functions handles the user input.
-void inputHandler(void) {
-
-    while (1){
-
-      // The part that follows is the reading of the user input performed in a VERY VERBOSE
-      // and complicated way. It would have been much simpler to allocate a static fixed-length buffer.
-      // But in this way we will have 2 problems, the first is that if the user input size is 
-      // less than of the fixed size buffer, we will waste memory space. The second problem is 
-      // the opposite, if the user input size is greater than the fixed size buffer, we will
-      // not able to handle the entire input.
-      // Instead, with the following code, we will dynamically allocate only the space
-      // needed to handle the input of arbitrary length. 
-
-      /*
-      
-      The main problem, is not knowing the length of the user input before space allocation.
-      A possible simpler way might be to read character by character the input to the end
-      (e.g., with a getchar()), count the characters, allocate the required space, and 
-      finally start over from the beginning of the input (perhaps with a seek() or rewind()) 
-      to copy it to the allocated destination. However, reading on the internet, I learned that it is
-      impossible to restart reading the standard input safely on every platforms, there are some ways,
-      but the result is not always guaranteed.
-
-      So my solution was to dynamically save the content in a string list, containing each element, 
-      a temporarily buffer of fixed size, while counting its length and afterwards
-      allocate the total space required, copy the input from the lsit, and then destroy the list.
-      Each line length will be maximum BUFFER_SIZE. If the user input is greater than
-      BUFFER_SIZE, it will be splittend in more lines (more elements of the strings list).
-      
-      */
-
-      // TL;DR: Solves the problem of not knowing the length of user input.
-      
-      // so is counter. It will rapresent the total final bytes to allocate on the heap to store
-      // and process the user input.
-      unsigned int so = 0U;
-      unsigned int linescounter = 0U;
-      int retvalue;
-      unsigned int toexit = 0U;
-
-      mLock(&mio);
-
-      printff(NULL, PROMPT_STR);
-
-      while (1) {
-            
-            // Executed to read MULTIPLE lines.
-
-            // Reading from STDIN the user input.
-            retvalue = read(STDIN_FILENO, input, BUFFER_SIZE);
-            if (retvalue == -1 && errno != EINTR) {
-                // Error
-            }
-
-            // Has been read (among these options):
-            // 1. No interruption, the user input, last line or a normal line.
-            // 2. Interruption, the user input, normal line (but first others may have been read)
-            //    with retvalue > 0 and returnfromsignal == "1".
-            // 3. Interruption, nothing (nothing inserted by the user for this line) 
-            //   (but first others may have been read), retvalue == -1 && errno == EINTR.
-
-            // 1. Nothing to do.
-
-            // 2. 
-            /*if (strcmp(returnfromsignal, "1") == 0 && retvalue > 0) {
-                read(STDIN_FILENO, NULL, )
-                toexit = 1U;
-                break;
-            }*/
-
-            // 3.
-            if (strcmp(returnfromsignal, "1") == 0 && retvalue == -1 && errno == EINTR) {
-                toexit = 1U;
-                break;
-            }
-
-            // New line.
-            linescounter++;
-            toexit = 0U;
-
-            // Updating so with the current user input part read.
-            // I need to allocate an extra byte to store '\0'.
-            so += (sizeof(char) * ++retvalue);
-            
-            // Allocating heap space for the user input current part.
-            char* s = (char*) malloc(sizeof(char) * retvalue);
-            if (s == NULL) {
-                // Error
-                handleError(0, 1, 0, 1, "Error in allocating space for a string part of the user input.\n");
-            }
-            // Copying the part from the static buffer to dynamic allocated string.
-            strcpy(s, input);
-            // Terminating it.
-            s[retvalue - 1] = '\0';
-           
-            // Allocating on the heap an element list and initializing it.
-            struct StringNode* e = (struct StringNode*) malloc(sizeof(struct StringNode));
-            if (e == NULL)  {
-                // Error
-                handleError(0, 1, 0, 1, "Error in allocating space for an ELEMENT part of the user input.\n");
-            }
-            e->s = s;
-            e->n = NULL;
-
-            // Going through the list to the end to add the new element at the end.
-            struct StringNode* c = heads;
-            if (heads == NULL){
-                // Empty list.
-                heads = e;
-            }else {
-                // Go until list end.
-                while (1) {
-                    if (c->n == NULL) break;
-                    c = c->n;
-                }
-                c->n = e;
-            }
-
-            // New line detected, end of user input reached.
-            // This is the last part, the user input is ended, i exit the while.
-            if (s[retvalue - 2] == '\n') break;
-
-        } // End While
-
-        if (toexit){
-            strcpy(returnfromsignal, "1");
-            mULock(&mio);
-            continue;
-        }
-
-        // ALL lines readed.
-
-       // Allocating a new input, but this will not a buffer, this will content exactly 
-       // the input, without wasting space.
-
-       if (finalinput != NULL) free(finalinput);
-       // Each line has a '\0' to be subtracted from the total.
-       finalinputsize = (so - linescounter);
-       finalinput = (char*) malloc(sizeof(char) * finalinputsize);
-       if (finalinput == NULL) {
-            // Error
-            // TODO
-       }
-
-       unsigned int c = 0U; // Total counter.
-       struct StringNode* ec = heads;
-       unsigned int sc = 0U; // Line counter.
-       while (1) {
-          // End list.
-          if (ec == NULL) break;
-          // Copying the content of a string of the list in the "input[]".
-          // Why not using already used strcpy? I don't now, i'm stupid (later comment during code review).
-          sc = 0U;
-          while (1) {
-            if (ec->s[sc] == '\0') break;
-            finalinput[c++] = ec->s[sc++];
-          }
-          ec = ec->n;
-       }  
-       // We have in input[c] == '\0';    
-       // Fixing the previous '\n'. 
-       // Now the string will be double terminated '\0\0'.
-       finalinput[c - 1] = '\0';
-
-        // Destroying the list.
-       ec = heads;
-       while (1){
-            if (ec == NULL) break;
-            free(ec->s);
-            struct StringNode* tmp;
-            tmp = ec->n;
-            free(ec);
-            ec = tmp;
-       }
-       heads = NULL;
-
-
-
-
-       // Now, after all this effort, we have the user input in "input[]" var and
-       // we are ready to process it.
-
-
-   
-
-        // Normalize to lowercase the input.
-        toLowerOrUpperString(finalinput, 'L');
-
-        printff(NULL,"INSERTED: %s\n",finalinput);
-
-        // Processing the user request.
-
-        if (strcmp("end", finalinput) == 0){
-            printff(NULL, "Bye, bye, see you soon! Thanks for playing.\n");
-            sendMessage(client_fd, MSG_ESCI, NULL);
-            break;
-        }
-        if (strcmp("help", finalinput) == 0) {
-            printff(NULL, MSG_HELP);
-            mULock(&mio);
-            continue;
-        }
-        if (strcmp("matrix", finalinput) == 0) {
-            sendMessage(client_fd, MSG_MATRICE, NULL);
-            mULock(&mio);
-            continue;
-        }
-
-        // Tokenizing using a space (' ') the user input.
-        // I don't care to destroy the string, since will be no used in the future.
-        char* firstword = strtok(finalinput, " ");
-        if (firstword != NULL) {
-            char* secondword = strtok(NULL, " ");
-            if (secondword != NULL) {
-                if (strcmp("register_user", firstword) == 0 && secondword != NULL) {
-                    sendMessage(client_fd, MSG_REGISTRA_UTENTE, secondword);
-                    mULock(&mio);
-                    continue;
-                }
-                if (strcmp("p", firstword) == 0 && secondword != NULL) {
-                    sendMessage(client_fd, MSG_PAROLA, secondword);
-                    mULock(&mio);
-                    continue;
-                }
-            }
-        }
-
-        printff(NULL, "Unknown command. Use 'help' to know the available options.\n");
-        mULock(&mio);
-        continue;
-
-    }
-
-
-}
-
-// This function is the SIGUSR1 signal handler.
-// It executed by checkResponses() thread, when received the signal SIGUSR1 from signalsThread()
-// which corresponds to check if there are server's responses to print.
-void checkResponses(int signum) {
-
-    /*
-    
-     This is used only to interrupt the read() with EINTR in errno. SCHERZAVO
-     SHERZAVO
-
-     */
-
-    // strcpy() is Signal-Safe.
-    // https://man7.org/linux/man-pages/man7/signal-safety.7.html
-    strcpy(returnfromsignal, "1");
-
     return;
 
 }
 
-void* cleanerSTDIN(void* args){
 
-    memset(input, '\0', BUFFER_SIZE);
 
-    if (finalinput != NULL) {
-        free(finalinput);
-        finalinput = NULL;
-    }
 
-    struct StringNode* ec = heads;
-    while (1){
-        if (ec == NULL) break;
-        free(ec->s);
-        struct StringNode* tmp;
-        tmp = ec->n;
-        free(ec);
-        ec = tmp;
-    }
-    heads = NULL;
 
-    while (++completedprint && getchar() != '\0');
-    return NULL;
 
-}
 
-void threadDestructor(void* args) {
-
-    // TODO
-
-}
-
-// This function is registered by the main thread with atexit().
-// Will be executed before exiting by the main thread.
-void atExit(void) {
-
-    // TODO
-
-}

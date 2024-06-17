@@ -69,8 +69,10 @@ clear:
 # Binaries, linking.
 $(EXES): $(OBJS) $(OBJSS) $(OBJSU)
 	$(GC) $(CFLAGS) $(OBJS) $(OBJSS) $(OBJSU) -o $(EXES)
+	cp $(EXES) $(ROOTDIR)$(RNS)
 $(EXEC): $(OBJC) $(OBJSC) $(OBJSU)
 	$(GC) $(CFLAGS) $(OBJC) $(OBJSC) $(OBJSU) -o $(EXEC)
+	cp $(EXEC) $(ROOTDIR)$(RNC)
 $(EXET): $(OBJT) $(OBJSS) $(OBJSU)
 	$(GC) $(CFLAGS) $(OBJT) $(OBJSS) $(OBJSU) -o $(EXET)
 	
@@ -102,11 +104,11 @@ clean: clear
 
 # Compile and execute the server with some default/testing args.
 execs: $(EXES)
-	./$(RNS) $(IP) $(PORT)
+	./$(ROOTDIR)$(RNS) $(IP) $(PORT)
 
 # Compile and execute the client with some default/testing args.
 execc: $(EXEC)
-	./$(RNC) $(IP) $(PORT)
+	./$(ROOTDIR)$(RNC) $(IP) $(PORT)
 
 
 

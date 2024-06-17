@@ -1844,7 +1844,9 @@ printf("\n\nAAAAAA: %lu",t);
                     printf("User with name %s, submitted a IN-valid word \"%s\". Assigned 0 points, current total %u.\n", client->name, received->data, client->points);  
                     break;
                 }
-
+                
+                // Casting p to long unsigned is safe because the case p == -1
+                // is already handled above, so here p >= 0.
                 char* strint = itoa((uli) p);
                 if (p){
                     // Valid word, never submitted before, p are the achieved points for the word length.
