@@ -56,6 +56,7 @@ void sigUSR2Handler(int signum) {
     char str[] = "Bye bye...\n";
     write(STDOUT_FILENO, str, strlen(str));
     exit(EXIT_FAILURE);
+
 }
 
 

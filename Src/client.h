@@ -5,7 +5,7 @@
 int client_fd;  // Client/Server file descriptor.
 pthread_t responses_thread; // This thread will handle the responses received from the server asynchronously.
 
-// Functions signatures client used. Implementation and infos in the client.c file.
+// Functions signatures only client used. Implementation and infos in the client.c file.
 void destroyStringList(void);
 void setUnblockingGetChar(void);
 void setBlockingGetChar(void);

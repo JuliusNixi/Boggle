@@ -6,7 +6,6 @@ List of things to work on.
 
 - [ ] Restore time duration, pause game, changed to perform test.
 - [ ] Change bools vars type, from unsigned (4 bytes) to char (1 byte).
-- [ ] Register SIGUSR2 to exit main from another thread.
 
 ### Done ✓
 
@@ -18,3 +17,8 @@ List of things to work on.
 - [x] common.h review.
 - [x] common.c review.
 - [x] boggle_client.c review.
+- [x] client.c review.
+- [x] client.h review.
+- [x] server.h review.
+
+

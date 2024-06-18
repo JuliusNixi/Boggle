@@ -8,7 +8,7 @@ int parseIP(char* ip, struct sockaddr_in* sai) {
 
     if (ip == NULL || sai == NULL) {
         // Error
-        handleError(0, 1, 0, 0, "Error, parseIP() received a NULL IP or sockaddr_in*.\n");
+        handleError(0, 1, 0, 0, "Error, parseIP() received a NULL, IP or sockaddr_in*.\n");
     }
 
     // Lowering the string, LoCalhost and localhost and LOCALHOST, are now identical.
@@ -101,7 +101,7 @@ struct Message* receiveMessage(int fdfrom) {
 
     struct Message* readed = NULL;
 
-    unsigned long toread;
+    uli toread;
     void* writingpointer;
     char* tmp;
 
@@ -270,11 +270,37 @@ void* sendMessage(int fdto, char type, char* data) {
         handleError(0, 0, 0, 1, "Error, the recipient of the message is invalid.\n");
     }
 
+        switch (type){ 
+            case MSG_MATRICE:
+            case MSG_REGISTRA_UTENTE:
+            case MSG_PAROLA:
+            case MSG_ESCI :
+            case MSG_ERR :
+            case MSG_OK:
+            case MSG_TEMPO_ATTESA:
+            case MSG_TEMPO_PARTITA:
+            case MSG_PUNTI_PAROLA:
+            case MSG_PUNTI_FINALI:
+            case MSG_IGNORATO: {
+                // OK, nothing to do.
+                ;
+                break;
+            }default:{
+                // Error
+                // Not recognized message.
+                handleError(0, 1, 0, 0, "Error, called sendMessage() with an invalid message type.\n");
+                break;
+            } 
+
+        } // Switch end.
+
+    // Reminder, data can be NULL! We don't have to check it.
+
     struct Message tosend;
 
     int retvalue;
 
-    unsigned long towrite;
+    uli towrite;
     void* writingpointer;
     char* tmp;
 
@@ -397,7 +423,7 @@ void destroyMessage(struct Message** m) {
 
     if (m == NULL || *m == NULL) {
         // Error
-        handleError(0, 0, 0, 0, "WARNING: Error, cannot destroy an invalid message. Trying ignore it.\n");
+        handleError(0, 0, 0, 0, "WARNING: Error, cannot destroy a NULL message. Trying ignore it.\n");
         return;
     }
 
@@ -467,7 +493,7 @@ void handleError(char printerrno, char killmain, char errorfromprintff, char kil
     || (killmain != 0 && killthisthread != 0) // No sense, both options simultaneously active. If i kill the main (by exiting, from the whole program), all threads will die, so obviously also this one.
     || errorfromprintff) {
         // Critical recursive error handler or wrong params.
-        // This stops all the program.
+        // This stops all the program without any cleanupper.
         fprintf(stderr, "%s", RECURSIVE_ERR_MSG);
         fflush(stderr);
         // exit(EXIT_FAILURE); -> Recursive error if something happens in atExit()... use instead:
@@ -498,11 +524,10 @@ void handleError(char printerrno, char killmain, char errorfromprintff, char kil
     // Main thread killer.
     if (killmain) {
         // We are the main.
-        if (pthread_self() == mainthread) exit(EXIT_FAILURE); // atExit() called.
+        if (pthread_self() == mainthread) pthread_exit(NULL); // atExit() called after thread destructor.
         // We are not the main, we are another thread.
-        // Cannot use pthread_cancel(), since it kills the main thread, but we want
-        // not only the main thread, but the whole program.
-        retvalue = pthread_kill(mainthread, SIGUSR2);
+        // The pthread_cancel() allows the call to the killed thread destructor.
+        retvalue = pthread_cancel(mainthread); // atExit() called after thread destructor.
         // Critical recursive error.
         if (retvalue != 0) handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
         else return;
@@ -550,8 +575,6 @@ void printff(va_list errorargs, const char* format, ...) {
 
 }
 
-
-
 // Executed only once (from the first calling thread) to create a once key.
 // Used the thread key to register a thread destructor.
 void makeKey(void){
@@ -562,10 +585,14 @@ void makeKey(void){
         // Error
         handleError(0, 1, 0, 0, "Error in pthread_key_create().\n");
     }
+    printff(NULL, "Once-key registered succesfully by the thread (ID): %lu.\n", (uli)pthread_self());
 
 }
 
 // This function MUST be executed by all threads to register the thread destructor.
+// It sets a special (for each thread) data.
+// But this feature is not used, it's used only because using this we can setup a thread
+// destructor called as cleanupper during the threads termination.
 void threadSetup(void){
 
     void* ptr = NULL;
@@ -579,10 +606,11 @@ void threadSetup(void){
     }
 
     // Setting LOCAL thread's data.
+    // Never used, but for clarity.
     char data;
     pthread_t current = pthread_self();
-    if (current == mainthread) data = 'M';
-    else data = 'O';
+    if (current == mainthread) data = 'M'; // Main thread.
+    else data = 'O'; // Other thread.
 
     // This if is executed only the first time (by each thread) to setup the data.
     if ((ptr = pthread_getspecific(key)) == NULL) {
@@ -598,6 +626,7 @@ void threadSetup(void){
             // Error
             handleError(0, 1, 0, 0, "Error in pthread_setspecific().\n");
         }
+        printff(NULL, "Specific key setted for thread (ID): %lu.\n", (uli)pthread_self());
     }
 
     // Retrieve thread specific data (not necessary in this usage).

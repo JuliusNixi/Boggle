@@ -4,13 +4,17 @@
 // Current file vars and libs.
 #include <getopt.h> // Used to check optionals args.
 #define USAGE_MSG "Invalid args. Usage: ./%s server_ip server_port [--matrices matrices_filepath] [--duration game_duration_in_minutes] [--seed rnd_seed] [--dic dictionary_filepath].\n" // Message to print when the user insert wrong args.
-#define DEFAULT_DICT "../Data/dictionary_ita.txt" // Default dict used when --dic is not present.
+#define DEFAULT_DICT "./Data/dictionary_ita.txt" // Default dict used when --dic is not present.
 
 int main(int argc, char** argv) {
 
+    // Printing banner.
+    printff(NULL, "\n\n##################\n#     SERVER     #\n##################\n\n");
+
     // Initializing local vars.
     int retvalue = 0; // To check system calls result (succes or failure).
-    unsigned long int seed = 0U; // Random seed.
+    uli seed = 0LU; // Random seed.
+    struct sigaction sigusr1; // SIGUSR1 sigaction struct, will be used to handle the game end.
 
     // Initializing shared server cross vars.
     socket_server_fd = 0;
@@ -20,9 +24,10 @@ int main(int argc, char** argv) {
 
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
+    testmode = 0;
 
-    // Printing banner.
-    printff(NULL, "\n\n##################\n#     SERVER     #\n##################\n\n");
+    // To setup the thread destructor.
+    threadSetup();
 
     // Creating a mask, that will block the SIGINT, SIGALRM and SIGPIPE signals for all 
     // threads except the dedicated thread signalsThread().
@@ -37,30 +42,29 @@ int main(int argc, char** argv) {
     retvalue = atexit(atExit);
     if (retvalue != 0) {
         // Error
-        // errno
-        handleError(1, 1, 0, 1, "Error in registering exit cleanupper main function.\n");
+        handleError(1, 1, 0, 0, "Error in registering exit cleanupper with atexit() in main function.\n");
     }
-    printff(NULL, "Exit safe function (cleanup for the main) registered correctly.\n");
+    printff(NULL, "Exit safe function (cleanup for the main with atexit()) registered correctly.\n");
 
     // Enabling the mask.
     retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 0, 1, "Error in setting the pthread signals mask.\n");
+        handleError(0, 1, 0, 0, "Error in setting the pthread signals mask.\n");
     }
     printff(NULL, "Threads signals mask enabled correctly.\n");
-
-    struct sigaction sigusr1; // SIGUSR1 sigaction struct, will be used to handle the game end.
   
     // SIGUSR1 will NOT be blocked.
     // Setting the endGame() handler (does nothing).
+    // This signal will be send by the signalsThread() thread to each clientHandler() thread.
+    // Is used to notify the game end.
     sigusr1.sa_flags = 0;
     sigusr1.sa_handler = endGame;   
     retvalue = sigaction(SIGUSR1, &sigusr1, NULL);
     if (retvalue == -1) {
         // Error
         // errno
-        handleError(1, 1, 0, 1, "Error in setting SIGUSR1 signal handler.\n");
+        handleError(1, 1, 0, 0, "Error in setting SIGUSR1 signal handler.\n");
     }           
     printff(NULL, "SIGUSR1 signal handler registered correctly.\n");
 
@@ -71,22 +75,21 @@ int main(int argc, char** argv) {
     retvalue = pthread_create(&sig_thr_id, NULL, signalsThread, NULL);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 0, 1, "Error in creating the pthread signals handler.\n");
+        handleError(0, 1, 0, 0, "Error in creating the pthread signals handler.\n");
     }
-
-    printff(NULL, "Signals registered and thread handler started succesfully.\n");
+    printff(NULL, "Signals registered and pthread handler started succesfully with ID: %lu.\n", (uli) sig_thr_id);
 
     // Check number of args.
     if (argc < 3 || argc > 11 || ((argc > 3) && (argc != 5 && argc != 7 && argc != 9 && argc != 11))) {
         // Error
-        handleError(0, 1, 0, 1, USAGE_MSG, argv[0]);
+        handleError(0, 1, 0, 0, USAGE_MSG, argv[0]);
     }
 
     // Parsing port.
-    unsigned long int port = strtoul(argv[2], NULL, 10);
+    uli port = strtoul(argv[2], NULL, 10);
     if (port > 65535LU) {
         // Error
-        handleError(0, 1, 0, 1, "Invalid port %lu. It should be less than 65535 and higher than 0.\n", port);
+        handleError(0, 1, 0, 0, "Invalid port %lu. It should be less than 65535.\n", port);
     }
     server_addr.sin_port = htons(port);
 
@@ -96,13 +99,13 @@ int main(int argc, char** argv) {
     retvalue = parseIP(argv[1], &server_addr);
     if (retvalue != 1) {
         // Error
-        handleError(0, 1, 0, 1, "Invalid IP: %s.\n", argv[1]);
+        handleError(0, 1, 0, 0, "Invalid IP: %s.\n", argv[1]);
     }
 
     // Checking optionals args.
     char* filemath = NULL;
     char* filedict = NULL;
-    for (int i = 3; i < argc; i += 2) {
+    for (unsigned int i = 3; i < argc; i += 2) {
         // Lowering input.
         toLowerOrUpperString(argv[i], 'L');
         if (strcmp(argv[i], "--matrices") == 0)
@@ -110,12 +113,12 @@ int main(int argc, char** argv) {
         else if (strcmp(argv[i], "--duration") == 0) {
             gameduration = (uli) strtoul(argv[i + 1], NULL, 10);
         }else if (strcmp(argv[i], "--seed") == 0){
-            seed = (unsigned long) strtoul(argv[i + 1], NULL, 10);
+            seed = (uli) strtoul(argv[i + 1], NULL, 10);
         }else if (strcmp(argv[i], "--dic") == 0){
             filedict = argv[i + 1];
         }else{
             // Error
-            handleError(0, 1, 0, 1, USAGE_MSG, argv[0]);
+            handleError(0, 1, 0, 0, USAGE_MSG, argv[0]);
         }
     }
     printff(NULL, "Starting server on IP: %s and port: %lu.\n", argv[1], port);
@@ -126,17 +129,17 @@ int main(int argc, char** argv) {
         usematrixfile = 1;
         printff(NULL,"Trying to use matrix file at: %s.\n", matpath);
     }else
-        printff(NULL, "Using random matrices.\n");
-    if (gameduration != 0)
+        printff(NULL, "Using RANDOM matrices.\n");
+    if (gameduration != 0LU)
         printff(NULL, "Using INSERTED match time duration %lu minutes.\n", gameduration);
     else {
         gameduration = 3LU;
         printff(NULL, "Using DEFAULT match time duration %lu minutes.\n", gameduration);
     }
-    if (seed != 0)
+    if (seed != 0LU)
         printff(NULL, "Using INSERTED seed %lu.\n", seed);
     else {
-        seed = 42U;
+        seed = 42LU;
         printff(NULL, "Using DEFAULT seed %lu.\n", seed);
     }
 
@@ -176,7 +179,7 @@ int main(int argc, char** argv) {
             case '?':  // Unrecognized or not allowed character parsed.
             default:
                 // Error
-                handleError(0, 1, 0, 1, "Error while parsing args with getopt_long().\n");
+                handleError(0, 1, 0, 0, "Error while parsing args with getopt_long().\n");
         }
     }
 
@@ -186,7 +189,7 @@ int main(int argc, char** argv) {
         while (optind < argc) printff(NULL, "%s ", argv[optind++]);
         printff(NULL, "\n");
         printff(NULL, USAGE_MSG, argv[0]);
-        handleError(0, 1, 0, 1, "Error, unrecognized args.\n");
+        handleError(0, 1, 0, 0, "Error, unrecognized args.\n");
     }
 
     printff(NULL, "The args seems to be ok...\n");
@@ -200,36 +203,27 @@ int main(int argc, char** argv) {
         printff(NULL, "Trying to use dictionary file at: %s.\n", filedict);
     else{
         filedict = DEFAULT_DICT;
-        printff(NULL, "Trying to use default dictionary file at %s.\n", filedict);
+        printff(NULL, "Trying to use DEFAULT dictionary file at %s.\n", filedict);
     }
     loadDictionary(filedict);
  
     // Initializing game matrix.
     initMatrix();
 
-    // Creating the thread that will handle the disconnections.
-    retvalue = pthread_create(&disconnectdetector, NULL, disconnectDetector, NULL);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 0, 1, "Error in creating the pthread disconnections detector handler.\n");
-    }
-
-    printff(NULL, "Disconnections detector pthread handler started succesfully.\n");
-
     // Creating socket.
     // READ man socket, there are useful infos.
     socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
     if (socket_server_fd == -1) {
         // Error
-        handleError(0, 1, 0, 1, "Error in creating the socket.\n");
+        handleError(0, 1, 0, 0, "Error in creating the server socket.\n");
     }
-    printff(NULL, "Socket created.\n");
+    printff(NULL, "Server socket created.\n");
     
     // Binding socket.
     retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
     if (retvalue == -1){
         // Error
-        handleError(0, 1, 0, 1, "Error in binding.\n");
+        handleError(0, 1, 0, 0, "Error in binding.\n");
     }
     printff(NULL, "Binding completed.\n");
 
@@ -238,7 +232,7 @@ int main(int argc, char** argv) {
     if (retvalue == -1) {
         // Error
         // errno
-        handleError(1, 1, 0, 1, "Error in listening.\n");
+        handleError(1, 1, 0, 0, "Error in listening.\n");
     }
     printff(NULL, "Listening...\n");
 
@@ -251,6 +245,7 @@ int main(int argc, char** argv) {
     // Accepting new clients.
     while(1) acceptClient();
 
+    // This never executed, but for clarity.
     exit(EXIT_SUCCESS);
 
     return 0;

@@ -6,6 +6,9 @@
 
 int main(int argc, char** argv) {
 
+    // Printing banner.
+    printff(NULL, "\n\n##################\n#     CLIENT     #\n##################\n\n");
+
     // Initializing local vars.
     int retvalue = 0; // To check system calls result (succes or failure).
 
@@ -16,8 +19,8 @@ int main(int argc, char** argv) {
     mainthread = pthread_self();
     testmode = 0;
 
-    // Printing banner.
-    printff(NULL, "\n\n##################\n#     CLIENT     #\n##################\n\n");
+    // To setup the thread destructor.
+    threadSetup();
 
     // Creating a mask, that will block the SIGINT and SIGPIPE signals for all 
     // threads except the dedicated thread signalsThread().
@@ -52,7 +55,8 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in creating the pthread signals handler.\n");
     }
-    printff(NULL, "Signals registered and pthread handler started succesfully.\n");
+    printff(NULL, "Signals registered and pthread handler started succesfully with ID: %lu.\n", (uli) sig_thr_id);
+
 
     // Check number of args.
     if (argc != 3) {
@@ -117,7 +121,7 @@ reconnecting:
         // Error
         handleError(0, 1, 0, 0, "Error during the responses handler pthread creation.\n");
     }
-    printff(NULL, "Responses pthread created succesfully.\n");
+    printff(NULL, "Responses pthread created succesfully with ID: %lu.\n", (uli) responses_thread);
 
     // Start input management.
     inputHandler();

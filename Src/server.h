@@ -6,14 +6,12 @@ int socket_server_fd; // Socket server file descriptor.
 
 uli gameduration; // Game duration, for each match, in minutes. 
 
-pthread_t disconnectdetector; // Thread to check clients disconnections.
-
-int usematrixfile;  // 1 if a path has been specified by the user trought CLI args, 0 otherwise.
+char usematrixfile;  // 1 if a path has been specified by the user trought CLI args, 0 otherwise.
 char* matpath; // String path rapresenting the path of the matrix file (specified by CLI arg). It's not allocated, it just point (after the initialization) to argv[1].
 
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
-// These variables may not be used in the server.c file, but they are used in some tests in the tests.c file.
+// These variables may not be used in the server.c file, but they are used in some tests in the Tests\tests.c file.
 
 // Numbers of columns and rows of the game matrix (default 4x4).
 #define NROWS 4 // Matrix number of rows.
@@ -39,12 +37,12 @@ struct ClientNode {
 
     pthread_t thread; // Thread that will handle the player/client.
 
-    pthread_mutex_t handlerequest;  // Each client will have a mutex that will be acquired rom the corresponding thread when a request will be taken over. So, in case the game ends, the thread that will manage the pause will wait for all clients to finish the requests RECEIVED BEFORE.
+    pthread_mutex_t handlerequest;  // Each client will have a mutex that will be acquired from the corresponding thread when a request will be taken over. So, in case of game ends, the thread that will manage the pause (signalsThread()) will wait for all clients threads (clientHandler()) to finish the requests RECEIVED BEFORE.
 
     pthread_mutexattr_t handlerequestattr; // Used to change the above mutex type to PTHREAD_MUTEX_ERRORCHECK. To perform some checks that with the default would not be possible to do.
     // For more info: https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html
 
-    unsigned int points; // Player game points, increased when the player guess a word.
+    uli points; // Player game points, increased when the player guess a word.
 
     char** words_validated; // To remember the already submitted words by the player.
 
@@ -52,11 +50,9 @@ struct ClientNode {
 
     struct Message* registerafter; // Used to save a suspended register request that need to be processed after the end game phase.
 
-    unsigned int actionstoexecute; // This vars is used to create a very simple "communication" between the signalsThread() thread and the clientHander() threads, without using others more complex synchronization primitives.
+    char actionstoexecute; // This var is used to create a very simple "communication" between the signalsThread() thread and the clientHander() threads, without using others more complex synchronization primitives.
 
-    uli timeonline; // This is used to periodically save the time of a succesful communication between server and client. This information will be used to clear the players list from disconnected/inactive users.
-
-    unsigned int receivedsignal; // This is used by the clientHandler() threads to notify the signalsHandler() thread that the signal sent was received.
+    char receivedsignal; // This is used by the clientHandler() threads to notify the signalsHandler() thread that the signal sent was received.
     /* 
 
             NOTES
@@ -79,7 +75,7 @@ struct ClientNode {
     But obviously I was wrong, because yes, it is rare (but not too rare either if there are only
     a few connected clients), that the signalsHandler() is executed first, which sends the signal
     to the clientHandler() thread, which executes the handler, returns and only after that does
-    it wait on the read. And if the player does not send any requests the clientHandler() thread
+    it wait on the read(). And if the player does not send any requests the clientHandler() thread
     gets stuck on the read() indefinitely, does not perform the endgame action of writing to the
     queue, and the signalsHandler() thread waits for it potentially forever in a deadlock that
     blocks the whole game. 
@@ -112,7 +108,7 @@ I thought it was explicitly required that the corresponding named data structure
 so I went to enter the information user name, relative score, as a string in the data field
 of the Message* struct.
 
-In conclusion, I have much more complicated than necessary, but I have done so 
+TL;DR: In conclusion, I have much more complicated than necessary, but I have done so 
 to remain as faithful as possible to the text of the project.
 
 */
@@ -123,9 +119,9 @@ struct Queue {
 };
 
 // Functions signatures server used in server.c and bloggle_server.c.
-// Implementation and infos in the server.c main file.
+// Implementation and infos in the server.c file.
 void* scorer(void*);
-char* csvNamePoints(struct Message*, int);
+char* csvNamePoints(struct Message*, char);
 int sortPlayersByPointsMessage(const void*, const void*);
 void generateRandomMatrix(void);
 void loadMatrixFromFile(char*);
@@ -148,31 +144,36 @@ void* clientHandler(void*);
 int submitWord(struct ClientNode*, char*);
 int searchWordInMatrix(int, int, char*);
 int validateWord(char*);
-void disconnectClient(struct ClientNode**, int);
+void disconnectClient(struct ClientNode**, char);
 void endGame(int);
 void updateClients(void);
 char* serializeStrClient(struct ClientNode*);
 void createScoreboard(struct Queue**, int);
 void gameEndQueue(struct ClientNode*);
 void clearQueue(void);
-void signalsThreadDestructor(void*);
-void* disconnectDetector(void*);
-// Defined, commented and implemented all in common.h and common.c
+
+
+// Defined, commented and implemented all in common.h and common.c.
 // int parseIP(char*, struct sockaddr_in*); -> common.h
 // void toLowerOrUpperString(char*, char); -> common.h
 // struct Message* receiveMessage(int); -> common.h
-// void sendMessage(int, char, char*); -> common.h
+// void* sendMessage(int, char, char*); -> common.h
 // void destroyMessage(struct Message**); -> common.h
 // void mLock(pthread_mutex_t*); -> common.h
 // void mULock(pthread_mutex_t*); -> common.h
-// void handleError(int, int, int, int, const char*, ...); -> common.h
+// void handleError(char, char, char, char, const char*, ...); -> common.h
 // void printff(va_list, const char*, ...); -> common.h
 // void makeKey(void); -> common.h
 // void threadSetup(void); -> common.h
+
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h
 // void atExit(void) -> common.h
 // void threadDestructor(void*); -> common.h
 ////////////////////////////////////////////////////////////////////////
+
+
+
+
 

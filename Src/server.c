@@ -109,10 +109,10 @@ void* scorer(void* args) {
     //////////////////////////////////////////////////////////////////////////////
     */
 
-    printff(NULL, "All ok, i'm the scorer thread.\n");
+    printff(NULL, "I'm the scorer pthread (ID): %lu.\n", (uli) pthread_self());
 
     // No players, no one to send scoreboard... :(
-    if (nclientsconnected == 0){
+    if (nclientsconnected == 0U){
         printff(NULL, "No players... :(\n");
         pthread_exit(NULL);
     } 
@@ -120,7 +120,7 @@ void* scorer(void* args) {
     // Copying clients list in an array to use qsort.
     struct Queue* array[nclientsconnected];
     struct Queue* currentl = tailq;
-    unsigned int counter = 0;
+    unsigned int counter = 0U;
     while (1) {
         if (currentl == NULL) break;
         array[counter++] = currentl;
@@ -133,7 +133,7 @@ void* scorer(void* args) {
     qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPointsMessage);
 
     printff(NULL, "\t\tFINAL SCOREBOARD\n");
-    for (unsigned int i = 0; i < nclientsconnected; i++) {
+    for (unsigned int i = 0U; i < nclientsconnected; i++) {
         char* s = serializeStrClient(array[i]->client);
         printff(NULL, "%s", s);
         free(s);
@@ -205,12 +205,12 @@ void* scorer(void* args) {
 // The second function arg is an int. It can value 1 if we want the "playername", 0 if we want
 // the "points". In both cases the function will return a char* heap allocated.
 // This function is used in the scorer() thread.
-char* csvNamePoints(struct Message* m, int nameorpoints) {
+char* csvNamePoints(struct Message* m, char nameorpoints) {
 
     if (m == NULL) {
         // Error
         // Not critical, trying to continue.
-        handleError(0, 0, 0, 1, "WARNING: Error in csvNamePoints(), null message received. Trying to continue killing scorer() thread.\n");
+        handleError(0, 0, 0, 1, "WARNING: Error in csvNamePoints(), NULL message received. Trying to continue killing scorer() thread.\n");
     }
 
     if (nameorpoints != 0 && nameorpoints != 1) {
@@ -478,6 +478,8 @@ void loadMatrixFromFile(char* path) {
 // async-safe-signals functions (reentrant functions).
 // Note that still the problem of inter-thread competition persists and needs to be handled.
 void* signalsThread(void* args) {
+
+    threadSetup();
 
     int sig;    
     int retvalue;
@@ -1344,9 +1346,11 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
 void setAlarm(void) {
 
     // Alarm takes as input seconds, but the user input (gameduration var) is in minutes.
+
     //alarm(60 * gameduration);
     gameduration = 7;
     alarm(gameduration);
+
     printff(NULL, "The game duration timer is now setted to %lu minutes.\n", gameduration);
 
 }
@@ -1380,10 +1384,10 @@ void startGame(void) {
 }
 
 // This function will run in a dedicated thread.
-// Will simply sleep for a PAUSE_DURATION
+// Will simply sleep for a PAUSE_DURATION.
 void* gamePause(void* args) {
 
-    printff(NULL, "All ok, i'm the pause thread.\n");
+    printff(NULL, "I'm the pause pthread (ID): %lu.\n", (uli) pthread_self());
 
     // Getting new starting pause timestamp in POSIX time.
     pausetime = (unsigned long) time(NULL);
@@ -1397,6 +1401,8 @@ void* gamePause(void* args) {
 
     // Terminating the thread. This WILL NOT return.
     pthread_exit(NULL);
+
+    return NULL;
 
 }
 
@@ -1585,7 +1591,11 @@ void sendCurrentMatrix(struct ClientNode* client) {
 // queue, will wait for the scorer() thread to makes the final CSV scoreboard and finally will send
 // it to each corresponding client.
 void* clientHandler(void* voidclient) {
-//arinza
+
+    printff(NULL, "I'm a clientHandler() pthread (ID): %lu.\n", (uli) pthread_self());
+
+    threadSetup();
+
     if (voidclient == NULL) {
         // Error
         handleError(0, 0, 0, 1, "Error, clientHandler() received an empty void-lient.\n");
@@ -1837,11 +1847,10 @@ printf("\n\nAAAAAA: %lu",t);
                 // Submitting the word.
                 int p = submitWord(client, received->data);
 
-
                 if (p == -1) {
                     // -1, Invalid word. Not present in the matrix or WORD_LEN violated.
                     sendMessage(client->socket_client_fd, MSG_ERR, "Invalid word. Try again... Good luck!\n");
-                    printf("User with name %s, submitted a IN-valid word \"%s\". Assigned 0 points, current total %u.\n", client->name, received->data, client->points);  
+                    printf("User with name %s, submitted a IN-valid word \"%s\". Assigned 0 points, current total %lu.\n", client->name, received->data, client->points);  
                     break;
                 }
                 
@@ -1851,11 +1860,11 @@ printf("\n\nAAAAAA: %lu",t);
                 if (p){
                     // Valid word, never submitted before, p are the achieved points for the word length.
                     sendMessage(client->socket_client_fd, MSG_PUNTI_PAROLA, strint);
-                    printf("User with name %s, submitted a VALID, and never submitted before, word \"%s\". Assigned %d points, current total %u.\n", client->name, received->data, p, client->points);  
+                    printf("User with name %s, submitted a VALID, and never submitted before, word \"%s\". Assigned %lu points, current total %lu.\n", client->name, received->data, (uli) p, client->points);  
                 }else{
                     // Already submitted p == 0.
                     sendMessage(client->socket_client_fd, MSG_PUNTI_PAROLA, strint);
-                    printf("User with name %s, RE-submitted a valid word \"%s\". Assigned %lu points, current total %u.\n", client->name, received->data, (uli) p, client->points);  
+                    printf("User with name %s, RE-submitted a valid word \"%s\". Assigned %lu points, current total %lu.\n", client->name, received->data, (uli)p, client->points);  
                 }
 
                 free(strint);
@@ -1871,10 +1880,6 @@ printf("\n\nAAAAAA: %lu",t);
 
                 // TODO
 
-                break;
-            }case MSG_PING : {
-                uli timenow = (uli) time(NULL);
-                client->timeonline = timenow;
                 break;
             }default:{
 
@@ -2052,17 +2057,17 @@ void atExit(void) {
     retvalue = pthread_mutex_lock(&pausemutex);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
     }
     retvalue = pthread_mutex_lock(&listmutex);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
     }
     retvalue = pthread_mutex_lock(&queuemutex);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
     }
     struct ClientNode* c = head;
     while (1) {
@@ -2070,7 +2075,7 @@ void atExit(void) {
         retvalue = pthread_mutex_lock(&(c->handlerequest));
         if (retvalue != 0) {
             // Error
-            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
         }     
         c = c->next;
     }
@@ -2079,7 +2084,7 @@ void atExit(void) {
     retvalue = pthread_cancel(sig_thr_id);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
     }
 
     // Closing clients sockets connections.
@@ -2090,7 +2095,7 @@ void atExit(void) {
         retvalue = close(c->socket_client_fd);
         if (retvalue == -1){
             // Error
-            handleError(1, 1, 1, 1, RECURSIVE_MSG_ERR);
+            handleError(1, 1, 1, 1, RECURSIVE_ERR_MSG);
         }
         c = c->next;
     }
@@ -2102,7 +2107,7 @@ void atExit(void) {
         retvalue = pthread_cancel(c->thread);
         if (retvalue != 0) {
             // Error
-            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
         }
         c = c->next;
     }
@@ -2114,12 +2119,12 @@ void atExit(void) {
         retvalue = pthread_mutex_destroy(&(c->handlerequest));
         if (retvalue != 0) {
             // Error
-            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
         }
         retvalue = pthread_mutexattr_destroy(&(c->handlerequestattr));
         if (retvalue != 0) {
             // Error
-            handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
         }
         c = c->next;
     }
@@ -2149,7 +2154,7 @@ void atExit(void) {
     retvalue = pthread_cancel(pausethread);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
     }
 
     nclientsconnected = 0U;
@@ -2159,7 +2164,7 @@ void atExit(void) {
     retvalue = pthread_cancel(scorert);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
     }
 
     // Freeing the queue struct.
@@ -2183,7 +2188,7 @@ void atExit(void) {
     retvalue = close(socket_server_fd);
     if (retvalue == -1){
         // Error
-        handleError(1, 1, 1, 1, RECURSIVE_MSG_ERR);
+        handleError(1, 1, 1, 1, RECURSIVE_ERR_MSG);
     }
 
     printff(NULL, "Main thread cleaner executed succesfully!\n");
@@ -2192,29 +2197,19 @@ void atExit(void) {
 
 }
 
-
-
-
-// TODO
 // This function shunts the various threads when destroyed to its specific destructor.
 // (Since with the POSIX-key implementation all threads must have the same registered destructor.
 void threadDestructor(void* args) {
 
-    if (pthread_self() == sig_thr_id)
-        signalsThreadDestructor(NULL);
+    if (pthread_self() == sig_thr_id) {
+        // TODO
+    }else{
+        // User clientHandler() thread.
+
+    }
+
 
 }
-
-void signalsThreadDestructor(void* args){
-
-    // TODO
-
-}
-
-
-
-
-
 
 
 // This function disconnect a client, it before removes the client from the clients list.
@@ -2225,7 +2220,7 @@ void signalsThreadDestructor(void* args){
 // it terminates the thread that is executing it WITHOUT RETURN.
 // This option should be used when the caller of the functions is not itself the thread of the client
 // to disconnect.
-void disconnectClient(struct ClientNode** clienttodestroy, int terminatethisthread) {
+void disconnectClient(struct ClientNode** clienttodestroy, char terminatethisthread) {
 
     // Updating the thread signals mask, that will block the SIGUSR1.
     // Important to do it as soon as possible.
@@ -2287,9 +2282,11 @@ void disconnectClient(struct ClientNode** clienttodestroy, int terminatethisthre
                     goto disconnect_restart;
                 }else {
                     // Error
+                    // TODO
                 }
             }else{
                 // Error
+                // TODO
             }      
         }
         // Trylock success, now locked by us.
@@ -2404,6 +2401,7 @@ void disconnectClient(struct ClientNode** clienttodestroy, int terminatethisthre
             if (retvalue != 0) {
                 // Error
                 // arinza
+                // TODO
             }
             return;
         }else
@@ -2454,6 +2452,10 @@ void updateClients(void) {
 // It allocate on the heap a string, it fills it with all the client informations, and
 // finally return the strin pointer.
 char* serializeStrClient(struct ClientNode* c) {
+
+    if (c == NULL) {
+        // TODO
+    }
 
     // Preparing the string format.
     char st[] = "Name: %s - IP: %s - Port: %d - Points %u - Thread ID: %LU\n";
@@ -2686,32 +2688,8 @@ void clearQueue(void) {
 
 }
 
-void* disconnectDetector(void* args){
-// arinza 
-return NULL;
 
-    while (1) {
-        sleep(AFK_TIMER_CHECK_SECONDS);
-        mLock(&listmutex);
-        struct ClientNode* c = head;
-        while(1) {
-            if (c == NULL) break;
-            uli timenow = (uli) time(NULL);
-            if (timenow - c->timeonline > MAX_AFK_SECONDS){
-                // Disconnect
-                disconnectClient(&c, 1);
-            }else{
-                sendMessage(c->socket_client_fd, MSG_PING, NULL);
-            }
-            c = c->next;
-        }
-        mULock(&listmutex);
-        printff(NULL, "Executed clients disconnections checks.\n");
-    }
-    
-    return NULL;
 
-}
 
 
 /*

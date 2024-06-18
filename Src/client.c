@@ -482,6 +482,9 @@ void inputHandler(void) {
 // by adding them to a list of messages.
 void* responsesHandler(void* args) {
 
+    // To setup the thread destructor.
+    threadSetup();
+
     struct Message* received = NULL;
 
     while (1){
@@ -534,10 +537,13 @@ void threadDestructor(void* args) {
     // TODO
     if (pthread_self() == responses_thread) {
 
+    }else if(pthread_self() == sig_thr_id){
+
     }else{
         // Error
         handleError(0, 1, 0, 0, "Error, this thread shouldn't exist!\n");
     }
+
 
 }
 
