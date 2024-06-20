@@ -127,13 +127,9 @@ reconnecting:
     inputHandler();
 
 
-    // TODO
-    // Exit
-/*
-    // Chiusura del socket
-    SYSC(retvalue, close(client_fd), "nella close");
+    // TODO Close/Exti socket.
 
-*/
+
 
     return 0;
     

@@ -323,7 +323,7 @@ void processInput(void) {
             printff(NULL, HELP_MSG);
             return;
         }
-        // TODO control sendMessage return -1.
+        // TODO control sendMessages return -1.
         if (strcmp("matrix", inputfinal) == 0) {
             sendMessage(client_fd, MSG_MATRICE, NULL);
             return;
@@ -534,7 +534,7 @@ void* responsesHandler(void* args) {
 
 void threadDestructor(void* args) {
 
-    // TODO
+    // TODO threadDestrucotr()
     if (pthread_self() == responses_thread) {
 
     }else if(pthread_self() == sig_thr_id){
@@ -551,7 +551,7 @@ void threadDestructor(void* args) {
 // Will be executed before exiting by the main thread.
 void atExit(void) {
 
-    // TODO
+    // TODO atExit()
 
 }
 
@@ -587,13 +587,13 @@ void* signalsThread(void* args) {
         // Treatment of different signals.
         switch (sig){
             case SIGINT:{ 
-                // TODO
+                // TODO SIGINT
                 break;
             }case SIGPIPE:{
                 // Nothing, already handled by the single threads.
                 break;
             }default:{
-                // TODO
+                // TODO Unexpected signal
                 break;
             }
         }
@@ -617,50 +617,55 @@ void printResponses(void) {
         struct Message* received = current->m;
         // Printing the server's responses based on the message type.
         switch (received->type){
-        case MSG_MATRICE: {
-            printff(NULL, "%s", received->data);
-            break;
-        }case MSG_OK:{
-            printff(NULL, "%s", received->data);
-            break;
-        }case MSG_ERR: {
-            printff(NULL, "%s", received->data);
-            break;
-        }case MSG_TEMPO_ATTESA: {
-            printff(NULL, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
-            break;
-        }case MSG_TEMPO_PARTITA: {
-            printff(NULL, "The game is ongoing. Seconds left to the end of the game: %lu.\n", strtoul(received->data, NULL, 10));
-            break;
-        }case MSG_PUNTI_PAROLA: {
-            uli p = strtoul(received->data, NULL, 10);
-            if (p == 0LU)
-                printff(NULL, "Word already claimed. You got %lu points.\n", p);
-            else
-                printff(NULL, "Word claimed succesfully, nice guess! You got %lu points.\n", p);
-            break;
-        }case MSG_PUNTI_FINALI: {
-            printff(NULL, "The game is over, this is the scoreboard.\n");
-            char* tmp = received->data;
-            while (1) {
-                if (tmp == received->data) tmp = strtok(tmp, ",");
-                else tmp = strtok(NULL, ",");
-                if (tmp == NULL) break;
-                printff(NULL, "Name: %s. ", tmp);
-                tmp = strtok(NULL, ",");
-                printff(NULL, "Points: %s.\n", tmp);
-            }
-            break;
-        }case MSG_ESCI : {
-            // TODO   
-            break;
-        }case MSG_IGNORATO : {
-            // TODO
-            break;
-        }default:
-            // Error
-            handleError(0, 0, 0, 0, "WARNING: Received an unknown server response, trying to continue by ignoring it!\n");
-            break;
+            case MSG_MATRICE: {
+                printff(NULL, "%s", received->data);
+                break;
+            }case MSG_OK:{
+                printff(NULL, "%s", received->data);
+                break;
+            }case MSG_ERR: {
+                printff(NULL, "%s", received->data);
+                break;
+            }case MSG_TEMPO_ATTESA: {
+                printff(NULL, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
+                break;
+            }case MSG_TEMPO_PARTITA: {
+                printff(NULL, "The game is ongoing. Seconds left to the end of the game: %lu.\n", strtoul(received->data, NULL, 10));
+                break;
+            }case MSG_PUNTI_PAROLA: {
+                uli p = strtoul(received->data, NULL, 10);
+                if (p == 0LU)
+                    printff(NULL, "Word already claimed. You got %lu points.\n", p);
+                else
+                    printff(NULL, "Word claimed succesfully, nice guess! You got %lu points.\n", p);
+                break;
+            }case MSG_PUNTI_FINALI: {
+                printff(NULL, "The game is over, this is the scoreboard.\n");
+                char* tmp = received->data;
+                while (1) {
+                    if (tmp == received->data) tmp = strtok(tmp, ",");
+                    else tmp = strtok(NULL, ",");
+                    if (tmp == NULL) break;
+                    printff(NULL, "Name: %s. ", tmp);
+                    tmp = strtok(NULL, ",");
+                    printff(NULL, "Points: %s.\n", tmp);
+                }
+                break;
+            }case MSG_ESCI : {
+                // TODO Server disconnection alert.
+                break;
+            }case MSG_IGNORATO : {
+                // TODO Ignored request.
+                break;
+            }case MSG_REGISTRA_UTENTE:
+            case MSG_PAROLA: {
+                // Error
+                handleError(0, 0, 0, 0, "WARNING: Error, these functions are handled as in exit (sent from this client to the server), not as incoming (from the server to this client).\n");
+                break;
+            }default:
+                // Error
+                handleError(0, 0, 0, 0, "WARNING: Received an unknown server response, trying to continue by ignoring it!\n");
+                break;
        }
         // Destroying message and element list.
        struct MessageNode* tmp;

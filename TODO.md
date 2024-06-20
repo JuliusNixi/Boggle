@@ -5,7 +5,7 @@ List of things to work on.
 ### Todo
 
 - [ ] Restore time duration, pause game, changed to perform test.
-- [ ] Change bools vars type, from unsigned (4 bytes) to char (1 byte).
+- [ ] Check sendMessage returns.
 
 ### Done ✓
 

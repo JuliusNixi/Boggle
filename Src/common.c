@@ -617,14 +617,14 @@ void threadSetup(void){
         ptr = malloc(sizeof(char));
         if (ptr == NULL) {
             // Error
-            handleError(0, 1, 0, 0, "Error in malloc() in threadSetup().\n");
+            handleError(0, 0, 0, 1, "Error in malloc() in threadSetup().\n");
         }
         *((char*)(ptr)) = data;
         // ... Other things that may be necessary carried out ONLY the FIRST TIME FOR EACH THREAD. ...
         retvalue = pthread_setspecific(key, ptr);
         if (retvalue != 0){
             // Error
-            handleError(0, 1, 0, 0, "Error in pthread_setspecific().\n");
+            handleError(0, 0, 0, 1, "Error in pthread_setspecific().\n");
         }
         printff(NULL, "Specific key setted for thread (ID): %lu.\n", (uli)pthread_self());
     }

@@ -82,6 +82,9 @@ struct ClientNode {
 
     */
 
+   char toexit; // This is used in the disconnectClient() to mark a client as in disconnecting.
+
+
 }; 
 
 
@@ -144,7 +147,7 @@ void* clientHandler(void*);
 int submitWord(struct ClientNode*, char*);
 int searchWordInMatrix(int, int, char*);
 int validateWord(char*);
-void disconnectClient(struct ClientNode**, char);
+void disconnectClient(struct ClientNode**);
 void endGame(int);
 void updateClients(void);
 char* serializeStrClient(struct ClientNode*);
