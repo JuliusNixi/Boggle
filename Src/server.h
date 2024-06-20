@@ -52,7 +52,8 @@ struct ClientNode {
 
     char actionstoexecute; // This var is used to create a very simple "communication" between the signalsThread() thread and the clientHander() threads, without using others more complex synchronization primitives.
 
-    char receivedsignal; // This is used by the clientHandler() threads to notify the signalsHandler() thread that the signal sent was received.
+    // https://stackoverflow.com/questions/24931456/how-does-sig-atomic-t-actually-work
+    volatile sig_atomic_t receivedsignal; // This is used by the clientHandler() threads to notify the signalsHandler() thread that the signal sent (SIGUSR1) was received.
     /* 
 
             NOTES
@@ -82,8 +83,9 @@ struct ClientNode {
 
     */
 
-   char toexit; // This is used in the disconnectClient() to mark a client as in disconnecting.
+   char waiting; // This is used by the clientHandler() threads to notify the signalsHandler() thread that we are waiting on the handlerequest mutex. 
 
+   char toexit; // This is used to notify the signalsThread() thread of a client's disconnection.
 
 }; 
 
@@ -120,6 +122,8 @@ struct Queue {
     struct Message* message;
     struct Queue* next;
 };
+
+volatile sig_atomic_t* threadsignalreceivedglobal; // This is used by the clientHandler() threads to notify the signalsHandler() thread that the signal sent (SIGUSR1) was received.
 
 // Functions signatures server used in server.c and bloggle_server.c.
 // Implementation and infos in the server.c file.

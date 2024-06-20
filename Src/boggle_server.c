@@ -21,6 +21,7 @@ int main(int argc, char** argv) {
     gameduration = 0LU;
     usematrixfile = 0;
     matpath = NULL;
+    threadsignalreceivedglobal = NULL;
 
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
@@ -55,11 +56,11 @@ int main(int argc, char** argv) {
     printff(NULL, "Threads signals mask enabled correctly.\n");
   
     // SIGUSR1 will NOT be blocked.
-    // Setting the endGame() handler (does nothing).
+    // Setting the endGame() handler.
     // This signal will be send by the signalsThread() thread to each clientHandler() thread.
     // Is used to notify the game end.
     sigusr1.sa_flags = 0;
-    sigusr1.sa_handler = endGame;   
+    sigusr1.sa_handler = endGame;  
     retvalue = sigaction(SIGUSR1, &sigusr1, NULL);
     if (retvalue == -1) {
         // Error

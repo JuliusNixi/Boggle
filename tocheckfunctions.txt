@@ -1,1 +1,1 @@
-signalsThread();
+all
