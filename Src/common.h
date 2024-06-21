@@ -50,6 +50,8 @@ pthread_once_t key_once; // Used to set custom threads destructors.
 
 char testmode;  // Used in Tests/tests.c to disable error handling.
 
+pthread_mutex_t mutexprint; // Mutex used to sync multiline threads printing with printff():
+
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 void* signalsThread(void*);
 void atExit(void);
@@ -66,7 +68,7 @@ void destroyMessage(struct Message**);
 void mLock(pthread_mutex_t*);
 void mULock(pthread_mutex_t*);
 void handleError(char, char, char, char, const char*, ...);
-void printff(va_list, const char*, ...);
+void printff(va_list, char, const char*, ...);
 void makeKey(void);
 void threadSetup(void);
 

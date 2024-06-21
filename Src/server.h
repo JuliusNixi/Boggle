@@ -169,7 +169,7 @@ void clearQueue(void);
 // void mLock(pthread_mutex_t*); -> common.h
 // void mULock(pthread_mutex_t*); -> common.h
 // void handleError(char, char, char, char, const char*, ...); -> common.h
-// void printff(va_list, const char*, ...); -> common.h
+// void printff(va_list, char, const char*, ...); -> common.h
 // void makeKey(void); -> common.h
 // void threadSetup(void); -> common.h
 

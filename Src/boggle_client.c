@@ -7,18 +7,29 @@
 int main(int argc, char** argv) {
 
     // Printing banner.
-    printff(NULL, "\n\n##################\n#     CLIENT     #\n##################\n\n");
+    // Normal printf because the printmutex used in printff() is not initialized yet.
+    printf("\n\n##################\n#     CLIENT     #\n##################\n\n");
+    printf("################################ SETUP ################################\n");
 
     // Initializing local vars.
     int retvalue = 0; // To check system calls result (succes or failure).
 
     // Initializing shared client cross vars.
-    client_fd = 0; 
+    client_fd = -1; 
+    setupfinished = 0;
 
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
     testmode = 0;
+    // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
+    // In this case i must use pthread_mutex_init().
+    retvalue = pthread_mutex_init(&mutexprint, NULL);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 0, 0, "Error in printmutex initializing.\n");
+    }
 
+    printff(NULL, 0, "I'm the main thread (ID): %lu.\n", (uli)pthread_self());
     // To setup the thread destructor.
     threadSetup();
 
@@ -36,7 +47,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(1, 1, 0, 0, "Error in registering exit cleanupper with atexit() in main function.\n");
     }
-    printff(NULL, "Exit safe function (cleanup for the main with atexit()) registered correctly.\n");
+    printff(NULL, 0, "Exit safe function (cleanup for the main with atexit()) registered correctly.\n");
 
     // Enabling the mask.
     retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
@@ -44,7 +55,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in setting the pthread signals mask.\n");
     }
-    printff(NULL, "Threads signals mask enabled correctly.\n");
+    printff(NULL, 0, "Threads signals mask enabled correctly.\n");
 
     // Any newly created threads INHERIT the signal mask with these signals blocked. 
 
@@ -55,7 +66,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in creating the pthread signals handler.\n");
     }
-    printff(NULL, "Signals registered and pthread handler started succesfully with ID: %lu.\n", (uli) sig_thr_id);
+    printff(NULL, 0, "Signals registered and pthread handler started succesfully.\n", (uli) sig_thr_id);
 
 
     // Check number of args.
@@ -80,9 +91,9 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Invalid IP: %s.\n", argv[1]);
     }
-    printff(NULL, "Starting client on IP: %s and port: %lu.\n", argv[1], port);
+    printff(NULL, 0, "Starting client on IP: %s and port: %lu.\n", argv[1], port);
 
-    printff(NULL, "The args seems to be ok...\n");
+    printff(NULL, 0, "The args seems to be ok...\n");
 
     // Creating socket.
 reconnecting:
@@ -91,7 +102,7 @@ reconnecting:
         // Error
         handleError(0, 1, 0, 0, "Error in creating socket.\n");
     }
-    printff(NULL, "Socket created.\n");
+    printff(NULL, 0, "Socket created.\n");
 
     // Connecting to server.
     while (1) {
@@ -108,12 +119,12 @@ reconnecting:
                 // Error
                 handleError(1, 1, 0, 0, "Error in socket close(), during the failure of connect().\n");
             }
-            printff(NULL, "Error in connecting, retrying in 3 seconds.\n");
+            printff(NULL, 0, "Socket closed.\nError in connecting, retrying in 3 seconds. Is the server online?\n");
             sleep(3);
             goto reconnecting;
         }else break;
     }
-    printff(NULL, "Connected succesfully!\n");
+    printff(NULL, 0, "Connected succesfully!\n");
 
     // Creating responses handler pthread.
     retvalue = pthread_create(&responses_thread, NULL, responsesHandler, NULL);
@@ -121,7 +132,7 @@ reconnecting:
         // Error
         handleError(0, 1, 0, 0, "Error during the responses handler pthread creation.\n");
     }
-    printff(NULL, "Responses pthread created succesfully with ID: %lu.\n", (uli) responses_thread);
+    printff(NULL, 0, "Responses pthread created succesfully.\n");
 
     // Start input management.
     inputHandler();

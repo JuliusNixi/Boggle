@@ -68,7 +68,7 @@ https://stackoverflow.com/questions/467938/stdout-thread-safe-in-c-on-linux
 https://stackoverflow.com/questions/29331651/is-c-read-thread-safe
 
 
-##############################################################################
+#########################################################################################################
 WARNING: The server's use of this function, ASSUMES that the client always sends a message ENTIRELY
 (even if it is split into its fields) or NOT AT ALL.
 Specifically:
@@ -87,7 +87,7 @@ Specifically:
       the signalsThread() thread will wait for the clientHandler() thread to insert its result
       into the queue, but this may never happen if the client is uncooperative (not send
       the other missing part of the message)...
-##############################################################################
+#########################################################################################################
 
 */
 struct Message* receiveMessage(int fdfrom) {
@@ -142,6 +142,7 @@ readtype:
         }
         // Error
         // Another unmanageable error.
+        free(readed);
         handleError(1, 0, 0, 1, "Error in reading a message type.\n");
     }
     if (retvalue == 0) {
@@ -193,6 +194,7 @@ readlength:
         if (errno == EINTR) goto readlength;
         // Error
         // Another unmanageable error.
+        free(readed);
         handleError(1, 0, 0, 1, "Error in reading a message length.\n");
     }
     if (retvalue == 0) {
@@ -209,9 +211,19 @@ readlength:
 
     // Allocating heap memory to store the received message data.
     char* bufferstr = NULL;
-    bufferstr = (char*) malloc(sizeof(char) * readed->length);
-    if (bufferstr == NULL){
+    char checkerr = 0;
+    if (readed->length != 0){
+        bufferstr = (char*) malloc(sizeof(char) * readed->length);
+        if (bufferstr == NULL) {
+            // Error
+            free(readed);
+            handleError(0, 0, 0, 0, "WARNING: Error in malloc() in receiveMessage(). Trying continuing and ignoring the message.\n");
+        }
+        checkerr = 1;
+    } 
+    if (checkerr && bufferstr == NULL){
         // Error
+        free(readed);
         handleError(0, 0, 0, 1, "Error in allocating heap memory for the message received data.\n");
     }
     readed->data = bufferstr;
@@ -220,7 +232,8 @@ readlength:
     writingpointer = readed->data;
 readdata:
     // Reading/Waiting for the message data.
-    retvalue = read(fdfrom, writingpointer, toread);
+    if (writingpointer != NULL) retvalue = read(fdfrom, writingpointer, toread);
+    else retvalue = readed->length + 1;
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
         free(readed->data);
@@ -296,10 +309,9 @@ void* sendMessage(int fdto, char type, char* data) {
 
     // Reminder, data can be NULL! We don't have to check it.
 
-    struct Message tosend;
-
     int retvalue;
 
+    struct Message tosend;
     uli towrite;
     void* writingpointer;
     char* tmp;
@@ -309,11 +321,23 @@ void* sendMessage(int fdto, char type, char* data) {
     // Calculating and setting data length.
     tosend.length = 0U;
     if (data != NULL)
-        tosend.length = sizeof(char) * strlen(data);
+        tosend.length = sizeof(char) * (strlen(data) + 1); // +1 for '\0'.
 
+    char* s = NULL;
     tosend.data = data;
-    if (data == NULL)
+    if (tosend.data == NULL)
         tosend.data = 0;
+    else{
+        s = (char*) malloc(sizeof(char) * tosend.length);
+        if (s == NULL) {
+            // Error
+            handleError(0, 0, 0, 0, "WARNING: Error in malloc() of data in sendMessage(). Nothing will be send.\n");
+            return NULL;
+        }
+        strcpy(s, tosend.data);
+        s[tosend.length] = '\0';
+        tosend.data = s;
+    }
 
     
     towrite = sizeof(tosend.type);
@@ -323,10 +347,12 @@ sendtype:
     retvalue = write(fdto, writingpointer, towrite);
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
+        if(s) free(s);
         return (void*)-1L;   
     }
     if (retvalue == 0 && errno == ETIMEDOUT) {
         // Probably a disconnection happened.
+        if (s) free(s);
         return (void*)-1L;
     }
     if (retvalue == -1) {
@@ -334,6 +360,7 @@ sendtype:
         if (errno == EINTR) goto sendtype;
         // Error
         // Another unmanageable error.
+        if (s) free(s);
         handleError(1, 0, 0, 1, "Error in writing a message type.\n");
     }
     if (retvalue == 0) {
@@ -348,6 +375,7 @@ sendtype:
         goto sendtype;
     }
 
+
     towrite = sizeof(tosend.length);
     writingpointer = &(tosend.length);
 sendlength:
@@ -355,10 +383,12 @@ sendlength:
     retvalue = write(fdto, writingpointer, towrite);
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
+        if (s) free(s);
         return (void*)-1L;   
     }
     if (retvalue == 0 && errno == ETIMEDOUT) {
         // Probably a disconnection happened.
+        if (s) free(s);
         return (void*)-1L;
     }
     if (retvalue == -1) {
@@ -366,6 +396,7 @@ sendlength:
         if (errno == EINTR) goto sendlength;
         // Error
         // Another unmanageable error.
+        if (s) free(s);
         handleError(1, 0, 0, 1, "Error in writing a message length.\n");
     }
     if (retvalue == 0) {
@@ -381,16 +412,22 @@ sendlength:
     }
 
     towrite = tosend.length * sizeof(char);
-    writingpointer = &(tosend.data);
-senddata:
+    writingpointer = (tosend.data);
+senddata: {
     // Writing the message data.
-    retvalue = write(fdto, writingpointer, towrite);
+    char nulll = 0;
+    if (writingpointer != NULL) retvalue = write(fdto, writingpointer, towrite);
+    else retvalue = write(fdto, &nulll, sizeof(nulll));
+
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
+        if (s) free(s);
         return (void*)-1L;   
     }
+
     if (retvalue == 0 && errno == ETIMEDOUT) {
         // Probably a disconnection happened.
+        if (s) free(s);
         return (void*)-1L;
     }
     if (retvalue == -1) {
@@ -398,8 +435,10 @@ senddata:
         if (errno == EINTR) goto senddata;
         // Error
         // Another unmanageable error.
+        if (s) free(s);
         handleError(1, 0, 0, 1, "Error in writing a message data.\n");
     }
+
     if (retvalue == 0) {
         // 0 bytes read.
         goto senddata;   
@@ -411,7 +450,9 @@ senddata:
         writingpointer = (void*) tmp;
         goto senddata;
     }
+}
 
+    if (s) free(s);
     return NULL;
 
 }
@@ -485,6 +526,8 @@ void mULock(pthread_mutex_t* m) {
 // the printf().
 void handleError(char printerrno, char killmain, char errorfromprintff, char killthisthread, const char* format,  ...) {
 
+    // ANCHOR handleError()
+
     // Wrong args or recursive error.
     if ((printerrno != 0 && printerrno != 1)
     || (killmain != 0 && killmain != 1)
@@ -514,7 +557,7 @@ void handleError(char printerrno, char killmain, char errorfromprintff, char kil
         // Normal print error (without errno).
         va_list args;
         va_start(args, format);
-        printff(args, format);
+        printff(args, 0, format);
         va_end(args);
     }
 
@@ -546,14 +589,46 @@ void handleError(char printerrno, char killmain, char errorfromprintff, char kil
 // The const char* format and the elipsis (...) are used to forward all the
 // other args to the printf().
 
+// The second arg, is used to lock printing to all others threads. It's used when a thread
+// needs to make a multi-line printing without allowing others threads to print something else
+// in the middle.
+// This because, as written below, the printf is thread-safe because it 
+// prints the full string without intermixing others prints, but the prints order of the threads
+// by default is undefinied and so must be handled.
+// The second arg works with the global mutex defined mutexprint.
+// If the second arg is 1, means that the caller (of this function) thread has locked
+// this mutex, because the caller wants a safe multiline print, so this function simply prints.
+// All the other non blocking prints will call this function by passing 0 as second arg.
+// These latter prints will be blocked, because when the second arg is 0, before printing,
+// this function will stuck on the mutexprint, waiting for the multiline prints (of another
+// thread) to finish.
+// After the multiline prints, the caller thread (of this function, by passing as second arg 1)
+// must release the mutexprint!
+
 // Thread safety of printf? No mixed output, but interleaving admitted.
 // https://stackoverflow.com/questions/47912874/printf-function-on-multi-thread-program
 // Thread safety of fflush? Yes.
 // https://stackoverflow.com/questions/39053670/can-a-program-call-fflush-on-the-same-file-concurrently
-void printff(va_list errorargs, const char* format, ...) {
+void printff(va_list errorargs, char locking, const char* format, ...) {
 
     int retvalue;
     int retvalue2;
+
+    if (locking != 0 && locking != 1) {
+        // Error
+        handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
+    }
+
+    // Not use mLock() and mULock() beacuse could cause circular error.
+    // They call handleError(), this calls printff(), this calls mLock()/mULock() and so on...
+    if (locking == 0){
+        retvalue = pthread_mutex_lock(&mutexprint);
+        if (retvalue != 0) {
+            // Error
+            handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
+        }
+    }
+
     // Called by handlerError().
     if (errorargs != NULL)  {
         retvalue = vfprintf(stderr, format, errorargs);
@@ -573,6 +648,14 @@ void printff(va_list errorargs, const char* format, ...) {
         handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
     }
 
+    if (locking == 0){
+        retvalue = pthread_mutex_unlock(&mutexprint);
+        if (retvalue != 0) {
+            // Error
+            handleError(0, 0, 1, 0, RECURSIVE_ERR_MSG);
+        }
+    }
+
 }
 
 // Executed only once (from the first calling thread) to create a once key.
@@ -585,7 +668,7 @@ void makeKey(void){
         // Error
         handleError(0, 1, 0, 0, "Error in pthread_key_create().\n");
     }
-    printff(NULL, "Once-key registered succesfully by the thread (ID): %lu.\n", (uli)pthread_self());
+    printff(NULL, 0, "Once-key registered succesfully by the thread (ID): %lu.\n", (uli)pthread_self());
 
 }
 
@@ -626,7 +709,7 @@ void threadSetup(void){
             // Error
             handleError(0, 0, 0, 1, "Error in pthread_setspecific().\n");
         }
-        printff(NULL, "Specific key setted for thread (ID): %lu.\n", (uli)pthread_self());
+        printff(NULL, 0, "Specific key setted for thread (ID): %lu.\n", (uli)pthread_self());
     }
 
     // Retrieve thread specific data (not necessary in this usage).

@@ -200,7 +200,7 @@ void checkResponses(void) {
             // a situation like this:
             // -> USERINPUT...
             clearInput();
-            printff(NULL, "\n");
+            printff(NULL, 0, "\n");
         }
 
         if (printprompt == 3) {
@@ -210,10 +210,10 @@ void checkResponses(void) {
             char i = clearInput();
             if (i == 0) {
                 // First case.
-                printff(NULL, "\n");
+                printff(NULL, 0, "\n");
             }else {
                 // Second case.
-                printff(NULL, "\n");
+                printff(NULL, 0, "\n");
             }
             // No difference.
             // But for readability better to distinguish them.
@@ -314,13 +314,13 @@ void processInput(void) {
 
         // Processing the user request.
         if (strcmp("end", inputfinal) == 0){
-            printff(NULL, "Bye, bye, see you soon! Thanks for playing.\n");
+            printff(NULL, 0, "Bye, bye, see you soon! Thanks for playing.\n");
             sendMessage(client_fd, MSG_ESCI, NULL);
-            // TODO Exit program
+            pthread_exit(NULL);
             return;
         }
         if (strcmp("help", inputfinal) == 0) {
-            printff(NULL, HELP_MSG);
+            printff(NULL, 0, HELP_MSG);
             return;
         }
         // TODO control sendMessages return -1.
@@ -346,7 +346,7 @@ void processInput(void) {
             }
         }
 
-        printff(NULL, "Unknown command. Use 'help' to know the available options.\n");
+        printff(NULL, 0, "Unknown command. Use 'help' to know the available options.\n");
         return;
 
 
@@ -357,6 +357,8 @@ void inputHandler(void) {
 
     // Initializing is needed (to set the read() timeout).
     clearInput();
+
+    while(1) if (setupfinished >= 2) break; else usleep(100);
 
     while (1){
 
@@ -393,7 +395,7 @@ void inputHandler(void) {
 
         // Printing prompt.
         if (printprompt == 1)
-            printff(NULL, PROMPT_STR);
+            printff(NULL, 0, PROMPT_STR);
         else printprompt = 0;
 
         while (1) {
@@ -482,8 +484,10 @@ void inputHandler(void) {
 // by adding them to a list of messages.
 void* responsesHandler(void* args) {
 
+    printff(NULL, 0, "I'm the responsesHandler() thread (ID): %lu.\n", (uli) responses_thread);
     // To setup the thread destructor.
-    threadSetup();
+    threadSetup();   
+    setupfinished++;
 
     struct Message* received = NULL;
 
@@ -539,6 +543,9 @@ void threadDestructor(void* args) {
 
     }else if(pthread_self() == sig_thr_id){
 
+    }else if(pthread_self() == mainthread){
+        // Delegate to the atExit(), executed after the returns of this function.
+        exit(EXIT_SUCCESS);
     }else{
         // Error
         handleError(0, 1, 0, 0, "Error, this thread shouldn't exist!\n");
@@ -552,6 +559,7 @@ void threadDestructor(void* args) {
 void atExit(void) {
 
     // TODO atExit()
+    printff(NULL, 0, "EXIT!\n");
 
 }
 
@@ -567,8 +575,10 @@ void atExit(void) {
 // Note that still the problem of inter-thread competition persists and needs to be handled.
 void* signalsThread(void* args) {
 
+    printff(NULL, 0, "I'm the signalsThread() thread (ID): %lu.\n", (uli) sig_thr_id);
     // To setup the thread destructor.
     threadSetup();
+    setupfinished++;
 
     int sig;    
     int retvalue;
@@ -618,38 +628,40 @@ void printResponses(void) {
         // Printing the server's responses based on the message type.
         switch (received->type){
             case MSG_MATRICE: {
-                printff(NULL, "%s", received->data);
+                printff(NULL, 0, "%s", received->data);
                 break;
             }case MSG_OK:{
-                printff(NULL, "%s", received->data);
+                printff(NULL, 0, "%s", received->data);
                 break;
             }case MSG_ERR: {
-                printff(NULL, "%s", received->data);
+                printff(NULL, 0, "%s", received->data);
                 break;
             }case MSG_TEMPO_ATTESA: {
-                printff(NULL, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
+                printff(NULL, 0, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
                 break;
             }case MSG_TEMPO_PARTITA: {
-                printff(NULL, "The game is ongoing. Seconds left to the end of the game: %lu.\n", strtoul(received->data, NULL, 10));
+                printff(NULL, 0, "The game is ongoing. Seconds left to the end of the game: %lu.\n", strtoul(received->data, NULL, 10));
                 break;
             }case MSG_PUNTI_PAROLA: {
                 uli p = strtoul(received->data, NULL, 10);
                 if (p == 0LU)
-                    printff(NULL, "Word already claimed. You got %lu points.\n", p);
+                    printff(NULL, 0, "Word already claimed. You got %lu points.\n", p);
                 else
-                    printff(NULL, "Word claimed succesfully, nice guess! You got %lu points.\n", p);
+                    printff(NULL, 0, "Word claimed succesfully, nice guess! You got %lu points.\n", p);
                 break;
             }case MSG_PUNTI_FINALI: {
-                printff(NULL, "The game is over, this is the scoreboard.\n");
+                mLock(&mutexprint);
+                printff(NULL, 1, "The game is over, this is the scoreboard.\n");
                 char* tmp = received->data;
                 while (1) {
                     if (tmp == received->data) tmp = strtok(tmp, ",");
                     else tmp = strtok(NULL, ",");
                     if (tmp == NULL) break;
-                    printff(NULL, "Name: %s. ", tmp);
+                    printff(NULL, 1, "Name: %s. ", tmp);
                     tmp = strtok(NULL, ",");
-                    printff(NULL, "Points: %s.\n", tmp);
+                    printff(NULL, 1, "Points: %s.\n", tmp);
                 }
+                mULock(&mutexprint);
                 break;
             }case MSG_ESCI : {
                 // TODO Server disconnection alert.

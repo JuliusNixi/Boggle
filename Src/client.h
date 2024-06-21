@@ -4,6 +4,7 @@
 // Common client only cross files used vars and libs.
 int client_fd;  // Client/Server file descriptor.
 pthread_t responses_thread; // This thread will handle the responses received from the server asynchronously.
+char setupfinished; // Used to notify the main thread to start reading input after initialization.
 
 // Functions signatures only client used. Implementation and infos in the client.c file.
 void destroyStringList(void);
@@ -27,7 +28,7 @@ void printResponses(void);
 // void mLock(pthread_mutex_t*); -> common.h
 // void mULock(pthread_mutex_t*); -> common.h
 // void handleError(char, char, char, char, const char*, ...); -> common.h
-// void printff(va_list, const char*, ...); -> common.h
+// void printff(va_list, char, const char*, ...); -> common.h
 // void makeKey(void); -> common.h
 // void threadSetup(void); -> common.h
 

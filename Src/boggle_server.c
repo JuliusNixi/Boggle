@@ -4,12 +4,14 @@
 // Current file vars and libs.
 #include <getopt.h> // Used to check optionals args.
 #define USAGE_MSG "Invalid args. Usage: ./%s server_ip server_port [--matrices matrices_filepath] [--duration game_duration_in_minutes] [--seed rnd_seed] [--dic dictionary_filepath].\n" // Message to print when the user insert wrong args.
-#define DEFAULT_DICT "./Data/dictionary_ita.txt" // Default dict used when --dic is not present.
+#define DEFAULT_DICT "../Data/dictionary_ita.txt" // Default dict used when --dic is not present.
 
 int main(int argc, char** argv) {
 
     // Printing banner.
-    printff(NULL, "\n\n##################\n#     SERVER     #\n##################\n\n");
+    // Normal printf because the printmutex used in printff() is not initialized yet.
+    printf("\n\n##################\n#     SERVER     #\n##################\n\n");
+    printf("################################ SETUP ################################\n");
 
     // Initializing local vars.
     int retvalue = 0; // To check system calls result (succes or failure).
@@ -26,7 +28,15 @@ int main(int argc, char** argv) {
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
     testmode = 0;
+    // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
+    // In this case i must use pthread_mutex_init().
+    retvalue = pthread_mutex_init(&mutexprint, NULL);
+    if (retvalue != 0) {
+        // Error
+        handleError(0, 1, 0, 0, "Error in printmutex initializing.\n");
+    }
 
+    printff(NULL, 0, "I'm the main thread (ID): %lu.\n", (uli)pthread_self());
     // To setup the thread destructor.
     threadSetup();
 
@@ -45,7 +55,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(1, 1, 0, 0, "Error in registering exit cleanupper with atexit() in main function.\n");
     }
-    printff(NULL, "Exit safe function (cleanup for the main with atexit()) registered correctly.\n");
+    printff(NULL, 0, "Exit safe function (cleanup for the main with atexit()) registered correctly.\n");
 
     // Enabling the mask.
     retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
@@ -53,7 +63,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in setting the pthread signals mask.\n");
     }
-    printff(NULL, "Threads signals mask enabled correctly.\n");
+    printff(NULL, 0, "Threads signals mask enabled correctly.\n");
   
     // SIGUSR1 will NOT be blocked.
     // Setting the endGame() handler.
@@ -67,7 +77,7 @@ int main(int argc, char** argv) {
         // errno
         handleError(1, 1, 0, 0, "Error in setting SIGUSR1 signal handler.\n");
     }           
-    printff(NULL, "SIGUSR1 signal handler registered correctly.\n");
+    printff(NULL, 0, "SIGUSR1 signal handler registered correctly.\n");
 
     // Any newly created threads INHERIT the signal mask with SIGALRM, SIGINT, SIGPIPE signals blocked. 
 
@@ -78,7 +88,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in creating the pthread signals handler.\n");
     }
-    printff(NULL, "Signals registered and pthread handler started succesfully with ID: %lu.\n", (uli) sig_thr_id);
+    printff(NULL, 0, "Signals registered and pthread handler started succesfully.\n");
 
     // Check number of args.
     if (argc < 3 || argc > 11 || ((argc > 3) && (argc != 5 && argc != 7 && argc != 9 && argc != 11))) {
@@ -122,26 +132,26 @@ int main(int argc, char** argv) {
             handleError(0, 1, 0, 0, USAGE_MSG, argv[0]);
         }
     }
-    printff(NULL, "Starting server on IP: %s and port: %lu.\n", argv[1], port);
+    printff(NULL, 0, "Starting server on IP: %s and port: %lu.\n", argv[1], port);
 
     // Setting default args and printing infos.
     if (filemath != NULL) {
         matpath = filemath;
         usematrixfile = 1;
-        printff(NULL,"Trying to use matrix file at: %s.\n", matpath);
+        printff(NULL, 0, "Trying to use matrix file at: %s.\n", matpath);
     }else
-        printff(NULL, "Using RANDOM matrices.\n");
+        printff(NULL, 0, "Using RANDOM matrices.\n");
     if (gameduration != 0LU)
-        printff(NULL, "Using INSERTED match time duration %lu minutes.\n", gameduration);
+        printff(NULL, 0, "Using INSERTED match time duration %lu minutes.\n", gameduration);
     else {
         gameduration = 3LU;
-        printff(NULL, "Using DEFAULT match time duration %lu minutes.\n", gameduration);
+        printff(NULL, 0, "Using DEFAULT match time duration %lu minutes.\n", gameduration);
     }
     if (seed != 0LU)
-        printff(NULL, "Using INSERTED seed %lu.\n", seed);
+        printff(NULL, 0, "Using INSERTED seed %lu.\n", seed);
     else {
         seed = 42LU;
-        printff(NULL, "Using DEFAULT seed %lu.\n", seed);
+        printff(NULL, 0, "Using DEFAULT seed %lu.\n", seed);
     }
 
     // Further checks on optional args added after the suggestion given by Prof.
@@ -186,25 +196,27 @@ int main(int argc, char** argv) {
 
     if (optind < argc) {
         // Error
-        printff(NULL, "Error, unrecognized args: ");
-        while (optind < argc) printff(NULL, "%s ", argv[optind++]);
-        printff(NULL, "\n");
-        printff(NULL, USAGE_MSG, argv[0]);
+        mLock(&mutexprint);
+        printff(NULL, 1, "Error, unrecognized args: ");
+        while (optind < argc) printff(NULL, 1, "%s ", argv[optind++]);
+        printff(NULL, 1, "\n");
+        printff(NULL, 1, USAGE_MSG, argv[0]);
+        mULock(&mutexprint);
         handleError(0, 1, 0, 0, "Error, unrecognized args.\n");
     }
 
-    printff(NULL, "The args seems to be ok...\n");
+    printff(NULL, 0, "The args seems to be ok...\n");
 
     // Setting rand seed.
     srand(seed);
-    printff(NULL, "Initialized random seed %lu.\n", seed);
+    printff(NULL, 0, "Initialized random seed %lu.\n", seed);
 
     // Loading words dictionary in memory.
     if (filedict != NULL)
-        printff(NULL, "Trying to use dictionary file at: %s.\n", filedict);
+        printff(NULL, 0, "Trying to use dictionary file at: %s.\n", filedict);
     else{
         filedict = DEFAULT_DICT;
-        printff(NULL, "Trying to use DEFAULT dictionary file at %s.\n", filedict);
+        printff(NULL, 0, "Trying to use DEFAULT dictionary file at %s.\n", filedict);
     }
     loadDictionary(filedict);
  
@@ -218,7 +230,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in creating the server socket.\n");
     }
-    printff(NULL, "Server socket created.\n");
+    printff(NULL, 0, "Server socket created.\n");
     
     // Binding socket.
     retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
@@ -226,7 +238,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in binding.\n");
     }
-    printff(NULL, "Binding completed.\n");
+    printff(NULL, 0, "Binding completed.\n");
 
     // Listening for incoming connections.
     retvalue = listen(socket_server_fd, SOMAXCONN);
@@ -235,7 +247,8 @@ int main(int argc, char** argv) {
         // errno
         handleError(1, 1, 0, 0, "Error in listening.\n");
     }
-    printff(NULL, "Listening...\n");
+    printff(NULL, 0, "Listening...\n");
+    printff(NULL, 0, "################################ END SETUP ################################\n");
 
     // Starting the first game.
     startGame();

@@ -103,11 +103,11 @@ clean: clear
 	rm -f $(EXES) $(EXEC) $(EXET) $(OBJS) $(OBJC) $(OBJT) $(OBJSS) $(OBJSC) $(OBJSU) ../$(RNS) ../$(RNC)
 
 # Compile and execute the server with some default/testing args.
-execs: $(EXES)
+execs: clear $(EXES)
 	./$(ROOTDIR)$(RNS) $(IP) $(PORT)
 
 # Compile and execute the client with some default/testing args.
-execc: $(EXEC)
+execc: clear $(EXEC)
 	./$(ROOTDIR)$(RNC) $(IP) $(PORT)
 
 
