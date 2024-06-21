@@ -1303,6 +1303,7 @@ void validateDictionary(void) {
         }
     if (found == 0) {
         printff(NULL, 1, "No words of the current game matrix have been found in the dictionary file... :(\n");
+        mULock(&mutexprint);
         return;
     }
     printff(NULL, 1, "The WORD_LEN value is: %lu. ", WORD_LEN);
