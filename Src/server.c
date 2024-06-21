@@ -517,13 +517,21 @@ void* signalsThread(void* args) {
                 // ANCHOR Game Core 
 
                 /////////////////////////   GAME OVER   /////////////////////////
-                
                 mLock(&mutexprint);
-                printff(NULL, 1, "##########################################################################\n");
-                printff(NULL, 1, "\n################################ END GAME ################################\n");
+                char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
+                if (banner) {
+                    printff(NULL, 1, "\n%s\n", banner);
+                    free(banner);
+                }
+                banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 0);
+                if (banner) {
+                    printff(NULL, 1, "\n%s\n", banner);
+                    free(banner);
+                }
                 printff(NULL, 1, "The game is just ended. The requests from clients received until now will anyways be completed.\n");
                 mULock(&mutexprint);
                 struct ClientNode* current;
+
 
 
 
@@ -859,13 +867,17 @@ void* signalsThread(void* args) {
                 // Disabling pause and starting a new game.
                 mLock(&pausemutex);
                 mLock(&listmutex);
-                printff(NULL, 0, "##########################################################################\n");
+                banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
+                if (banner) {
+                    printff(NULL, 0, "%s\n", banner);
+                    free(banner);
+                }
                 // Locking threads to avoid unsafe multithreading situations.
                 current = head;
                 while (1) {
                     if (current == NULL) break;
                     mLock(&(current->handlerequest));
-                    sendMessage(current->socket_client_fd, MSG_OK, "################################ NEW GAME STARTED ################################\n");
+                    sendMessage(current->socket_client_fd, MSG_OK, "###############################   NEW GAME STARTED   ###############################\n");
                     current = current->next;
                 }
                 // Disabling pause.
@@ -1490,7 +1502,11 @@ void setAlarm(void) {
 void startGame(void) {
 
     mLock(&mutexprint);
-    printff(NULL, 1, "\n################################ NEW GAME STARTED ################################\n");
+    char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
+    if (banner) {
+        printff(NULL, 1, "\n%s\n", banner);
+        free(banner);
+    }
     printff(NULL, 1, "A new game is started right now.\n");
     mULock(&mutexprint);
 

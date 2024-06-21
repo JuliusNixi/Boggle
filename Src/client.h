@@ -31,6 +31,7 @@ void printResponses(void);
 // void printff(va_list, char, const char*, ...); -> common.h
 // void makeKey(void); -> common.h
 // void threadSetup(void); -> common.h
+// char* bannerCreator(uli, uli, char*, char, char); -> common.h
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h

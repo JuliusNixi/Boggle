@@ -9,9 +9,13 @@
 int main(int argc, char** argv) {
 
     // Printing banner.
+    char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "SETUP", BANNER_SYMBOL, 0);
     // Normal printf because the printmutex used in printff() is not initialized yet.
     printf("\n\n##################\n#     SERVER     #\n##################\n\n");
-    printf("################################ SETUP ################################\n");
+    if (banner){
+        printf("%s\n", banner);
+        free(banner);
+    }
 
     // Initializing local vars.
     int retvalue = 0; // To check system calls result (succes or failure).
@@ -248,7 +252,11 @@ int main(int argc, char** argv) {
         handleError(1, 1, 0, 0, "Error in listening.\n");
     }
     printff(NULL, 0, "Listening...\n");
-    printff(NULL, 0, "################################ END SETUP ################################\n");
+    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
+    if (banner) {
+        printff(NULL, 0, "%s\n", banner);
+        free(banner);
+    }
 
     // Starting the first game.
     startGame();

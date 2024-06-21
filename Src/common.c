@@ -720,3 +720,73 @@ void threadSetup(void){
     
 }
 
+// This function is for purely aesthetic.
+// It creates a very very simple string used to divide the sections in the program's output,
+// to increase the clarity of reading.
+// It returns an heap allocated new string.
+// It takes as input the total string length desired.
+// It takes as input the bannertext, that is a string that will be placed in the center
+// of the divider.
+// It takes as input the nspaces that rapresent how many spaces should be between the bannersymbol
+// and the bannertext.
+// It takes as input the bannersymbol that rapresent the symbol that will costitute the string.
+// It takes as input the voidstringornot, this will be 1 if the string should be only composed
+// by bannersymbol, 0 otherwise and will match the structure previously described.
+char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bannersymbol, char voidstringornot){
+    
+    if (nspaces > totalstrlength || (voidstringornot != 0 && voidstringornot != 1) || (voidstringornot == 1 && bannertext != NULL)){
+        // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in the bannerCreator(), invalid input/s. Trying to continue.\n");
+        return NULL;
+    }
+    
+    uli bannertextlength = voidstringornot ? 1U : strlen(bannertext);
+
+    // Calculate X, which is the number of times the symbol will be repeated.
+    uli X = (totalstrlength - nspaces * 2LU - bannertextlength) / 2LU;
+    
+    // Calculate the total size needed for the new string.
+    uli totalsize = X * 2LU + nspaces * 2LU + bannertextlength + 1LU;
+    
+    // Allocate memory on the heap for the new string.
+    char* result = (char*) malloc(totalsize * sizeof(char));
+    if (result == NULL) {
+        // Error
+        handleError(0, 0, 0, 0, "WARNING: Error, in malloc() in the bannerCreator(), trying to continue.\n");
+        return result;
+    }
+    
+    // Fill the string with the symbol, spaces, and the input string.
+    uli index = 0LU;
+    for (uli i = 0LU; i < X; i++) {
+        result[index++] = bannersymbol;
+    }
+    for (uli i = 0LU; i < nspaces; i++) {
+        result[index++] = ' ';
+    }
+    for (uli i = 0LU; i < bannertextlength; i++) {
+        if (voidstringornot == 0) result[index++] = bannertext[i];
+        else result[index++] = '\n'; // Will be substitute later.
+    }
+    for (uli i = 0LU; i < nspaces; i++) {
+        result[index++] = ' ';
+    }
+    for (uli i = 0LU; i < X; i++) {
+        result[index++] = bannersymbol;
+    }
+    
+    // Null-terminate the string.
+    result[index] = '\0';
+
+    if (voidstringornot) {
+        char* s = result;
+        while (1) {
+            if (s[0] == '\0') break;
+            if (s[0] != bannersymbol) s[0] = bannersymbol;
+            s++;
+        }
+    }
+    
+    return result;
+
+}

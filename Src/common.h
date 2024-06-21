@@ -51,6 +51,9 @@ pthread_once_t key_once; // Used to set custom threads destructors.
 char testmode;  // Used in Tests/tests.c to disable error handling.
 
 pthread_mutex_t mutexprint; // Mutex used to sync multiline threads printing with printff():
+#define BANNER_LENGTH 160
+#define BANNER_SYMBOL '#'
+#define BANNER_NSPACES 4
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 void* signalsThread(void*);
@@ -71,4 +74,6 @@ void handleError(char, char, char, char, const char*, ...);
 void printff(va_list, char, const char*, ...);
 void makeKey(void);
 void threadSetup(void);
+char* bannerCreator(uli, uli, char*, char, char);
+
 
