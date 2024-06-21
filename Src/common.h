@@ -51,7 +51,7 @@ pthread_once_t key_once; // Used to set custom threads destructors.
 char testmode;  // Used in Tests/tests.c to disable error handling.
 
 pthread_mutex_t mutexprint; // Mutex used to sync multiline threads printing with printff():
-#define BANNER_LENGTH 160
+#define BANNER_LENGTH 80
 #define BANNER_SYMBOL '#'
 #define BANNER_NSPACES 4
 
