@@ -39,6 +39,7 @@ int main(int argc, char** argv) {
         // Error
         handleError(0, 1, 0, 0, "Error in printmutex initializing.\n");
     }
+    setupfinished = 0;
 
     printff(NULL, 0, "I'm the main thread (ID): %lu.\n", (uli)pthread_self());
     // To setup the thread destructor.
@@ -252,6 +253,10 @@ int main(int argc, char** argv) {
         handleError(1, 1, 0, 0, "Error in listening.\n");
     }
     printff(NULL, 0, "Listening...\n");
+
+    // Waiting for the setup of other threads.
+    while(1) if (setupfinished >= 1) break; else usleep(100);
+
     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
     if (banner) {
         printff(NULL, 0, "%s\n", banner);

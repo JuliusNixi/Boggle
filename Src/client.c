@@ -207,6 +207,7 @@ void checkResponses(void) {
             // Two cases:
             // 1. ->
             // 2. -> USERINPUT...
+
             char i = clearInput();
             if (i == 0) {
                 // First case.
@@ -217,10 +218,12 @@ void checkResponses(void) {
             }
             // No difference.
             // But for readability better to distinguish them.
+
         }
 
         if (printprompt == 1) {
             ;
+
             // Nothing to do.
             // But for readability better to distinguish.
         }
@@ -352,13 +355,12 @@ void processInput(void) {
 
 }
 
+// ANCHOR inputHandler()
 // This functions handles the user's input.
 void inputHandler(void) {
 
     // Initializing is needed (to set the read() timeout).
     clearInput();
-
-    while(1) if (setupfinished >= 2) break; else usleep(100);
 
     while (1){
 
@@ -415,7 +417,7 @@ void inputHandler(void) {
 
             // Inserting the new input in the strings list.
             if (retvalue > 0) insertStringInList();
-
+ 
             if (retvalue != -1) {
                     // Something has been read (r > 0) or r == 0.
 
@@ -429,7 +431,9 @@ void inputHandler(void) {
                     if (sanitizeCheckInput() == 1) {
                         // The input is completed, we can process it.
                         // Processing...
+
                         processInput();
+
                         printprompt = 1;
                     }else {
                         // The input is not completed, clearing the input. Maybe there is 
@@ -440,13 +444,13 @@ void inputHandler(void) {
                         // whether there are server's responses to print or not.
                         // So we defer this task to the function checkResponses(), setting this flag.
                         printprompt = 2;
+
                     }
             }else{
                 // -1.
                 // EAGAIN == 35
                 if (errno == 35){
                     // Normal interrupt to display server's responses received.
-
                     // Two cases:
                     // 1. ->
                     // 2. -> USERINPUT...
@@ -461,10 +465,8 @@ void inputHandler(void) {
                     handleError(1, 1, 0, 0, "Unexpected error while handling the user's input.\n");
                 }
             }
-
             // Checking for server's responses.
             checkResponses();
-
             // Printing prompt is needed.
             if (printprompt == 1) break;
 
@@ -478,6 +480,7 @@ void inputHandler(void) {
 
 }
 
+// ANCHOR responsesHandler()
 // This function will be executed in a dedicated thread started after the socket connection in the main.
 // It will run forever (as long as the process lives) looping in a while(1);.
 // It will handle asynchronously all the responses received from the server to our requests,
@@ -492,7 +495,7 @@ void* responsesHandler(void* args) {
     struct Message* received = NULL;
 
     while (1){
-       
+
        // Wait to receive a message.
        received = receiveMessage(client_fd);  
 
@@ -501,6 +504,8 @@ void* responsesHandler(void* args) {
             // Probably disconnection.
             handleError(0, 1, 0, 0, "Probably disconnected by the server.\n");
        }
+
+       if (received == NULL) continue;
 
         // Allocating a new heap element.
         struct MessageNode* new;
@@ -529,6 +534,8 @@ void* responsesHandler(void* args) {
             c->next = new;
         }  
         mULock(&listmutex);
+
+        continue;
 
     }
 
@@ -563,6 +570,7 @@ void atExit(void) {
 
 }
 
+// ANCHOR signalsThread()
 // This function will be executed in a dedicated thread started as soon as possible in the main.
 // It will run forever (as long as the process lives) looping in a while(1);.
 // Will only deal with the management of SIGINT, SIGPIPE signals, but
@@ -625,6 +633,7 @@ void printResponses(void) {
         if (current == NULL) break;
 
         struct Message* received = current->m;
+
         // Printing the server's responses based on the message type.
         switch (received->type){
             case MSG_MATRICE: {
@@ -682,10 +691,11 @@ void printResponses(void) {
         // Destroying message and element list.
        struct MessageNode* tmp;
        tmp = current->next;
-       destroyMessage(&received);
+       destroyMessage(&(current->m));
        free(current);
        current = tmp;
     }
+    head = NULL;
     mULock(&listmutex);
     return;
 

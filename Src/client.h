@@ -4,7 +4,6 @@
 // Common client only cross files used vars and libs.
 int client_fd;  // Client/Server file descriptor.
 pthread_t responses_thread; // This thread will handle the responses received from the server asynchronously.
-char setupfinished; // Used to notify the main thread to start reading input after initialization.
 
 // Functions signatures only client used. Implementation and infos in the client.c file.
 void destroyStringList(void);

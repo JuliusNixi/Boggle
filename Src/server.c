@@ -1,6 +1,6 @@
 // Shared server cross files vars and libs.
 #include "server.h"
-#define tempteststimeseconds 5
+#define tempteststimeseconds 8
 // Current file vars and libs.
 #include <math.h>
 #include <sys/stat.h>
@@ -131,7 +131,7 @@ void* scorer(void* args) {
      
     qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPointsMessage);
     mLock(&mutexprint);
-    printff(NULL, 1, "\t\tFINAL SCOREBOARD\n");
+    printff(NULL, 1, "\n\t\tFINAL SCOREBOARD\n");
     for (unsigned int i = 0U; i < nclientsconnected; i++) {
         char* s = serializeStrClient(array[i]->client);
         printff(NULL, 1, "%s", s);
@@ -195,7 +195,7 @@ void* scorer(void* args) {
     // Creating and printing the CSV final game scoreboard.
     createScoreboard(array, nclientsconnected);
 
-    printff(NULL, 0, "Here the CSV scoreboard that will be sent to all clients:\n%s\n", scoreboardstr);
+    printff(NULL, 0, "\nHere the CSV scoreboard that will be sent to all clients:\n%s\n\n", scoreboardstr);
         
     pthread_exit(NULL);
 
@@ -473,6 +473,7 @@ void loadMatrixFromFile(char* path) {
 
 }
 
+// ANCHOR signalsThread()
 // This function will be executed in a dedicated thread started as soon as possible in the main.
 // It will run forever (as long as the process lives) looping in a while(1);.
 // Will only deal with the management of SIGINT and SIGALRM signals, but
@@ -489,6 +490,7 @@ void* signalsThread(void* args) {
     printff(NULL, 0, "I'm the signalsThread() thread (ID): %lu.\n", (uli) sig_thr_id);
     // Setupping thread destructor.
     threadSetup();
+    setupfinished++;
 
     int sig;    
     int retvalue;
@@ -520,7 +522,7 @@ void* signalsThread(void* args) {
                 mLock(&mutexprint);
                 char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
                 if (banner) {
-                    printff(NULL, 1, "\n%s\n", banner);
+                    printff(NULL, 1, "%s\n", banner);
                     free(banner);
                 }
                 banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 0);
@@ -721,9 +723,18 @@ void* signalsThread(void* args) {
                     if (retvalue != 0) {
                         // Error
                         handleError(0, 0, 0, 0, "WARNING: Error in pthread_kill() in signalsThread(), retrying in a moment...\n");
+                        usleep(100);
                     }
+
                     if (current->receivedsignal && current->waiting) current = current->next;
+                    else usleep(100);
                 }
+
+
+
+
+
+
 
                 // Now all clientHandler() thread are suspended on its mutex.
                 // The clients in disconnectClient() not, but this is not a problem.
@@ -1645,7 +1656,8 @@ void acceptClient(void) {
         tail->next = new;
         tail = tail->next;
     }
-    printff(NULL, 0, "New client succesfully added to the list (TMP ID): %lu.\n", clientid);
+    printff(NULL, 0, "New client succesfully added to the clients list (TMP ID): %lu.\n", clientid);
+    nclientsconnected++;
 
     // Starting a new pthread to handle the new client.
     // The executed function will be clientHandler().
@@ -1824,9 +1836,26 @@ void* clientHandler(void* voidclient) {
         not interrupted. [...]
         
         */
+        
+
+        // Acquiring the lock.
+        while (1) {
+            int retvalue = pthread_mutex_trylock(&(client->handlerequest));
+            if (retvalue != 0) {
+                if (retvalue == EBUSY) {
+                    usleep(100);
+                    client->waiting = 1;
+                    continue;
+                }else{
+                    // Error
+                    handleError(0, 0, 0, 1, "Error in acquiring the handlerequest mutex at the begginning of clientHandler().\n");
+                }
+            }
+            // Lock acquired.
+            break;
+        }
+
         // Processing the request.
-        client->waiting = 1;
-        mLock(&(client->handlerequest));
 
         // Probably disconnect.
         if ((long)((void*)received) == -1L) {
@@ -2891,7 +2920,7 @@ void gameEndQueue(struct ClientNode* e) {
     // Printing infos.
     char* namestr = csvNamePoints(m, 0);
     char* pointsstr = csvNamePoints(m, 1);
-    printff(NULL, 0, "New object pushed to the tail queue. Player's name: %s. Player's points: %s.\n", namestr, pointsstr);
+    printff(NULL, 0, "PUSHED: New object pushed to the tail queue.\nPUSHED: Player's name: %s. Player's points: %s. Thread (ID): %lu.\n", namestr, pointsstr, (uli) pthread_self());
     free(namestr);
     free(pointsstr);
 
