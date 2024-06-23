@@ -87,6 +87,8 @@ struct ClientNode {
 
    char toexit; // This is used to notify the signalsThread() thread of a client's disconnection.
 
+   char filledqueue;
+
 }; 
 
 

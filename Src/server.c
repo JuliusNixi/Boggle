@@ -19,8 +19,8 @@ uli matchtime = 0LU;  // Time of the last game startup.
 uli pausetime = 0LU;  // Time of the last pause startup.
 
 // TODO remove this 
-#define tempteststimeseconds 10
-#define PAUSE_DURATION 10 // Duration of the pause in minutes.
+#define tempteststimeseconds 8
+#define PAUSE_DURATION 8 // Duration of the pause in minutes.
 
 //#define PAUSE_DURATION 7 // Duration of the pause in minutes.
 
@@ -48,6 +48,7 @@ uli nclientsqueuedone = 0LU; // This will store the number of clients that have 
 pthread_t scorert; // This thread will execute the scorer() function as described in the project statement.
 char* scoreboardstr = NULL; // This will containt the final CSV sorted (by player's points) scoreboard heap allocated string.
 // This thread is required by the assignment details project document. This function will be executed in a dedicated thread. At end of game will pick up the content of the queue to produce the final game scoreboard. This scoreboard will be a heap allocated string pointed by scoreboardstr (above var). The scoreboard's format will be CSV (comma separeted values), sorted by player's points (descending). All clientHandler() threads will send this scoreboard to each player (BOTH registered or not). This thread will also determine the winner and will print it.
+// ANCHOR scorer()
 void* scorer(void* args) {
 
 
@@ -116,7 +117,7 @@ void* scorer(void* args) {
     //////////////////////////////////////////////////////////////////////////////
     */
 
-    printff(NULL, 0, "I'm the scorer pthread (ID): %lu.\n", (uli) pthread_self());
+   printff(NULL, 0, "I'm the scorer pthread (ID): %lu.\n", (uli) pthread_self());
    // Setup thread destructor.
    threadSetup();
 
@@ -125,6 +126,7 @@ void* scorer(void* args) {
         printff(NULL, 0, "No players... :(\n");
         pthread_exit(NULL);
     } 
+printff(NULL,0,"\n arinza EEEEEEEEEEEE\n");
 
     // Copying clients list in an array to use qsort.
     struct Queue* array[nclientsconnected];
@@ -135,6 +137,7 @@ void* scorer(void* args) {
         array[counter++] = currentl;
         currentl = currentl->next;
     }
+printff(NULL,0,"\n arinza FFFFFFFFFF\n");
 
     // Sorting players by points using message data.
     // To use qsort i copied the list in the temporary array.
@@ -293,6 +296,8 @@ int sortPlayersByPointsMessage(const void* a, const void* b) {
 
     struct Queue* xx = *x;
     struct Queue* yy = *y;
+
+    if (xx == NULL || yy == NULL) printff(NULL,0,"\n arinza XXYY\n");
 
     struct Message* mx = xx->message;
     struct Message* my = yy->message;
@@ -633,6 +638,7 @@ void* signalsThread(void* args) {
                     current->actionstoexecute = 0;
                     current->receivedsignal = 0;
                     current->waiting = 0;
+                    current->filledqueue = 0;
                     current = current->next;
                 }
 
@@ -713,14 +719,16 @@ void* signalsThread(void* args) {
                     // nclientsconnected remember to use it only after acquiring the listmutex!
                     mLock(&listmutex);
                     uli nclientsexited = 0LU;
+                    uli filledqueueclients = 0LU;
                     current = head;
                     while(1) {
                         if (current == NULL) break;
                         if (current->toexit) nclientsexited++;
+                        if (current->filledqueue || current->toexit) filledqueueclients++;
                         current = current->next;
                     }
                     // All threads have succesfully filled the queue.
-                    if (nclientsqueuedone == (nclientsconnected - nclientsexited)) endexit = 1;
+                    if (filledqueueclients == nclientsconnected) endexit = 1;
                     mULock(&listmutex);
                     mULock(&queuemutex);
                     if (endexit) break;
@@ -745,6 +753,7 @@ void* signalsThread(void* args) {
                 
                 // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
 
+                mLock(&queuemutex);
                 mLock(&listmutex);
                 current = head;
                 while (1) {
@@ -817,6 +826,7 @@ void* signalsThread(void* args) {
                     current = current->next;
                 }
                 mULock(&listmutex);
+                mULock(&queuemutex);
                 if(scoreboardstr != NULL) printff(NULL, 0, "Scorer thread is terminated, the final CSV scoreboard should be filled.\n");
                 else printff(NULL, 0, "Scorer thread is terminated, since there are no players, there is no scoreboard... :(\n");
 
@@ -848,17 +858,15 @@ void* signalsThread(void* args) {
                     uli nclientsexited = 0LU;
                     while(1) {
                         if (current == NULL) break;
-                        if (current->toexit){
+                        if (current->toexit)
                             nclientsexited++;
-                        }else{
-                            if (current->actionstoexecute == 4) {
-                                // Client sent end game message.
-                                nclientsmessagesent++;
-                            }
+                        if (current->actionstoexecute == 4 || current->toexit) {
+                            // Client sent end game message.
+                            nclientsmessagesent++;
                         }
                         current = current->next;
                     }
-                    if (nclientsconnected == (nclientsmessagesent - nclientsexited)) endexit = 1;
+                    if (nclientsconnected == (nclientsmessagesent)) endexit = 1;
                     current = head;
                     while (1) {
                         if (current == NULL) break;
@@ -1811,6 +1819,7 @@ void acceptClient(void) {
     new->actionstoexecute = 0;
     new->receivedsignal = 0;
     new->toexit = 0;
+    new->filledqueue = 0;
     // These below fields are truly initalized when the client is registered in registerUser().
     new->words_validated = NULL;
     new->name = NULL;
@@ -2045,7 +2054,6 @@ void* clientHandler(void* voidclient) {
         if (pauseon)
             // First time after end game.
             if (client->actionstoexecute == 0){
-                client->actionstoexecute++;
                 
                 // In the below case we have received a message AFTER the end game, but previously
                 // of the scoreboard delivery.
@@ -2077,6 +2085,9 @@ void* clientHandler(void* voidclient) {
                     // Received NULL, no messages to process, go ahead to client->actionstoexecute == 1.
                     ;
                 }
+
+                client->actionstoexecute++;
+
             } 
 
         // Sending end of game message on queue.
@@ -2981,6 +2992,7 @@ void createScoreboard(struct Queue** array, int arraylength) {
 
 }
 
+// ANCHOR gameEndQueue()
 // This function create (and add element to) a heap allocated queue.
 // Each struct Queue element contains a struct ClientNode* object,
 // a struct Message* object and a pointer to the next queue element.
@@ -3069,7 +3081,7 @@ void gameEndQueue(struct ClientNode* e) {
 
     // A simply mutex used only to sync with others threads in the queue.
     mLock(&queuemutex);
-printff(NULL,0,"\n\n   Q   \n\n");
+
     struct Queue* tmp = NULL;
     // Example of a queue because sometimes I confuse head and tail... xD
     //           Tail -> NULL <- Head
@@ -3085,11 +3097,14 @@ printff(NULL,0,"\n\n   Q   \n\n");
         tailq = new;
     }else {
         // Not empty queue.
+printff(NULL,0,"\n arinza AAAAAAAAAAAA\n");
         tmp = tailq;
         tailq = new;
         tailq->next = tmp;
+printff(NULL,0,"\n arinza BBBBBBBBBB\n");
     }
     nclientsqueuedone++;
+    e->filledqueue = 1;
     mULock(&queuemutex);
 
     // Printing infos.
@@ -3097,7 +3112,10 @@ printff(NULL,0,"\n\n   Q   \n\n");
     char* pointsstr = csvNamePoints(m, 1);
     printff(NULL, 0, "PUSHED: New object pushed to the tail queue.\nPUSHED: Player's name: %s. Player's points: %s. Thread (ID): %lu.\n", namestr, pointsstr, (uli) pthread_self());
     free(namestr);
+printff(NULL,0,"\n arinza CCCCCCCC\n");
     free(pointsstr);
+printff(NULL,0,"\n arinza DDDDDDD\n");
+
 
 }
 
