@@ -2,7 +2,8 @@
 GC = gcc
 
 # Compiler flags, all warnings and g for debugging.
-CFLAGS = -Wall -g -pedantic -pthread -lm
+CFLAGS = -Wall -g -pedantic -pthread
+POSTMATHFLAG = -lm
 
 # Bin files general NAMES.
 NS = boggle_server
@@ -68,27 +69,27 @@ clear:
 
 # Binaries, linking.
 $(EXES): $(OBJS) $(OBJSS) $(OBJSU)
-	$(GC) $(CFLAGS) $(OBJS) $(OBJSS) $(OBJSU) -o $(EXES)
+	$(GC) $(CFLAGS) $(OBJS) $(OBJSS) $(OBJSU) $(POSTMATHFLAG) -o $(EXES)
 	cp $(EXES) $(ROOTDIR)$(RNS)
 $(EXEC): $(OBJC) $(OBJSC) $(OBJSU)
-	$(GC) $(CFLAGS) $(OBJC) $(OBJSC) $(OBJSU) -o $(EXEC)
+	$(GC) $(CFLAGS) $(OBJC) $(OBJSC) $(OBJSU) $(POSTMATHFLAG) -o $(EXEC)
 	cp $(EXEC) $(ROOTDIR)$(RNC)
 $(EXET): $(OBJT) $(OBJSS) $(OBJSU)
-	$(GC) $(CFLAGS) $(OBJT) $(OBJSS) $(OBJSU) -o $(EXET)
+	$(GC) $(CFLAGS) $(OBJT) $(OBJSS) $(OBJSU) $(POSTMATHFLAG) -o $(EXET)
 	
 # Binaries, compiling objects.
 $(OBJS): $(SRCS) $(HS)
-	$(GC) $(CFLAGS) -c $(SRCS) -o $(OBJS)
+	$(GC) $(CFLAGS) -c $(SRCS) $(POSTMATHFLAG) -o $(OBJS)
 $(OBJSS): $(SRCS2) $(HS)
-	$(GC) $(CFLAGS) -c $(SRCS2) -o $(OBJSS)
+	$(GC) $(CFLAGS) -c $(SRCS2) $(POSTMATHFLAG) -o $(OBJSS)
 $(OBJC): $(SRCC) $(HC)
-	$(GC) $(CFLAGS) -c $(SRCC) -o $(OBJC)
+	$(GC) $(CFLAGS) -c $(SRCC) $(POSTMATHFLAG) -o $(OBJC)
 $(OBJSC): $(SRCC2) $(HC)
-	$(GC) $(CFLAGS) -c $(SRCC2) -o $(OBJSC)
+	$(GC) $(CFLAGS) -c $(SRCC2) $(POSTMATHFLAG) -o $(OBJSC)
 $(OBJT): $(SRCT) $(HS)
-	$(GC) $(CFLAGS) -c $(SRCT) -o $(OBJT)
+	$(GC) $(CFLAGS) -c $(SRCT) $(POSTMATHFLAG) -o $(OBJT)
 $(OBJSU): $(SRCU) $(HU)
-	$(GC) $(CFLAGS) -c $(SRCU) -o $(OBJSU)
+	$(GC) $(CFLAGS) -c $(SRCU) $(POSTMATHFLAG) -o $(OBJSU)
 
 # Some useful default args for testing.
 export IP=localhost
