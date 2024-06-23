@@ -20,7 +20,7 @@ os.chdir("../Src/")
 subprocess.run("make")
 
 for i in range(nclients):
-    filelog = open(f"stdout-log-{i}.txt", "w")
+    filelog = open(f"../Tests/logs/stdout-log-{i}.txt", "w")
     p = subprocess.Popen(["../Bin/boggle_client", "localhost", "8080"], stdin=subprocess.PIPE, stdout=filelog, stderr=filelog)
     clients.append(p)
     time.sleep(0.1)
@@ -66,7 +66,7 @@ for a in range(nactions):
             word += words[r]
             action += " " + word + "\n"
         # submitting action
-        p.stdin.write(action)
+        p.stdin.write(action.encode())
         p.stdin.flush()
         r = random.randint(1, 10)
         # killing the client if r == 10

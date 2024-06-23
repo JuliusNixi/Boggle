@@ -333,7 +333,7 @@ void processInput(void) {
 
             }else if (ret == NULL){
                 //handleError("WARNING: a sendMessage() returned NULL. Nothing has been sent.\n")
-            }else if (ret == -2L) {
+            }else if (ret == (void*)-2L) {
 
             }else{
 
