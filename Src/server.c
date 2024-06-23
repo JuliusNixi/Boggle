@@ -1465,7 +1465,7 @@ void validateDictionary(void) {
     
     int retvalue;
     int fileCurrentValidsWords = -1;
-    fileCurrentValidsWords = open(VALID_WORDS_TESTS_FILE_PATH, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    fileCurrentValidsWords = open(VALID_WORDS_TESTS_FILE_PATH, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);  
     if (fileCurrentValidsWords == -1) {
         // Error
         handleError(0, 1, 0, 1, "Error in opening %s dicfileCurrentValidsWordstionary file.\n", VALID_WORDS_TESTS_FILE_PATH);
@@ -1486,15 +1486,16 @@ void validateDictionary(void) {
                 // TODO e2
             }
 
-            retvalue = close(fileCurrentValidsWords);
-            if (retvalue == -1) {
-                // Error
-                // TODO e4
-            }
-
             found = 1;
 
         }
+        
+    retvalue = close(fileCurrentValidsWords);
+    if (retvalue == -1) {
+        // Error
+        // TODO e4
+    }
+
     if (found == 0) {
         printff(NULL, 1, "No words of the current game matrix have been found in the dictionary file... :(\n");
         mULock(&mutexprint);
