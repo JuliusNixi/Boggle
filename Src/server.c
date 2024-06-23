@@ -1463,26 +1463,13 @@ void validateDictionary(void) {
     printff(NULL, 1, "Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
     
     
-    struct stat s;
     int retvalue;
-    // Performing stat on file.
-    retvalue = stat(VALID_WORDS_TESTS_FILE_PATH, &s);
-    if (retvalue == -1) {
-        // Error
-        handleError(0, 1, 0, 1, "Error in getting %s fileCurrentValidsWords file informations.\n", VALID_WORDS_TESTS_FILE_PATH);
-    }
-    // Check if the file is regular.
-    if(!S_ISREG(s.st_mode)){
-        // Error
-        handleError(0, 1, 0, 1, " %s fileCurrentValidsWords is not a regular file.\n", VALID_WORDS_TESTS_FILE_PATH);
-    }
     int fileCurrentValidsWords = -1;
-    fileCurrentValidsWords = open(VALID_WORDS_TESTS_FILE_PATH, O_TRUNC | O_CREAT | O_WRONLY, NULL);
+    fileCurrentValidsWords = open(VALID_WORDS_TESTS_FILE_PATH, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (fileCurrentValidsWords == -1) {
         // Error
         handleError(0, 1, 0, 1, "Error in opening %s dicfileCurrentValidsWordstionary file.\n", VALID_WORDS_TESTS_FILE_PATH);
     }
-
 
     for (unsigned int i = 0; i < words_len; i++)
         if (words_valid[i][0] != '\0') {
