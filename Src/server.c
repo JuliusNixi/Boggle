@@ -1347,6 +1347,7 @@ void loadDictionary(char* path) {
     file[s.st_size] = '\0';
     // Copying the file content, to use strtok() on the first instance.
     strcpy(file_copy, file);
+    file_copy[s.st_size] = '\0';
 
     // Counting file lines and allocating heap space.
     char* str = file;
@@ -1378,13 +1379,14 @@ void loadDictionary(char* path) {
         else str = strtok(NULL, "\n\r");
         if (str == NULL) break;
         // Allocating heap space.
-        words[counter++] = (char*) malloc(sizeof(char) * strlen(str));
+        words[counter++] = (char*) malloc(sizeof(char) * (strlen(str) + 1));
         if (words[counter - 1] == NULL) {
             // Error
             handleError(0, 1, 0, 1, "Error in loadDictionary() while allocating heap space for a word.\n");
         }
         // Copying the word in the new words[i] heap space.
         strcpy(words[counter - 1], str);
+        words[counter - 1][strlen(words[counter - 1])] = '\0';
     }
 
     // Converting all words to UPPERCASE.
