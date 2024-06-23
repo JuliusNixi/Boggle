@@ -6,6 +6,7 @@ List of things to work on.
 
 - [ ] Restore time duration, pause game, changed to perform test.
 - [ ] Check sendMessage returns.
+- [ ] Recheck all errors with handleError().
 
 ### Done ✓
 

@@ -316,7 +316,7 @@ void processInput(void) {
         toLowerOrUpperString(inputfinal, 'L');
 
         // Processing the user request.
-        if (strcmp("end", inputfinal) == 0){
+        if (strcmp("end", inputfinal) == 0 || strcmp("exit", inputfinal) == 0){
             printff(NULL, 0, "Bye, bye, see you soon! Thanks for playing.\n");
             sendMessage(client_fd, MSG_ESCI, NULL);
             pthread_exit(NULL);
@@ -328,7 +328,16 @@ void processInput(void) {
         }
         // TODO control sendMessages return -1.
         if (strcmp("matrix", inputfinal) == 0) {
-            sendMessage(client_fd, MSG_MATRICE, NULL);
+            void* ret = sendMessage(client_fd, MSG_MATRICE, NULL);
+            if (ret == (void*)-1L) {
+
+            }else if (ret == NULL){
+                //handleError("WARNING: a sendMessage() returned NULL. Nothing has been sent.\n")
+            }else if (ret == -2L) {
+
+            }else{
+
+            }
             return;
         }
 
@@ -497,7 +506,7 @@ void* responsesHandler(void* args) {
     while (1){
 
        // Wait to receive a message.
-       received = receiveMessage(client_fd);  
+       received = receiveMessage(client_fd); 
 
        if ((long) received == -1L) {
             // Error

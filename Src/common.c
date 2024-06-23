@@ -90,6 +90,7 @@ Specifically:
 #########################################################################################################
 
 */
+// ANCHOR receiveMessage()
 struct Message* receiveMessage(int fdfrom) {
 
     if (fdfrom < 0) {
@@ -211,20 +212,13 @@ readlength:
 
     // Allocating heap memory to store the received message data.
     char* bufferstr = NULL;
-    char checkerr = 0;
-    if (readed->length != 0){
-        bufferstr = (char*) malloc(sizeof(char) * readed->length);
-        if (bufferstr == NULL) {
-            // Error
-            free(readed);
-            handleError(0, 0, 0, 0, "WARNING: Error in malloc() in receiveMessage(). Trying continuing and ignoring the message.\n");
-        }
-        checkerr = 1;
-    } 
-    if (checkerr && bufferstr == NULL){
+    if (readed->length == 0) readed->length = 1; // For null.
+    bufferstr = (char*) malloc(sizeof(char) * readed->length);
+    if (bufferstr == NULL) {
         // Error
+        handleError(0, 0, 0, 0, "WARNING: Error in malloc() in receiveMessage(). Trying continuing and ignoring the message.\n");
         free(readed);
-        handleError(0, 0, 0, 1, "Error in allocating heap memory for the message received data.\n");
+        return NULL;
     }
     readed->data = bufferstr;
 
@@ -232,8 +226,7 @@ readlength:
     writingpointer = readed->data;
 readdata:
     // Reading/Waiting for the message data.
-    if (writingpointer != NULL) retvalue = read(fdfrom, writingpointer, toread);
-    else retvalue = readed->length + 1;
+    retvalue = read(fdfrom, writingpointer, toread);
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
         free(readed->data);
@@ -265,11 +258,13 @@ readdata:
         goto readdata;
     }
 
+
+
     return readed;
 
 }
 
-
+// ANCHOR sendMessage()
 // This function send a message client -> server or server -> client.
 // There is no difference since the message format is the same (struct Message).
 // It takes as input the file descriptor of the socket to wich the message will be send.
@@ -295,7 +290,7 @@ void* sendMessage(int fdto, char type, char* data) {
             case MSG_PUNTI_PAROLA:
             case MSG_PUNTI_FINALI:
             case MSG_IGNORATO: {
-                // OK, nothing to do.
+                // OK, nothing to do for all.
                 ;
                 break;
             }default:{
@@ -319,13 +314,12 @@ void* sendMessage(int fdto, char type, char* data) {
     tosend.type = type;
 
     // Calculating and setting data length.
-    tosend.length = 0U;
+    tosend.length = 1U;
     if (data != NULL)
-        tosend.length = sizeof(char) * (strlen(data) + 1); // +1 for '\0'.
+        tosend.length = (unsigned) (sizeof(char) * (strlen(data) + 1)); // +1 for '\0'.
 
     char* s = NULL;
-    tosend.data = data;
-    if (tosend.data == NULL)
+    if (data == NULL)
         tosend.data = 0;
     else{
         s = (char*) malloc(sizeof(char) * tosend.length);
@@ -334,11 +328,10 @@ void* sendMessage(int fdto, char type, char* data) {
             handleError(0, 0, 0, 0, "WARNING: Error in malloc() of data in sendMessage(). Nothing will be send.\n");
             return NULL;
         }
-        strcpy(s, tosend.data);
+        strcpy(s, data);
         s[tosend.length] = '\0';
         tosend.data = s;
     }
-
     
     towrite = sizeof(tosend.type);
     writingpointer = &(tosend.type);
@@ -370,7 +363,7 @@ sendtype:
     if (retvalue < sizeof(tosend.type)) {
         towrite = sizeof(tosend.type) - retvalue;
         tmp = (char*) writingpointer;
-        tmp += sizeof(char) * retvalue;
+        tmp += (sizeof(char) * retvalue);
         writingpointer = (void*) tmp;
         goto sendtype;
     }
@@ -416,8 +409,8 @@ sendlength:
 senddata: {
     // Writing the message data.
     char nulll = 0;
-    if (writingpointer != NULL) retvalue = write(fdto, writingpointer, towrite);
-    else retvalue = write(fdto, &nulll, sizeof(nulll));
+    if (writingpointer != 0) retvalue = write(fdto, writingpointer, towrite);
+    else retvalue = write(fdto, &nulll, towrite);
 
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
@@ -453,7 +446,7 @@ senddata: {
 }
 
     if (s) free(s);
-    return NULL;
+    return (void*)-2L;
 
 }
 
@@ -720,6 +713,7 @@ void threadSetup(void){
     
 }
 
+// ANCHOR bannerCreator()
 // This function is for purely aesthetic.
 // It creates a very very simple string used to divide the sections in the program's output,
 // to increase the clarity of reading.
@@ -740,7 +734,7 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
         return NULL;
     }
     
-    uli bannertextlength = voidstringornot ? 1U : strlen(bannertext);
+    uli bannertextlength = voidstringornot ? 2U : strlen(bannertext);
 
     // Calculate X, which is the number of times the symbol will be repeated.
     uli X = (totalstrlength - nspaces * 2LU - bannertextlength) / 2LU;

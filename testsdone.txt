@@ -1,7 +1,0 @@
-server
-no players no optional args
-
-
-client
-no server online
-
