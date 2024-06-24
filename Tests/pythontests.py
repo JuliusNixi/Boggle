@@ -42,7 +42,6 @@ def end():
     exit()
 
 os.chdir("../Src/")
-subprocess.run("make")
 
 print("Starting clients...")
 for i in range(nclients):
