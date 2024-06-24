@@ -13,8 +13,7 @@ Thread model: posix
 - make execs -> To compile and run the server, with default args (see in Makefile in Src/).
 - make execc -> To compile and run the client, with default args (see in Makefile in Src/).
 - make clean -> To remove all objects and executables files.
-- make tests -> To compile the server and to compile and run the tests file.
-
+- make tests -> To compile the server and to compile and run the tests C file.
 
 # Usage
 Server Usage: ./Bin/boggle_server server_ip server_port [--matrices matrices_filepath] [--duration game_duration_in_minutes] [--seed rnd_seed] [--dic dictionary_filepath].

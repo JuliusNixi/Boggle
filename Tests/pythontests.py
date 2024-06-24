@@ -7,8 +7,8 @@ import time
 
 random.seed(42)
 
-nclients = 100
-nactions = 100
+nclients = 500
+nactions = 500
 clients = []
 actions = ["help\n", "matrix\n", "end\n", "register_user", "p", "invalidcommand\n"]
 
@@ -35,6 +35,7 @@ for i in range(nclients):
 time.sleep(1)
 
 for a in range(nactions):
+    # sleeping between every action
     randomactionsleep = random.randint(0, 1)
     time.sleep(randomactionsleep)
     for i in range(nclients):

@@ -4,12 +4,11 @@ List of things to work on.
 
 ### Todo
 
-- [ ] Restore time duration, pause game, changed to perform test.
-- [ ] Check sendMessage returns.
+- [ ] Restore time duration, pause game, changed to perform tests.
+- [ ] Check sendMessage() returns.
 - [ ] Recheck all errors with handleError().
 
 ### Done ✓
-
 
 - [x] Testing with small matrix size. 
 - [x] ClientNode* tail used? Yes in acceptClient().

@@ -22,6 +22,16 @@ int main(void) {
     // Number of tests.
     int tests = 5;
 
+    // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
+    // In this case i must use pthread_mutex_init().
+    int retvalue = pthread_mutex_init(&mutexprint, NULL);
+    if (retvalue != 0) {
+        // Error
+        printf("Error in mutexprint mutex init.\n");
+        exit(EXIT_FAILURE);
+    }
+    setupfinished = 0;
+
     // Testing initMatrix.
     printf("Testing initMatrix...\n");
     initMatrix();

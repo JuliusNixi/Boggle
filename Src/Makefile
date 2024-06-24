@@ -1,8 +1,15 @@
 # Compiler to use.
 GC = gcc
 
-# Compiler flags, all warnings and g for debugging.
+# Compiler flags: all warnings, g and ggdb3 for debugging, pthread library used
+# and disable a specific warn.
 CFLAGS = -Wall -g -ggdb3 -pedantic -pthread -Wno-unused-command-line-argument
+# This below post flag (-lm) is needed because the code use the <math.h> lib.
+# On MacOS this flag can be omitted or used in the above CFLAGS with the others.
+# But there is, however, a strange linking problem on Linux (tested on LABII machine)
+# with the math.h lib by not using the -lm flag, or also using it in the CFLAG, not works,
+# it is mandatory to insert the -lm flag at the end of the command
+# (and not at the beginning like the others).
 POSTMATHFLAG = -lm
 
 # Bin files general NAMES.
@@ -102,6 +109,7 @@ tests: all
 # Delete all .o and exe files.
 clean: clear
 	rm -f $(EXES) $(EXEC) $(EXET) $(OBJS) $(OBJC) $(OBJT) $(OBJSS) $(OBJSC) $(OBJSU) ../$(RNS) ../$(RNC)
+	rm -f ../Tests/logs/*.txt
 
 # Compile and execute the server with some default/testing args.
 execs: clear $(EXES)
