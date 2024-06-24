@@ -110,6 +110,8 @@ tests: all
 clean: clear
 	rm -f $(EXES) $(EXEC) $(EXET) $(OBJS) $(OBJC) $(OBJT) $(OBJSS) $(OBJSC) $(OBJSU) ../$(RNS) ../$(RNC)
 	rm -f ../Tests/logs/*.txt
+	pkill -f boggle_client
+	pkill -f boggle_server
 
 # Compile and execute the server with some default/testing args.
 execs: clear $(EXES)
