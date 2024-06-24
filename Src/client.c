@@ -458,7 +458,7 @@ void inputHandler(void) {
             }else{
                 // -1.
                 // EAGAIN == 35
-                if (errno == 35){
+                if (errno == 35 || errno == 11){
                     // Normal interrupt to display server's responses received.
                     // Two cases:
                     // 1. ->
