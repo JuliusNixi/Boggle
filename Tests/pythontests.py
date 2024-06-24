@@ -27,6 +27,20 @@ VALID_WORDS_TESTS_FILE_PATH = "../Tests/fileCurrentValidsWords.txt"
 
 stdinclients = []
 
+def end():
+    input("Actions completed. Press enter to kill all the clients and exit...")
+
+    for i in range(nclients):
+        p = clients[i]
+        poll = p.poll()
+        if poll is None:
+            os.kill(p.pid, signal.SIGQUIT) # process alive
+        stdinclients[i].close()
+
+    print("Killed all clients, exiting...")
+
+    exit()
+
 os.chdir("../Src/")
 subprocess.run("make")
 
@@ -36,16 +50,13 @@ for i in range(nclients):
     clients.append(p)
     f = open(f"../Tests/logs/stdin-log-{i}.txt", "w")
     stdinclients.append(f)
-    print(f"Opened {i + 1} client.")
 
+print("All clients opened.")
 time.sleep(1)
 
 for t in range(ntests):
-    someonealiveflag = 0
     for a in range(nactions):
-        # sleeping between every action
-        randomactionsleep = random.randint(0, 1)
-        time.sleep(randomactionsleep)
+        someonealiveflag = 0
         for i in range(nclients):
             p = clients[i]   
             poll = p.poll()
@@ -53,6 +64,9 @@ for t in range(ntests):
                 someonealiveflag = 1 # process alive
             else:
                 continue # process terminated
+            # sleeping between every action
+            randomactionsleep = random.randint(0, 1)
+            time.sleep(randomactionsleep)
             r = random.randint(1, 10)
             # submitting a void action (do nothing) if r == 10
             if r == 10:
@@ -98,17 +112,7 @@ for t in range(ntests):
                 stdinclients[i].write("kill")
 
         if someonealiveflag == 0:
-            break
-    if someonealiveflag == 0:
-        break
+            end()
 
-input("Actions completed. Press enter to kill all the clients and exit...")
 
-for i in range(nclients):
-    p = clients[i]
-    poll = p.poll()
-    if poll is None:
-        os.kill(p.pid, signal.SIGQUIT) # process alive
-    stdinclients[i].close()
-
-print("Killed all clients, exiting...")
+end()
