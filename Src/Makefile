@@ -2,7 +2,7 @@
 GC = gcc
 
 # Compiler flags, all warnings and g for debugging.
-CFLAGS = -Wall -g -pedantic -pthread
+CFLAGS = -Wall -g -ggdb3 -pedantic -pthread
 POSTMATHFLAG = -lm
 
 # Bin files general NAMES.
