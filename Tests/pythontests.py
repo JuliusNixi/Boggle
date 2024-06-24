@@ -35,7 +35,7 @@ for i in range(nclients):
 
 time.sleep(1)
 
-for t in ntests:
+for t in range(ntests):
     someonealiveflag = 0
     for a in range(nactions):
         # sleeping between every action
