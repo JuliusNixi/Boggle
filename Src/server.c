@@ -636,7 +636,6 @@ void* signalsThread(void* args) {
                     if (current == NULL) break;
                     current->actionstoexecute = 0;
                     current->receivedsignal = 0;
-                    current->waiting = 0;
                     current->filledqueue = 0;
                     current = current->next;
                 }
@@ -653,7 +652,7 @@ void* signalsThread(void* args) {
                         usleep(100);
                     }
                     // Continuing only when the signal has been received by the client.
-                    if (current->receivedsignal && current->waiting) current = current->next;
+                    if (current->receivedsignal && (current->waiting == 1 || current->waiting == 2)) current = current->next;
                     else usleep(100);
                 }
                 // Now all clients threads (in clientHandler()) are suspended
@@ -764,7 +763,7 @@ void* signalsThread(void* args) {
                 while (1) {
                     if (current == NULL) break;
                     current->receivedsignal = 0;
-                    current->waiting = 0;
+                    if (current->waiting == 1) current->waiting = 0;
                     current = current->next;
                 }
 
@@ -794,7 +793,7 @@ void* signalsThread(void* args) {
                         usleep(100);
                     }
 
-                    if (current->receivedsignal && current->waiting) current = current->next;
+                    if (current->receivedsignal && (current->waiting == 1 || current->waiting == 2)) current = current->next;
                     else usleep(100);
                 }
 
@@ -1969,6 +1968,8 @@ void* clientHandler(void* voidclient) {
     mULock(&mutexprint);
     // Setting thread destructor.
     threadSetup();
+
+    client->waiting = 2;
 
     // Used to write and read nclientsconnected safety.
     mLock(&listmutex);
