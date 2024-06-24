@@ -1,0 +1,6 @@
+cd ../Src/
+make
+gdb ./../Bin/boggle_server
+handle SIGUSR1 noprint
+handle SIGALRM noprint
+run localhost 8080
