@@ -242,7 +242,7 @@ char* csvNamePoints(struct Message* m, char nameorpoints) {
     }
     strcpy(backup, s);
     // Terminating string.
-    backup[strlen(backup)] = '\0';
+    backup[strlen(s)] = '\0';
 
     // Getting name.
     char* tmp = strtok(backup, ",");
@@ -254,7 +254,7 @@ char* csvNamePoints(struct Message* m, char nameorpoints) {
     }
     strcpy(name, tmp);
     // Terminating string.
-    name[strlen(name)] = '\0';
+    name[strlen(tmp)] = '\0';
 
     // Getting points.
     tmp = strtok(NULL, ",");
@@ -266,7 +266,7 @@ char* csvNamePoints(struct Message* m, char nameorpoints) {
     }
     strcpy(points, tmp);        
     // Terminating string.
-    points[strlen(points)] = '\0';
+    points[strlen(tmp)] = '\0';
 
     char* ret;
     if (nameorpoints == 0) {
