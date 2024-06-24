@@ -122,14 +122,14 @@ void* scorer(void* args) {
    threadSetup();
 
     // No players, no one to send scoreboard... :(
-    if (nclientsconnected == 0LU){
+    if (nclientsqueuedone == 0LU){
         printff(NULL, 0, "No players... :(\n");
         pthread_exit(NULL);
     } 
-printff(NULL,0,"\n arinza EEEEEEEEEEEE\n");
+
 
     // Copying clients list in an array to use qsort.
-    struct Queue* array[nclientsconnected];
+    struct Queue* array[nclientsqueuedone];
     struct Queue* currentl = tailq;
     uli counter = 0LU;
     while (1) {
@@ -137,15 +137,14 @@ printff(NULL,0,"\n arinza EEEEEEEEEEEE\n");
         array[counter++] = currentl;
         currentl = currentl->next;
     }
-printff(NULL,0,"\n arinza FFFFFFFFFF\n");
 
     // Sorting players by points using message data.
     // To use qsort i copied the list in the temporary array.
      
-    qsort(array, nclientsconnected, sizeof(struct Queue*), sortPlayersByPointsMessage);
+    qsort(array, nclientsqueuedone, sizeof(struct Queue*), sortPlayersByPointsMessage);
     mLock(&mutexprint);
     printff(NULL, 1, "\n\t\tFINAL SCOREBOARD\n");
-    for (unsigned int i = 0U; i < nclientsconnected; i++) {
+    for (unsigned int i = 0U; i < nclientsqueuedone; i++) {
         char* s = serializeStrClient(array[i]->client);
         printff(NULL, 1, "%s", s);
         free(s);
@@ -167,7 +166,7 @@ printff(NULL,0,"\n arinza FFFFFFFFFF\n");
     counter = 0LU;
     // Current points temp var.
     uli cp;
-    for (unsigned int i = 0; i < nclientsconnected; i++) {
+    for (unsigned int i = 0; i < nclientsqueuedone; i++) {
         // Skipping this code if all players have 0 points.
         // Remember p is the maximum scored points by players.
         if (p == 0LU) break;
@@ -189,7 +188,7 @@ printff(NULL,0,"\n arinza FFFFFFFFFF\n");
 
     if (p != 0LU && counter != 1LU) {
         printff(NULL, 1, "The winners with %lu points are:\n", p);
-        for (unsigned int i = 0; i < nclientsconnected; i++) {
+        for (unsigned int i = 0; i < nclientsqueuedone; i++) {
             // Getting maximum "p" points.
             pstr = csvNamePoints(array[i]->message, 1);
             cp = (uli) strtoul(pstr, NULL, 10);
@@ -206,7 +205,7 @@ printff(NULL,0,"\n arinza FFFFFFFFFF\n");
     mULock(&mutexprint);
 
     // Creating and printing the CSV final game scoreboard.
-    createScoreboard(array, nclientsconnected);
+    createScoreboard(array, nclientsqueuedone);
 
     printff(NULL, 0, "\nHere the CSV scoreboard that will be sent to all clients:\n%s\n\n", scoreboardstr);
         
@@ -214,6 +213,7 @@ printff(NULL,0,"\n arinza FFFFFFFFFF\n");
 
 }
 
+// ANCHOR csvNamePoints()
 // This function take as input a message.
 // The message MUST contains in the "data" field a string in the format "playername,playerpoints"
 // that will be tokenized.
@@ -285,6 +285,7 @@ char* csvNamePoints(struct Message* m, char nameorpoints) {
 
 }
 
+// ANCHOR sortPlayersByPointsMessage()
 // This function is used in qsort (in the scorer() thread) to sort an array of struct Queue*
 // containing pointers to elements struct Queue.
 // Each element contains a message with the "data" field in the format "playername,points".
@@ -296,8 +297,6 @@ int sortPlayersByPointsMessage(const void* a, const void* b) {
 
     struct Queue* xx = *x;
     struct Queue* yy = *y;
-
-    if (xx == NULL || yy == NULL) printff(NULL,0,"\n arinza XXYY\n");
 
     struct Message* mx = xx->message;
     struct Message* my = yy->message;
@@ -3100,11 +3099,11 @@ void gameEndQueue(struct ClientNode* e) {
         tailq = new;
     }else {
         // Not empty queue.
-printff(NULL,0,"\n arinza AAAAAAAAAAAA\n");
+
         tmp = tailq;
         tailq = new;
         tailq->next = tmp;
-printff(NULL,0,"\n arinza BBBBBBBBBB\n");
+
     }
     nclientsqueuedone++;
     e->filledqueue = 1;
@@ -3115,9 +3114,9 @@ printff(NULL,0,"\n arinza BBBBBBBBBB\n");
     char* pointsstr = csvNamePoints(m, 1);
     printff(NULL, 0, "PUSHED: New object pushed to the tail queue.\nPUSHED: Player's name: %s. Player's points: %s. Thread (ID): %lu.\n", namestr, pointsstr, (uli) pthread_self());
     free(namestr);
-printff(NULL,0,"\n arinza CCCCCCCC\n");
+
     free(pointsstr);
-printff(NULL,0,"\n arinza DDDDDDD\n");
+
 
 
 }
