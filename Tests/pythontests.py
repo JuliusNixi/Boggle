@@ -4,6 +4,11 @@ import os
 import signal
 import random
 import time
+import sys
+
+if len(sys.argv) != 3:
+    print("Invalid args. Pass the IP and the port to be used for the clients connection.")
+    exit()
 
 random.seed(42)
 
@@ -27,7 +32,7 @@ subprocess.run("make")
 
 for i in range(nclients):
     filelog = open(f"../Tests/logs/stdout-log-{i}.txt", "w")
-    p = subprocess.Popen(["../Bin/boggle_client", "localhost", "8080"], stdin=subprocess.PIPE, stdout=filelog, stderr=filelog)
+    p = subprocess.Popen(["../Bin/boggle_client", sys.argv[1], sys.argv[2]], stdin=subprocess.PIPE, stdout=filelog, stderr=filelog)
     clients.append(p)
     f = open(f"../Tests/logs/stdin-log-{i}.txt", "w")
     stdinclients.append(f)
