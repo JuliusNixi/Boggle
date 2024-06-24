@@ -717,12 +717,10 @@ void* signalsThread(void* args) {
                     mLock(&queuemutex);
                     // nclientsconnected remember to use it only after acquiring the listmutex!
                     mLock(&listmutex);
-                    uli nclientsexited = 0LU;
                     uli filledqueueclients = 0LU;
                     current = head;
                     while(1) {
                         if (current == NULL) break;
-                        if (current->toexit) nclientsexited++;
                         if (current->filledqueue || current->toexit) filledqueueclients++;
                         current = current->next;
                     }
@@ -854,11 +852,9 @@ void* signalsThread(void* args) {
                     }
                     current = head;
                     uli nclientsmessagesent = 0LU;
-                    uli nclientsexited = 0LU;
                     while(1) {
                         if (current == NULL) break;
                         if (current->toexit)
-                            nclientsexited++;
                         if (current->actionstoexecute == 4 || current->toexit) {
                             // Client sent end game message.
                             nclientsmessagesent++;

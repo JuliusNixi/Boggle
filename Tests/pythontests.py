@@ -9,6 +9,7 @@ random.seed(42)
 
 nclients = 500
 nactions = 500
+ntests = 10
 clients = []
 actions = ["help\n", "matrix\n", "end\n", "register_user", "p", "invalidcommand\n"]
 
@@ -34,61 +35,67 @@ for i in range(nclients):
 
 time.sleep(1)
 
-for a in range(nactions):
-    # sleeping between every action
-    randomactionsleep = random.randint(0, 1)
-    time.sleep(randomactionsleep)
-    for i in range(nclients):
-        p = clients[i]   
-        poll = p.poll()
-        if poll is None:
-            pass # process alive
-        else:
-            continue # process terminated
-        r = random.randint(1, 10)
-        # submitting a void action (do nothing) if r == 10
-        if r == 10:
-            stdinclients[i].write("nothing\n")
-            continue    
-        r = random.randint(0, len(actions) - 1)
-        action = actions[r]
-        if action == actions[3]: # register_user
+for t in ntests:
+    someonealiveflag = 0
+    for a in range(nactions):
+        # sleeping between every action
+        randomactionsleep = random.randint(0, 1)
+        time.sleep(randomactionsleep)
+        for i in range(nclients):
+            p = clients[i]   
+            poll = p.poll()
+            if poll is None:
+                someonealiveflag = 1 # process alive
+            else:
+                continue # process terminated
             r = random.randint(1, 10)
-            user = ""
-            # submitting an invalid username if r == 10
+            # submitting a void action (do nothing) if r == 10
             if r == 10:
-                user = junkchar
-            for j in range(usernamelength):
-                r = random.randint(0, len(ALPHABET) - 1)
-                user += ALPHABET[r]
-            action += " " + user + "\n"
-        if action == actions[4]: # p
-            content = ""
-            with open(VALID_WORDS_TESTS_FILE_PATH, "r") as f:
-                content = f.read()
-                f.close()
-            words = content.split("\n")
-            words = words[0:len(words)-1] # removing last empty word
-            if (len(words) == 0):
-                continue
-            word = ""
-            # submitting an invalid word if r == 10
-            r = random.randint(1, 10)
-            if r == 10:
-                word = junkchar
-            r = random.randint(0, len(words) - 1)
-            word += words[r]
-            action += " " + word + "\n"
-        # submitting action
-        p.stdin.write(action.encode())
-        p.stdin.flush()
-        stdinclients[i].write(action)
-        r = random.randint(1, 100)
-        # killing the client if r == 10
-        if r >= 95:
-            os.kill(clients[i].pid, signal.SIGQUIT)
-            stdinclients[i].write("kill")
+                stdinclients[i].write("nothing\n")
+                continue    
+            r = random.randint(0, len(actions) - 1)
+            action = actions[r]
+            if action == actions[3]: # register_user
+                r = random.randint(1, 10)
+                user = ""
+                # submitting an invalid username if r == 10
+                if r == 10:
+                    user = junkchar
+                for j in range(usernamelength):
+                    r = random.randint(0, len(ALPHABET) - 1)
+                    user += ALPHABET[r]
+                action += " " + user + "\n"
+            if action == actions[4]: # p
+                content = ""
+                with open(VALID_WORDS_TESTS_FILE_PATH, "r") as f:
+                    content = f.read()
+                    f.close()
+                words = content.split("\n")
+                words = words[0:len(words)-1] # removing last empty word
+                if (len(words) == 0):
+                    continue
+                word = ""
+                # submitting an invalid word if r == 10
+                r = random.randint(1, 10)
+                if r == 10:
+                    word = junkchar
+                r = random.randint(0, len(words) - 1)
+                word += words[r]
+                action += " " + word + "\n"
+            # submitting action
+            p.stdin.write(action.encode())
+            p.stdin.flush()
+            stdinclients[i].write(action)
+            r = random.randint(1, 100)
+            # killing the client if r == 10
+            if r >= 95:
+                os.kill(clients[i].pid, signal.SIGQUIT)
+                stdinclients[i].write("kill")
 
+        if someonealiveflag == 0:
+            break
+    if someonealiveflag == 0:
+        break
 
 input("Actions completed. Press enter to kill all the clients and exit...")
 
