@@ -471,6 +471,8 @@ void inputHandler(void) {
 
                 }else {
                     // Unexpected strange error.
+printff(NULL,0,"\n\n Error arinza %d %d \n\n", retvalue, errno);
+perror("arinza");
                     handleError(1, 1, 0, 0, "Unexpected error while handling the user's input.\n");
                 }
             }
