@@ -3102,7 +3102,6 @@ void gameEndQueue(struct ClientNode* e) {
     }
     nclientsqueuedone++;
     e->filledqueue = 1;
-    mULock(&queuemutex);
 
     // Printing infos.
     char* namestr = csvNamePoints(m, 0);
@@ -3112,7 +3111,7 @@ void gameEndQueue(struct ClientNode* e) {
 
     free(pointsstr);
 
-
+    mULock(&queuemutex);
 
 }
 
