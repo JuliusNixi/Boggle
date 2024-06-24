@@ -43,9 +43,8 @@ def end():
 
 os.chdir("../Src/")
 subprocess.run("make")
-print("Go to start the server manually! Waiting 8 seconds.")
-time.sleep(8)
 
+print("Starting clients...")
 for i in range(nclients):
     filelog = open(f"../Tests/logs/stdout-log-{i}.txt", "w")
     p = subprocess.Popen(["../Bin/boggle_client", sys.argv[1], sys.argv[2]], stdin=subprocess.PIPE, stdout=filelog, stderr=filelog)
