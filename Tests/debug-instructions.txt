@@ -6,8 +6,8 @@ handle SIGALRM noprint
 run localhost 8080
 on SIGSEGV it's useful the "backtrace" command.info
 
-p pointer print a pointer value
-x/s pointer->string print the string field of a struct pointed by pointer 
+p pointer print the pointer's value
+x/s pointerstring print the string of a char* pointer 
 info threads
 thread 2
 where
@@ -17,3 +17,7 @@ p *((pthread_mutex_t *) 0x7f37e8004da0)
 info locals 
 info args
 
+https://visualgdb.com/gdbreference/commands/x
+
+
+print *clientnode print all the struct of a ClientNode*

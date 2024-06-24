@@ -854,7 +854,6 @@ void* signalsThread(void* args) {
                     uli nclientsmessagesent = 0LU;
                     while(1) {
                         if (current == NULL) break;
-                        if (current->toexit)
                         if (current->actionstoexecute == 4 || current->toexit) {
                             // Client sent end game message.
                             nclientsmessagesent++;
