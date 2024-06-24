@@ -43,6 +43,8 @@ def end():
 
 os.chdir("../Src/")
 subprocess.run("make")
+print("Go to start the server manually! Waiting 8 seconds.")
+time.sleep(8)
 
 for i in range(nclients):
     filelog = open(f"../Tests/logs/stdout-log-{i}.txt", "w")

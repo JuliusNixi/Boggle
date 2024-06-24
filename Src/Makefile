@@ -108,10 +108,10 @@ tests: all
 
 # Delete all .o and exe files.
 clean: clear
-	rm -f $(EXES) $(EXEC) $(EXET) $(OBJS) $(OBJC) $(OBJT) $(OBJSS) $(OBJSC) $(OBJSU) ../$(RNS) ../$(RNC)
-	rm -f ../Tests/logs/*.txt
-	pkill -f boggle_client || true
-	pkill -f boggle_server || true
+	-rm -f $(EXES) $(EXEC) $(EXET) $(OBJS) $(OBJC) $(OBJT) $(OBJSS) $(OBJSC) $(OBJSU) ../$(RNS) ../$(RNC)
+	-rm -f ../Tests/logs/*.txt ../Tests/fileCurrentValidsWords.txt
+	-pkill -f boggle_client || true
+	-pkill -f boggle_server || true
 
 # Compile and execute the server with some default/testing args.
 execs: clear $(EXES)
