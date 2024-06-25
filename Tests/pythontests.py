@@ -56,6 +56,10 @@ time.sleep(1)
 
 for t in range(ntests):
     for a in range(nactions):
+        # sleeping between every action
+        randomactionsleep = random.uniform(0.01, 0.1)
+        time.sleep(randomactionsleep)
+        r = random.randint(1, 10)
         someonealiveflag = 0
         for i in range(nclients):
             p = clients[i]   
@@ -64,10 +68,6 @@ for t in range(ntests):
                 someonealiveflag = 1 # process alive
             else:
                 continue # process terminated
-            # sleeping between every action
-            randomactionsleep = random.randint(0, 1)
-            time.sleep(randomactionsleep)
-            r = random.randint(1, 10)
             # submitting a void action (do nothing) if r == 10
             if r == 10:
                 stdinclients[i].write("nothing\n")

@@ -347,6 +347,7 @@ void processInput(void) {
         if (firstword != NULL) {
             char* secondword = strtok(NULL, " ");
             if (secondword != NULL) {
+                toLowerOrUpperString(secondword, 'U');
                 if (strcmp("register_user", firstword) == 0 && secondword != NULL) {
                     sendMessage(client_fd, MSG_REGISTRA_UTENTE, secondword);
                     return;
