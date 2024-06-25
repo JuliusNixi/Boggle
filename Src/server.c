@@ -2639,7 +2639,9 @@ void atExit(void) {
 // (Since with the POSIX-key implementation all threads must have the same registered destructor.
 void threadDestructor(void* args) {
 
-
+    // IMPORTANT TO AVOID MEMORY LEAKS!
+    char* dataptr = pthread_getspecific(key);
+    free(dataptr);
     if (pthread_self() == sig_thr_id) {
         // TODO threadDestructor()
     }else if(pthread_self() == mainthread){

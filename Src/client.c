@@ -556,6 +556,9 @@ void* responsesHandler(void* args) {
 
 void threadDestructor(void* args) {
 
+    // IMPORTANT TO AVOID MEMORY LEAKS!
+    char* dataptr = pthread_getspecific(key);
+    free(dataptr);
     // TODO threadDestrucotr()
     if (pthread_self() == responses_thread) {
 
@@ -563,6 +566,7 @@ void threadDestructor(void* args) {
 
     }else if(pthread_self() == mainthread){
         // Delegate to the atExit(), executed after the returns of this function.
+        
         exit(EXIT_SUCCESS);
     }else{
         // Error

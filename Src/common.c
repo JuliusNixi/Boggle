@@ -560,7 +560,10 @@ void handleError(char printerrno, char killmain, char errorfromprintff, char kil
     // Main thread killer.
     if (killmain) {
         // We are the main.
-        if (pthread_self() == mainthread) pthread_exit(NULL); // atExit() called after thread destructor.
+        if (pthread_self() == mainthread){
+            pthread_cancel(mainthread);
+            pthread_exit(NULL); // atExit() called after thread destructor.
+        } 
         // We are not the main, we are another thread.
         // The pthread_cancel() allows the call to the killed thread destructor.
         retvalue = pthread_cancel(mainthread); // atExit() called after thread destructor.
@@ -681,12 +684,34 @@ void threadSetup(void){
         handleError(0, 1, 0, 0, "Error in pthread_once().\n");
     }
 
-    retvalue = pthread_setspecific(key, ptr);
+    // Setting LOCAL thread's data.
+    // Never used, but for clarity.
+    char data;
+    pthread_t current = pthread_self();
+    if (current == mainthread) data = 'M'; // Main thread.
+    else data = 'O'; // Other thread.
+
+    // This if is executed only the first time (by each thread) to setup the data.
+    // WARNING, IF THE DATA IS NOT SETUP, THE DESTRUCTOR WON'T BE EXECUTED!
+    if ((ptr = pthread_getspecific(key)) == NULL) {
+        ptr = malloc(sizeof(char));
+        if (ptr == NULL) {
+            // Error
+            handleError(0, 0, 0, 1, "Error in malloc() in threadSetup().\n");
+        }
+        *((char*)(ptr)) = data;
+        // ... Other things that may be necessary carried out ONLY the FIRST TIME FOR EACH THREAD. ...
+        retvalue = pthread_setspecific(key, ptr);
         if (retvalue != 0){
             // Error
             handleError(0, 0, 0, 1, "Error in pthread_setspecific().\n");
         }
         printff(NULL, 0, "Specific key setted for thread (ID): %lu.\n", (uli)pthread_self());
+    }
+
+    // Retrieve thread specific data (not necessary in this usage).
+    // char* dataptr = pthread_getspecific(key)
+    ;
 
     return;
     
