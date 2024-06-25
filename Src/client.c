@@ -576,8 +576,14 @@ void threadDestructor(void* args) {
 // Will be executed before exiting by the main thread.
 void atExit(void) {
 
+    // I am the main thread mandatorily.
+
     // TODO atExit()
     printff(NULL, 0, "EXIT!\n");
+    
+    printff(NULL, 0, "Main thread cleaner executed succesfully!\n");
+
+    _exit(0);
 
 }
 
@@ -617,6 +623,9 @@ void* signalsThread(void* args) {
         switch (sig){
             case SIGINT:{ 
                 // TODO SIGINT
+                printff(NULL, 0, "SIGINT intercepted, exiting...\n");
+                pthread_cancel(mainthread);
+                pthread_exit(NULL);
                 break;
             }case SIGPIPE:{
                 // Nothing, already handled by the single threads.

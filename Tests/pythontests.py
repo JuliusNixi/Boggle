@@ -35,7 +35,7 @@ def end():
         p = clients[i]
         poll = p.poll()
         if poll is None:
-            os.kill(p.pid, signal.SIGQUIT) # process alive
+            os.kill(p.pid, signal.SIGINT) # process alive
         stdinclients[i].close()
 
     print("Killed all clients, exiting...")
@@ -126,7 +126,7 @@ for t in range(ntests):
                 
             # killing the client if r == 10
             if r >= 95:
-                os.kill(clients[i].pid, signal.SIGQUIT)
+                os.kill(clients[i].pid, signal.SIGINT)
                 stdinclients[i].write("kill")
 
         if someonealiveflag == 0:
