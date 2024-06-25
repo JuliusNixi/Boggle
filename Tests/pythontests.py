@@ -102,10 +102,15 @@ for t in range(ntests):
                 word += words[r]
                 action += " " + word + "\n"
             # submitting action
-            p.stdin.write(action.encode())
-            p.stdin.flush()
-            stdinclients[i].write(action)
-            r = random.randint(1, 100)
+            r = 0
+            try:
+                p.stdin.write(action.encode())
+                p.stdin.flush()
+                stdinclients[i].write(action)
+                r = random.randint(1, 100)
+            except BrokenPipeError:
+                print(f"Broken pipe client {i}.")
+                r = 100
             # killing the client if r == 10
             if r >= 95:
                 os.kill(clients[i].pid, signal.SIGQUIT)
