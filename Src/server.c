@@ -2206,10 +2206,11 @@ void* clientHandler(void* voidclient) {
                 char n[le + 1];
                 strcpy(n, client->name);
                 n[le] = '\0';
-                char sstr[] = "Registered correctly with name: %s.\n";
-                uli total = strlen(n) + strlen(sstr) + 1;
+                char sstr[] = "Registered correctly with name: %s. Your ID: %lu.\n";
+                char* id = itoa((uli)pthread_self());
+                uli total = strlen(n) + strlen(sstr) + strlen(id) + 1;
                 char resstr[total];
-                sprintf(resstr, sstr, n);
+                sprintf(resstr, sstr, n, (uli) pthread_self());
                 resstr[total] = '\0';
                 sendMessage(client->socket_client_fd, MSG_OK, resstr);
                 printff(NULL, 0, "User registered succesfully, request from name %s satisfied.\n", client->name);
