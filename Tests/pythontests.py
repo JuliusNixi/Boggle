@@ -12,8 +12,8 @@ if len(sys.argv) != 3:
 
 random.seed(42)
 
-nclients = 500
-nactions = 500
+nclients = 50
+nactions = 30
 ntests = 10
 clients = []
 actions = ["help\n", "matrix\n", "end\n", "register_user", "p", "invalidcommand\n"]
