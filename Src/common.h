@@ -57,7 +57,6 @@ pthread_mutex_t mutexprint; // Mutex used to sync multiline threads printing wit
 
 char setupfinished; // Used to notify the main thread to continue after initialization of all others threads.
 
-
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 void* signalsThread(void*);
 void atExit(void);

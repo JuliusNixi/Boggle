@@ -2655,6 +2655,23 @@ void threadDestructor(void* args) {
 
 }
 
+void* disconnectClientKiller(void* args) {
+
+    struct DisconnectClientThreadData* t = (struct DisconnectClientThreadData*) args;
+    uli tmpt = (uli) t->threadtokill;
+    int retvalue = pthread_kill(t->threadtokill, SIGQUIT);
+    if (retvalue != 0) {
+        // Error
+    }
+    free(t->client);
+    free(t);
+    printff(NULL, 0, "DISCONNECTION: %lu (ID) thread client disconnected succesfully.\n", tmpt);
+    pthread_exit(NULL);
+
+    return NULL;
+
+}
+
 // ANCHOR disconnectClient()
 // This function disconnects a client, it also removes the client from the clients list.
 // It also frees all the heap allocated objects and destroys the relative mutex.
@@ -2834,19 +2851,31 @@ disconnect_restart: {
             handleError(0, 0, 0, 1, "Error in disconnectClient() in the pthread_mutex_destroy().\n");
         }
 
-        uli tmpt = (uli)client->thread;
-
-        free(client);
         *clienttodestroy = NULL;
-   
-        printff(NULL, 0, "DISCONNECTION: %lu (ID) thread client disconnected succesfully.\n", tmpt);
 
-        // Terminating corresponding client's thread.
-        if ((uli)pthread_self() == tmpt) pthread_exit(NULL);
-        else retvalue = pthread_cancel(pthread_self());
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 0, 0, 0, "WARNING: Error in pthread_cancel() in the disconnectClient(), trying to continue ignoring it.\n");
+        printff(NULL, 0, "DISCONNECTION: %lu (ID) thread client is terminating.\n", (uli)client->thread);
+
+        if (client->thread == pthread_self()) {
+            void* data = malloc(sizeof(struct DisconnectClientThreadData));
+            if (data == NULL) {
+                // Error
+            }
+            ((struct DisconnectClientThreadData*)data)->client = client;
+            ((struct DisconnectClientThreadData*)data)->threadtokill = pthread_self();
+            pthread_t thread_killer;
+            retvalue = pthread_create(&thread_killer, NULL, disconnectClientKiller, data);
+            if (retvalue != 0) {
+                // Error
+                handleError(0, 1, 0, 0, "Error in pthread_create() in the disconnectClient().\n");
+            }     
+            // This should NOT return. 
+            pthread_join(thread_killer, NULL); 
+        }else{
+            uli tmpt = (uli) client->thread;
+            pthread_cancel(client->thread);
+            free(client);
+            printff(NULL, 0, "DISCONNECTION: %lu (ID) OTHER thread client disconnected succesfully.\n", tmpt);
+            return;
         }
 
     }

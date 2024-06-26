@@ -684,6 +684,7 @@ void threadSetup(void){
         handleError(0, 1, 0, 0, "Error in pthread_once().\n");
     }
 
+
     // Setting LOCAL thread's data.
     // Never used, but for clarity.
     char data;

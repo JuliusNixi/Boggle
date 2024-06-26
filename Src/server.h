@@ -91,6 +91,10 @@ struct ClientNode {
 
 }; 
 
+struct DisconnectClientThreadData {
+        struct ClientNode* client;
+        pthread_t threadtokill;
+};
 
 // Queue used only as required by the project text to handle the end game.
 /*
