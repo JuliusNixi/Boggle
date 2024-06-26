@@ -3120,6 +3120,7 @@ void gameEndQueue(struct ClientNode* e) {
 
 }
 
+// ANCHOR clearQueue()
 // This function clear the end game queue to prepare it for the next game end.
 // IT ASSUMES THAT THE queuemutex HAS BEEN ACQUIRED BY THE CALLER!
 void clearQueue(void) {
@@ -3136,8 +3137,9 @@ void clearQueue(void) {
     while (1) {
         if (begin == NULL) break;
         tmp = begin->next;
-        destroyMessage(&(begin->message));
-        free(begin);
+        struct Queue* t = begin;
+        if (begin->message) destroyMessage(&(begin->message));
+        if (t) free(t);
         begin = tmp;
     }
 
