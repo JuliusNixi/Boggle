@@ -568,7 +568,6 @@ void threadDestructor(void* args) {
 
     }else if(pthread_self() == mainthread){
         // Delegate to the atExit(), executed after the returns of this function.
-        
         exit(EXIT_SUCCESS);
     }else{
         // Error
@@ -586,6 +585,15 @@ void atExit(void) {
 
     // TODO atExit()
     printff(NULL, 0, "EXIT!\n");
+
+    int retvalue;
+    if (client_fd){
+        retvalue = close(client_fd);
+        if (retvalue != 0) {
+            handleError(1, 0, 0, 0, "Error in socket close.\n");
+        }else
+            printff(NULL, 0, "Socket close succesfully.\n");
+    }
     
     printff(NULL, 0, "Main thread cleaner executed succesfully!\n");
 
@@ -631,7 +639,6 @@ void* signalsThread(void* args) {
                 // TODO SIGINT
                 printff(NULL, 0, "SIGINT intercepted, exiting...\n");
                 pthread_cancel(mainthread);
-                pthread_exit(NULL);
                 break;
             }case SIGPIPE:{
                 // Nothing, already handled by the single threads.
