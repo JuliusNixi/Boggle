@@ -211,14 +211,15 @@ readlength:
     }
 
     // Allocating heap memory to store the received message data.
-    char* bufferstr = NULL;
-    if (readed->length == 0) readed->length = 1; // For null.
-    bufferstr = (char*) malloc(sizeof(char) * readed->length);
-    if (bufferstr == NULL) {
-        // Error
-        handleError(0, 0, 0, 0, "WARNING: Error in malloc() in receiveMessage(). Trying continuing and ignoring the message.\n");
-        free(readed);
-        return NULL;
+    char* bufferstr = 0;
+    if (readed->length != 0) {
+        bufferstr = (char*) malloc(sizeof(char) * readed->length);
+        if (bufferstr == NULL) {
+            // Error
+            handleError(0, 0, 0, 0, "WARNING: Error in malloc() in receiveMessage(). Trying continuing and ignoring the message.\n");
+            free(readed);
+            return NULL;
+        }
     }
     readed->data = bufferstr;
 
@@ -226,7 +227,10 @@ readlength:
     writingpointer = readed->data;
 readdata:
     // Reading/Waiting for the message data.
+    if (readed->length != 0)
     retvalue = read(fdfrom, writingpointer, toread);
+    else
+    retvalue = read(fdfrom, writingpointer, sizeof(char*));
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
         free(readed->data);
@@ -314,13 +318,13 @@ void* sendMessage(int fdto, char type, char* data) {
     tosend.type = type;
 
     // Calculating and setting data length.
-    tosend.length = 1U;
+    tosend.length = 0U;
     if (data != NULL)
         tosend.length = (unsigned) (sizeof(char) * (strlen(data) + 1)); // +1 for '\0'.
 
-    char* s = NULL;
+    char* s;
     if (data == NULL)
-        tosend.data = 0;
+        s = 0;
     else{
         s = (char*) malloc(sizeof(char) * tosend.length);
         if (s == NULL) {
@@ -329,9 +333,10 @@ void* sendMessage(int fdto, char type, char* data) {
             return NULL;
         }
         strcpy(s, data);
-        s[tosend.length] = '\0';
-        tosend.data = s;
+        s[strlen(data)] = '\0';
     }
+
+    tosend.data = s;
     
     towrite = sizeof(tosend.type);
     writingpointer = &(tosend.type);
@@ -408,9 +413,9 @@ sendlength:
     writingpointer = (tosend.data);
 senddata: {
     // Writing the message data.
-    char nulll = 0;
+    char* nulll = 0;
     if (writingpointer != 0) retvalue = write(fdto, writingpointer, towrite);
-    else retvalue = write(fdto, &nulll, towrite);
+    else retvalue = write(fdto, nulll, sizeof(char*));
 
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
@@ -463,8 +468,8 @@ void destroyMessage(struct Message** m) {
 
     // Releasing allocated memory and destroying the vars content.
     (*m)->type = (char)0;
-    (*m)->length = 0u;
-    free((*m)->data);
+    (*m)->length = 0U;
+    if ((*m)->data != NULL) free((*m)->data);
     (*m)->data = NULL;
     free((*m));
     *m = NULL;

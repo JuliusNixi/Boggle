@@ -2050,8 +2050,7 @@ void* clientHandler(void* voidclient) {
 
                 if (received != NULL) {
                     sendMessage(client->socket_client_fd, MSG_IGNORATO, NULL);
-                    free(received);
-                    received = NULL;
+                    destroyMessage(&received);
                 }else{
                     // Received NULL, no messages to process, go ahead to client->actionstoexecute == 1.
                     ;
@@ -2139,6 +2138,9 @@ void* clientHandler(void* voidclient) {
                 }
 
                 // Trying to register the proposed name.
+                if (received->data == 0) {
+                    // Error
+                }
                 r = registerUser(received->data, client, received);
                 // Interrupted by end game.
                 if (r == -3) continue;
@@ -2245,6 +2247,9 @@ void* clientHandler(void* voidclient) {
                 }
 
                 // Submitting the word.
+                if (received->data == 0) {
+                    // Error
+                }
                 int p = submitWord(client, received->data);
 
                 if (p == -1) {
