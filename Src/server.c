@@ -653,7 +653,7 @@ void* signalsThread(void* args) {
                         usleep(100);
                     } 
                     // Continuing only when the signal has been received by the client.
-                    if (current->receivedsignal && current->waiting == 1) current = current->next;
+                    if (current->receivedsignal && current->waiting) current = current->next;
                     else usleep(100);
                 }
                 // Now all clients threads (in clientHandler()) are suspended
@@ -793,7 +793,6 @@ void* signalsThread(void* args) {
                         handleError(0, 0, 0, 0, "WARNING: Error in pthread_kill() in signalsThread(), retrying in a moment...\n");
                         usleep(100);
                     }
-
                     if (current->receivedsignal && current->waiting == 1) current = current->next;
                     else usleep(100);
                 }
@@ -1534,7 +1533,7 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     if (user == NULL) {
         // Error
         handleError(0, 0, 0, 0, "WARNING: Invalid user in registerUser().\nTrying to continue without registering the user.\n");
-        return -4;
+        return -4; 
     }
 
     // Only check if the user is registered without registering it when name == NULL is passed.
@@ -1578,19 +1577,16 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
             // Pre-releasing the mutex to fix the deadlock.
             mULock(&(user->handlerequest));
             // To avoiding to re-acquiring immediately.
-            usleep(100);
             // To notify to the caller clientHandler() to not release the already released mutex.
             // Interrupted by end game.
             return -3;
         }else{
             // Error
             user->registerafter = m;
-            mULock(&(user->handlerequest));
-            usleep(100);
             handleError(0, 0, 0, 0, "WARNING: Error in registerUser(), cannot acquire the \"pausemutex\".\nContinuing without registering.\n");
             // To notify to the caller clientHandler() to not release the already released mutex.
             // Interrupted by end game.
-            return -4;
+            return -6;
         }
     }
 
@@ -1607,7 +1603,7 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
         mULock(&(user->handlerequest));
         mULock(&listmutex);
         handleError(0, 0, 0, 0, "WARNING: Error, called registerUser() and the clients list is empty.\nTrying to continue ignoring it.\n");
-        return -4;
+        return -10;
     }
     // Going through the list.
     // If registerUser() is called, it means at least 1 player should be in the clients list.
@@ -1622,11 +1618,14 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
         } 
         current = current->next;
     }
-    mULock(&listmutex);
-    mULock(&pausemutex);
+
 
     // Name already present.
-    if (found) return -2;
+    if (found) {
+        mULock(&(user->handlerequest));
+        mULock(&listmutex);
+        return -2;
+    } 
 
     // If we arrive here the user name is valid and not already registered.
 
@@ -1635,7 +1634,9 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     if (str == NULL) {
         // Error
         handleError(0, 0, 0, 0, "WARNING: Error registering a new user name: %s.\nTrying to continue without registering it.\n");
-        return -4;
+        mULock(&(user->handlerequest));
+        mULock(&listmutex);
+        return -8;
     }
     // Copying the new username in heap memory.
     // Terminating string.
@@ -1651,12 +1652,17 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     user->words_validated = (char**) malloc(sizeof(char*) * words_len);
     if (user->words_validated == NULL) {
         // Error
+        mULock(&(user->handlerequest));
+        mULock(&listmutex);
         handleError(0, 0, 0, 0, "WARNING: Error in allocating heap memory for \"words_validated\" of a client/player in registerUser().\nTrying to continue without registering it.\n");
-        return -4;
+        return -12;
     }
     for (unsigned int i = 0; i < words_len; i++) (user->words_validated)[i] = words_valid[i];
 
     printff(NULL, 0, "Registered user succesfully with the new name %s.\n", user->name);
+
+    mULock(&listmutex);
+    mULock(&pausemutex);
 
     // Registered succesfully.
     return -1;
@@ -1820,6 +1826,7 @@ void acceptClient(void) {
         // Not killing the thread with handleError(), because it will be done from the next disconnectClient().
         handleError(0, 0, 0, 0, "Maximum number of clients reached (%lu). Disconnecting the new client.\n", nclientsconnected);
         disconnectClient(new, 0);   
+        // No kill this thread!
         return;    
     }
 
@@ -2098,9 +2105,9 @@ void* clientHandler(void* voidclient) {
                 if (r == -4) {
                     // Error
                     handleError(0, 0, 0, 0, "WARINNG: Error in the registerUser() in MSG_MATRICE, retrying in a moment...\n");
-                    usleep(100);
-                    continue;
+                    break;
                 }
+            
 
                 // Pause game check.
                 if (!pauseon) {
@@ -2137,27 +2144,45 @@ void* clientHandler(void* voidclient) {
                     break;
                 }
 
+                if (r == -4) {
+                    // Error
+                    handleError(0, 0, 0, 0, "WARINNG: Error in the registerUser() in MSG_REGISTRA_UTENTE, retrying in a moment...\n");
+                    break;
+                }
+
                 // Trying to register the proposed name.
                 if (received->data == 0) {
                     // Error
                 }
                 r = registerUser(received->data, client, received);
-                // Interrupted by end game.
-                if (r == -3) continue;
-
                 if (r == -4) {
                     // Error
-                    handleError(0, 0, 0, 0, "WARINNG: Error in the registerUser(), retrying in a moment...\n");
-                    continue;;
+                    handleError(0, 0, 0, 0, "WARINNG: Error in the registerUser() in MSG_REGISTRA_UTENTE, retrying in a moment...\n");
+                    break;
                 }
+                // Interrupted by end game.
+                if (r == -3){
+                    // Mutex already released.
+                    continue;
+                } 
 
+                if (r == -6){
+                    // Error
+                    break;  
+                }
+                if (r == -10){
+                    // Mutex already released.
+                    continue;
+                } 
 
                 if (r == -2){
                     // Name already present.
                     sendMessage(client->socket_client_fd, MSG_ERR, "Name already present in the game, please chose a different one.\n");
                     printff(NULL, 0, "A user tried registering an already present name: %s.\n", received->data);
-                    break;
+                    // Mutex already released.
+                    continue;
                 }
+
                 if (r > 0) {
                     int l = strlen(ALPHABET);
                     char a[l + 1];
@@ -2174,6 +2199,11 @@ void* clientHandler(void* voidclient) {
                     sendMessage(client->socket_client_fd, MSG_ERR, resstr);
                     printff(NULL, 0, "A user tried to register the proposed name: %s. It contains the: %c character, that's invalid againist the alphabet %s.\n", received->data, (char) r, ALPHABET);
                     break;
+                }
+
+                if (r == -8 || r == -12) {
+                     // Mutex already released.
+                    continue;                   
                 }
 
                 // Here r must be -1, r == -1.
@@ -2239,6 +2269,12 @@ void* clientHandler(void* voidclient) {
                     break;
                 }
 
+                if (r == -4) {
+                    // Error
+                    handleError(0, 0, 0, 0, "WARINNG: Error in the registerUser() in MSG_PAROLA, retrying in a moment...\n");
+                    break;
+                }
+
                 // Game in pause.
                 if (pauseon) {
                     sendMessage(client->socket_client_fd, MSG_ERR, "Cannot submit words during the game pause. Please, wait a new game.\n");
@@ -2275,6 +2311,7 @@ void* clientHandler(void* voidclient) {
 
                 free(strint);
                 break;
+
             }case MSG_ESCI : {
                 printff(NULL, 0, "Received a disconnection request thread (ID): %lu.\n", (uli)pthread_self());
                 destroyMessage(&received);
@@ -2303,6 +2340,7 @@ void* clientHandler(void* voidclient) {
 
         } // Switch end.
 
+        usleep(100);
         destroyMessage(&received);
         mULock(&(client->handlerequest));
 
