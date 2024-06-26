@@ -39,9 +39,6 @@ struct ClientNode {
 
     pthread_mutex_t handlerequest;  // Each client will have a mutex that will be acquired from the corresponding thread when a request will be taken over. So, in case of game ends, the thread that will manage the pause (signalsThread()) will wait for all clients threads (clientHandler()) to finish the requests RECEIVED BEFORE.
 
-    pthread_mutexattr_t handlerequestattr; // Used to change the above mutex type to PTHREAD_MUTEX_ERRORCHECK. To perform some checks that with the default would not be possible to do.
-    // For more info: https://man7.org/linux/man-pages/man3/pthread_mutex_lock.3p.html
-
     uli points; // Player game points, increased when the player guess a word.
 
     char** words_validated; // To remember the already submitted words by the player.
@@ -88,6 +85,8 @@ struct ClientNode {
    char toexit; // This is used to notify the signalsThread() thread of a client's disconnection.
 
    char filledqueue;
+
+   char threadstarted;
 
 }; 
 

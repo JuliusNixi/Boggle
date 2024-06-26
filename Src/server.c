@@ -1776,28 +1776,9 @@ void acceptClient(void) {
     }
     printff(NULL, 0, "New client succesfully accepted (TMP ID): %lu.\n", clientid);
 
-
-    // Initializing a mutex of type PTHREAD_MUTEX_ERRORCHECK.
-    // This type of mutex provides error checking (which the default one does not have) that will be used in disconnectClient(). 
-    // The following will be the (this) mutex behavior.
-    // A thread attempting to relock this mutex without first unlocking it shall return with an error. 
-    // A thread attempting to unlock a mutex which another thread has locked shall return with an error.
-    // A thread attempting to unlock an unlocked mutex shall return with an error.
-    retvalue = pthread_mutexattr_init(&(new->handlerequestattr));
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 0, 0, "Error in mutex attributes initializing in acceptClient().\n");
-    }
-
-    retvalue = pthread_mutexattr_settype(&(new->handlerequestattr), PTHREAD_MUTEX_ERRORCHECK);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 0, 0, "Error in mutex attributes setting in acceptClient().\n");
-    }
-
     // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
     // In this case i must use pthread_mutex_init().
-    retvalue = pthread_mutex_init(&(new->handlerequest), &(new->handlerequestattr));
+    retvalue = pthread_mutex_init(&(new->handlerequest), NULL);
     if (retvalue != 0) {
         // Error
         handleError(0, 1, 0, 0, "Error in mutex initializing in acceptClient().\n");
@@ -1814,6 +1795,7 @@ void acceptClient(void) {
     // These below fields are truly initalized when the client is registered in registerUser().
     new->words_validated = NULL;
     new->name = NULL;
+    new->threadstarted = 0;
 
     // Adding the client to the list and updating global vars head and tail useful
     // to manage the list.
@@ -1837,6 +1819,7 @@ void acceptClient(void) {
         sendMessage(new->socket_client_fd, MSG_ESCI, "Maximum number of clients reached. Disconnecting you... :(\n");
         // Not killing the thread with handleError(), because it will be done from the next disconnectClient().
         handleError(0, 0, 0, 0, "Maximum number of clients reached (%lu). Disconnecting the new client.\n", nclientsconnected);
+        new->thread = -1;
         disconnectClient(new);        
         // HERE THE THREAD SHOULD BE DEAD, BECAUSE WE ARE TERMINATING OURSELFES.
     }
@@ -1963,6 +1946,8 @@ void* clientHandler(void* voidclient) {
     struct ClientNode* client = (struct ClientNode*) voidclient;
 
     struct Message* received = NULL;
+
+    client->threadstarted = 1;
 
     // Setting thread destructor.
     threadSetup();
@@ -2550,11 +2535,6 @@ void atExit(void) {
             // Error
             handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
         }
-        retvalue = pthread_mutexattr_destroy(&(c->handlerequestattr));
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-        }
         c = c->next;
     }
 
@@ -2771,11 +2751,6 @@ disconnect_restart: {
         client->name = NULL;
         if (client->registerafter) free(client->registerafter);
         client->registerafter = NULL;
-        retvalue = pthread_mutexattr_destroy(&(client->handlerequestattr));
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 0, 0, 1, "Error in disconnectClient() in the pthread_mutexattr_destroy().\n");
-        }
         retvalue = pthread_mutex_destroy(&(client->handlerequest));
         if (retvalue != 0) {
             // Error
@@ -2788,10 +2763,10 @@ disconnect_restart: {
         }
         client->socket_client_fd = -1;
 
-        uli tmpt = (uli) client->thread;
+        uli tmpt = client->threadstarted == 0 ? 0LU : (uli)client->thread;
 
         free(client);
-
+  
         printff(NULL, 0, "DISCONNECTION: %lu (ID) client has disconnected succesfully.\n", tmpt);
 
         pthread_exit(NULL);
@@ -2881,7 +2856,9 @@ char* serializeStrClient(struct ClientNode* c) {
     free(pointsstr);
 
     // Calculating Thread ID length (as string).
-    char* threadidstr = itoa((uli) c->thread);
+    char* threadidstr;
+    if (c->threadstarted) threadidstr = itoa((uli) c->thread);
+    else threadidstr = itoa(0LU);
     uli threadidstrlen = strlen(threadidstr);
     free(threadidstr);
 
@@ -2893,8 +2870,9 @@ char* serializeStrClient(struct ClientNode* c) {
         handleError(0, 1, 0, 0, "Error in serializeStrClient(), in the malloc..\n");
     }
     // Filling the string with data.
-    if (c->name != NULL) sprintf(rs, st, c->name, buf, (uli) port, (uli) c->points, (uli) c->thread);
-    else sprintf(rs, st, NO_NAME, buf, (uli) port, (uli) c->points, (uli) c->thread);
+    uli t = c->threadstarted == 0 ? 0LU : (uli) c->thread;
+    if (c->name != NULL) sprintf(rs, st, c->name, buf, (uli) port, (uli) c->points, (uli)t);
+    else sprintf(rs, st, NO_NAME, buf, (uli) port, (uli) c->points, (uli)t);
 
     return rs;
 
