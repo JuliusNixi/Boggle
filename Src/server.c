@@ -1819,7 +1819,6 @@ void acceptClient(void) {
         sendMessage(new->socket_client_fd, MSG_ESCI, "Maximum number of clients reached. Disconnecting you... :(\n");
         // Not killing the thread with handleError(), because it will be done from the next disconnectClient().
         handleError(0, 0, 0, 0, "Maximum number of clients reached (%lu). Disconnecting the new client.\n", nclientsconnected);
-        new->thread = -1;
         disconnectClient(new);        
         // HERE THE THREAD SHOULD BE DEAD, BECAUSE WE ARE TERMINATING OURSELFES.
     }
