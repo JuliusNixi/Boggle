@@ -1,0 +1,104 @@
+\chapter{Strutture dati ed algoritmi}
+\label{ch:strutturedatiedalgoritmi}
+
+% --- Inizio del Capitolo 1 ---
+
+\iffalse
+
+Esempio di una nota\footnote{CleanCode} con citazione a sezione~\ref{sec:server}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.2\textwidth]{immagini/logo-dip_blu_hr.png}
+    \caption{Esempio di un'immagine}
+    \label{fig:immagine1}
+\end{figure}
+
+\begin{lstlisting}[caption={Esempio codice JavaScript},label={Esempio codice JavaScript}, language=JavaScript]
+function foo(num) {
+    const bar = 2;
+    return num + bar;
+}
+
+const result = foo(2);
+// result -> 4
+\end{lstlisting}
+
+
+\fi
+
+\section{Server}
+\label{sec:serverstrutturedatiedalgoritmi}
+
+% Sezione 1... con citazione bibliografica~\cite{CleanCode}
+
+\subsection{Lista giocatori}
+\label{subsec:listagiocatori}
+
+La struttura dati principale usata per la gestione dei clients/giocatori, \'e una lista concatenata di elementi con una struttura e puntatore al prossimo elemento della lista. \'E stata scelta per:
+ \\ - Possibilit\'a di gestire potenzialmente infiniti giocatori, risorse computazionali permettendo.
+ \\ - Allocazione dinamica on demand che permette di sprecare poca memoria (non preallocandola) quando i giocatori si scollegano (la memoria viene liberata), o sono assenti.
+ \\ - Il vantaggio che tutte le operazioni riguardanti un solo determinato client possono essere svolte dal relativo thread attraverso il puntatore alla struttura rappresentante suddetto giocatore e qui si hanno tutte le informazioni che potrebbero servire.
+  \\
+ Lo svantaggio sostanziale \'e che talvolta dobbiamo scorrere tutta la lista sincronizzandoci opportunamente con particolare attenzione, perch\'e, in caso contrario, a differenza di un array per esempio, potrebbero verificarsi problemi molto pi\'u gravi in certe fasi, come nell'aggiunta o rimozioni di elementi. Per far ci\'o si utilizza (ma non \'e l'unico) listmutex.
+ \\
+ Tale lista \'e condivisa tra clients registrati e non.
+ \\
+ 
+ 
+ \subsection{Matrice di gioco}
+ \label{subsec:matricedigioco}
+
+La matrice di gioco, avendo dimensione predeterminata alla compilazione e costante \'e allocata staticamente globalmente come matrice di caratteri (char[][]). Il 'Qu' viene salvato come 'Q', ma gestito opportunamente.
+\\
+\subsection{Parole e dizionario}
+\label{subsec:paroledizionario}
+Le parole del file dizionario sono memorizzate in un array (words) di stringhe (char**) allocato dinamicamente, sia l'array, che le stringhe stesse. Le parole sono caricate tutte in memoria, leggendo il file, solo una volta inizialmente, limitando l'impatto delle costose operazioni di I/O con il disco. Vi \'e poi una copia di words (words\_valid) allocata in memoria, dinamicamente, per\'o, NON riallocando le stringhe ed utilizzando inutilmente altra memoria, ma semplicemente copiando i puntatori da words. Ad ogni inizio nuovo gioco, contestualmente al cambio della matrice di gioco, i puntatori alle stringhe di words\_valid vengono aggiornati, quelli delle parole presenti nella nuova matrice, rimangono invariati (copiati da words), mentre quelli delle parole NON presenti, vengono incrementati fino a raggiungere il terminatore (\textbackslash0) di stringa. Vi \'e poi un'altra copia di words\_valid (words\_validated), allocata identicamente, per ogni giocatore registrato, il cui puntatore si trova nella struttura rappresentate tale giocatore. Quando una parola valida (presente in words\_valid E in words\_validated) viene sottomessa da un utente registrato, per la PRIMA volta, words\_validated viene aggiornato, incrementandone il puntatore fino al terminatore, cos\'icch\'e ad nuova sua sottomissione della medesima parola, essa possa essere rifiutata senza attribuirne nuovamente il punteggio al player.
+\\
+Riassumendo, le parole del file dizionario vengono tutte cercate ad ogni cambio di matrice di gioco (inizio nuovo gioco) (ma NON lette dal file, vengono caricate tutte solo la prima volta in words) nella matrice stessa per aggiornare words\_validated, del quale ogni giocatore (registrato) avr\'a una copia personale per tracciare quelle gi\'a sottomesse. 
+\\
+\subsection{Algoritmo di ricerca}
+\label{subsec:algoritmoricerca}
+Per gestire la ricerca delle parole proposte si \'e scelto di utilizzare il seguente algoritmo. Per ogni parola viene visitata tutta la matrice e per ogni suo carattere (della matrice) invocata la funzione searchWordInMatrix(), la quale parte dal carattere della matrice specificato (con indici i di riga e j di colonna della corrente iterazione) e ricorsivamente controlla che i caratteri adiacenti [(i, j+1),(i+1, j),(i,j-1),(i-1,j)] nella matrice siano corrispondenti al prossimo carattere di parola cercato. Se non vi \'e corrispondenza, o i o j sono fuori dal range di grandezza della matrice, si ritorna un fallimento, altrimenti, se il prossimo carattere di parola voluto \'e identico al terminatore di stringa, allora significa che precedentemente abbiamo trovato tutte le lettere disposte adiacentemente e quindi ritorniamo un successo. Bisogna prestare attenzione a "marcare" i caratteri gi\'a visitanti per evitare di poter utilizzare pi\'u volte lo stesso carattere della matrice nella composizione di una parola o di perdersi in loop infiniti. Per quanto riguarda la complessit\'a? Vediamo un esempio. Per semplicit\'a assumiamo di avere M una matrice N x N (utilizzando sempre matrici quadrate), di avere K parole sul file dizionario, e di avere una parola W, da cercare, in input, ossia verificarne la presenza nella lista delle parole E nella matrice. Con la predetta soluzione, dopo aver letto dal file le parole ed averle inserite in words, si dovr\'a riempire words\_valid (solo una volta ad ogni inizio gioco), scorreremo quindi words in K passi, ad ogni passo iteriamo su M effettuando $N \cdot N$ passi, invocando ad ognuno, searchWordInMatrix(), la quale per trovare la parola al massimo effettuer\'a proprio altri $N \cdot N$ passi che rappresentano la parola di lunghezza massima che si pu\'o trovare nella matrice, vediamo a seguire un esempio con N = 5 dove con la numerazione \'e riportato solamente uno dei possibili percorsi completi che searchWordInMatrix() potr\'a intraprendere per trovare\\\\ la parola di lunghezza massima 25:
+$
+\begin{bmatrix}
+1 & 2 & 3 & 4 & 5\\
+10 & 9 & 8 & 7 & 6\\
+11 & 12 & 13 & 14 & 15\\
+20 & 19 & 18 & 17 & 16\\
+21 & 22 & 23 & 24 & 25\\
+\end{bmatrix}
+$.\\\\
+Quindi ricapitolando $ K \cdot N \cdot N \cdot N \cdot N = N^4K $ la pima volta, a seguire, ogni parola cercata da un giocatore comporter\'a solamente la ricerca in words\_valid (ed il controllo in words\_validated, ma questo si far\'a ad accesso diretto se trovata, dato che gli array sono allineati) con costo $ K $. In conclusione credo sia una discreta implementazione, che sfrutta la potenza dell'aritmetica dei puntatori, le stringhe sono effettivamente in memoria solo una volta e a fronte di un costo iniziale pi\'u elevato permette di rispondere pi\'u velocemente a seguire ai giocatori.
+\\
+\subsection{Coda di fine gioco}
+\label{subsec:coda}
+Per la struttura del progetto vista, la coda richiesta dalle specifiche, non sarebbe stata necessaria, anzi \'e risultata un'inutile complicazione. Sarebbe stato sufficiente sbloccare i threads dei clients e segnalarli di inviare il messaggio di fine gioco con la scoreboard al client gestito. Ogni thread cos\'i, sfruttando la peculiaret\'a sopra spiegata, avrebbe potuto inviare il messaggio utilizzando il puntatore alla struttura del giocatore in possesso che fornisce gi\'a tutte le informazioni necessarie. Comunque per aderenza alle richieste, la coda \'e stata utilizzata. Essa \'e stata implementata come lista concatenata, ogni elemento \'e una struttura contenente un puntatore al corrispettivo client, un puntatore ad un messaggio (con struttura come richiesta) contenente nel campo data, il nome del client (se registrato, un placeholder altrimenti) ed il punteggio ottenuto nel gioco separati con una virgola, ed infine un puntatore all'elemento successivo. Per la sincronizzazione viene utilizzato (ma non \'e l'unico) queuemutex.
+	
+\section{Client}
+\label{sec:clientstrutturedatiedalgoritmi}
+Nel client vengono utilizzate due liste allocate dinamicamente. La prima di una struttura contenente stringhe allocate dinamicamente, dove ogni stringa ha una lunghezza massima BUFFER\_SIZE. La seconda di una struttura contenente messaggi che rappresentano le risposte ricevute dal server. Per sapere il peculiare motivo di queste fare riferimento alle pagine seguenti. Nessun particolare algoritmo \'e utilizzato.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

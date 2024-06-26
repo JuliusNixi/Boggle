@@ -1,0 +1,68 @@
+\chapter{Struttura codice}{\label{ch:strutturacodice}}
+Il codice si trova tutto nella carte Src\ (soruces).
+\\
+Le dipendenze sono le seguenti:
+\\
+\\
+boggle\_server (paroliere\_srv) eseguibile dipende da boggle\_server.c, server.c, common.c..
+\\
+boggle\_client (paroliere\_cl) eseguibile dipende da boggle\_client.c client.c common.c..
+\\
+\\
+boggle\_server.c, server.c dipendono da server.h..
+\\
+boggle\_client.c, client.c dipendono da client.h..
+\\
+\\
+server.h, client.h dipendono da common.h..
+\\
+\\
+common.c dipende da common.h..
+\\
+\\
+Si noti che common.h e common.c includono dichiarazioni ed implementazioni comuni a server e client.
+\\
+\\
+A seguire un diagramma delle dipendenze per il server. Quello del client \'e analogo.
+
+
+
+
+
+\usetikzlibrary{shapes,arrows,positioning}
+
+
+\begin{tikzpicture}[
+    node distance = 2cm and 3cm,
+    file/.style = {rectangle, draw, rounded corners, minimum width=3cm, minimum height=2cm, align=center},
+    arrow/.style = {->, thick}
+]
+
+% First layer
+\node[file] (boggle_server) {boggle\_server};
+
+% Second layer
+\node[file, below left=of boggle_server] (boggle_server_c) {boggle\_server.c};
+\node[file, below=of boggle_server] (server_c) {server.c};
+\node[file, below right=of boggle_server] (common_c) {common.c};
+
+% Third layer
+\node[file, below=of server_c] (server_h) {server.h};
+
+% Fourth layer
+\node[file, below=of server_h] (common_h) {common.h};
+
+% Connections
+\draw[arrow] (boggle_server) -- (boggle_server_c);
+\draw[arrow] (boggle_server) -- (server_c);
+\draw[arrow] (boggle_server) -- (common_c);
+\draw[arrow] (server_c) -- (server_h);
+\draw[arrow] (boggle_server_c) -- (server_h);
+\draw[arrow] (server_h) -- (common_h);
+\draw[arrow] (common_c) -- (common_h);
+
+\end{tikzpicture}
+
+
+
+

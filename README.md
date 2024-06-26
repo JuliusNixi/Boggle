@@ -12,7 +12,7 @@ Thread model: posix
 - make -> To compile all: client, server and tests.
 - make execs -> To compile and run the server, with default args (see in Makefile in Src/).
 - make execc -> To compile and run the client, with default args (see in Makefile in Src/).
-- make clean -> To remove all objects and executables files.
+- make clean -> To remove all objects, executables files, tests logs files and kills all the server and client processes.
 - make tests -> To compile the server and to compile and run the tests C file.
 
 # Usage

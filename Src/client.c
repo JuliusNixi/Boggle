@@ -1,6 +1,8 @@
 // Shared client cross files vars and libs.
 #include "client.h"
 
+// The development of the input/output of this client was problematic, see inputoutputasynctests.c in Studies/.
+
 // Current file vars and libs.
 #include <fcntl.h>
 #include <termios.h>

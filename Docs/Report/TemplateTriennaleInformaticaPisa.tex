@@ -18,6 +18,30 @@
 % Librerie utili
 \usepackage[italian]{babel} % applicazione regole di scrittura per la lingua italiana 
 \usepackage[utf8]{inputenc} % codifica UTF-8
+
+
+
+
+% Aggiunti da me
+\usepackage{amsmath} % matrice
+\usepackage{hyperref} % links
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+}
+
+\usepackage{epigraph} % citazione
+\usepackage{tikz} % grafo dipendenze
+
+\usepackage[T1]{fontenc} % senza questo l'indice con l'aggiunta di 6. scompare.
+
+
+
+
 \usepackage{scrlayer-scrpage} % stili pagina per il frontespizio
 \ifoot[]{}
 \cfoot[]{}
@@ -127,8 +151,9 @@ title=\lstname % show the filename of files included with \lstinputlisting; also
     \vspace{2cm}
     {\Large { PROGETTO PER ESAME DEL CORSO LABORATORIO II }}\\
     \vspace{2cm}
-    {\Large { "Paroliere" scritto in C, multi-threaded, CLI, POSIX, client/server }}
+    {\Large { "Paroliere" videogioco scritto in C, multi-threaded, CLI, POSIX, client/server }}
 \end{center}
+
 
 \vspace{2cm}
 
@@ -146,29 +171,45 @@ title=\lstname % show the filename of files included with \lstinputlisting; also
 \end{titlepage}
 % Fine frontespizio
 
+{\protect\NoHyper%
 \tableofcontents
+
+\protect\endNoHyper}%
 \thispagestyle{empty}
 
-\listoffigures
+%\listoffigures
 
 \thispagestyle{empty}
 \clearpage
 \setcounter{page}{1}
 \addtocontents{toc}{\protect\thispagestyle{empty}}
-\addcontentsline{toc}{chapter}{Introduzione} % Capitolo non numerato
-\input{introduzione.tex}
+\addcontentsline{toc}{chapter}{Note} % Capitolo non numerato
+\input{note.tex}
+
 
 \clearpage
 
-\input{capitolo1.tex}
+\input{strutturedatiedalgoritmi.tex}
+
+\input{strutturacodice.tex}
+
+\input{strutturaprogrammi.tex}
+
+\input{strutturatests.tex}
+
+\input{compilazione.tex}
+
+\input{miscellaneous.tex}
 
 \clearpage
 
-\addcontentsline{toc}{chapter}{Conclusioni} % Capitolo non numerato
-\input{conclusioni.tex}
 
-\bibliographystyle{plain} % We choose the "plain" reference style
-\bibliography{bibliography} % Entries are in the refs.bib file
+
+%\addcontentsline{toc}{chapter}{Conclusioni} % Capitolo non numerato
+%\input{conclusioni.tex}
+
+%\bibliographystyle{plain} % We choose the "plain" reference style
+%\bibliography{bibliography} % Entries are in the refs.bib file
 %\addbibresource{bibliography.bib}
 %\printbibliography
 

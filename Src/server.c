@@ -2392,6 +2392,7 @@ int submitWord(struct ClientNode* player, char* word) {
 
 }
 
+// ANCHOR searchWordInMatrix()
 // This function search a word in the current game matrix passed by char* word.
 // It starts from a matrix element indicated by
 // i and j, respectively the row and column indexes.

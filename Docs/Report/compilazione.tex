@@ -1,0 +1,26 @@
+\chapter{Compilazione ed esecuzione}{\label{ch:compilazioneedesecuzione}}
+Il codice pu\'o essere compilato sia nella root del progetto, sia nella cartella Src/.
+\\
+\\
+In entrambi i casi valgono i seguenti comandi:
+\\
+- make = Compila tutto: client, server and tests.
+\\
+- make execs = Compila ed esegue il server, con gli argomenti di default (si veda il Makefile in Src/).
+\\
+- make execc = Compila ed esegue il client, con gli argomenti di default (si veda il Makefile in Src/).
+\\
+- make clean = Rimuove tutti i file oggetto, eseguibili, file di logs dei tests e termina tutti gli eventuali processi in esecuzione di server e client.
+\\
+- make tests = Compila il server e compila ed esegue il file C tests.
+\\
+\\
+L'utilizzo degli eseguibili si pu\'o svolgere facendo riferimento al seguente formato:
+\\
+Server Usage: boggle\_server server\_ip server\_port [--matrices matrices\_filepath] [--duration game\_duration\_in\_minutes] [--seed rnd\_seed] [--dic dictionary\_filepath].
+\\
+Client Usage: boggle\_client server\_ip server\_port.
+\\
+\\
+\textbf{ATTENZIONE:} L'utilizzo di alcuni percorsi assoluti hard-coded (ad esempio il percorso del file dizionario di default quando non specificato da CLI) assume che la \textbf{WORKING DIRECTORY} sia  \textbf{BIN} causa la presenza nel percorso di "../". Utilizzando make nella root non si incorre mai in problemi perch\'e si occupa lui di cambiare directory quando esegue, ma se si avvia i binari manualmente bisogna tenere conto di questo. TL;DR: Fare sempre un cd in Bin/ prima di eseguire.
+
