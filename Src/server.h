@@ -91,11 +91,6 @@ struct ClientNode {
 
 }; 
 
-struct DisconnectClientThreadData {
-        struct ClientNode* client;
-        pthread_t threadtokill;
-};
-
 // Queue used only as required by the project text to handle the end game.
 /*
         NOTES
@@ -157,7 +152,7 @@ void* clientHandler(void*);
 int submitWord(struct ClientNode*, char*);
 int searchWordInMatrix(int, int, char*);
 int validateWord(char*);
-void disconnectClient(struct ClientNode**);
+void disconnectClient(struct ClientNode*);
 void endGame(int);
 void updateClients(void);
 char* serializeStrClient(struct ClientNode*);

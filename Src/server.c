@@ -556,6 +556,7 @@ void* signalsThread(void* args) {
                 }
                 printff(NULL, 1, "The game is just ended. The requests from clients received until now will anyways be completed.\n");
                 mULock(&mutexprint);
+
                 struct ClientNode* current;
 
 
@@ -631,7 +632,7 @@ void* signalsThread(void* args) {
                 pauseon = 1;
 
                 current = head;
-                // IMPORTANT: Reset actionstoexecute and receivedsignal and waiting.
+                // IMPORTANT: Reset actionstoexecute, receivedsignal and filledqueue.
                 while (1) {
                     if (current == NULL) break;
                     current->actionstoexecute = 0;
@@ -650,9 +651,9 @@ void* signalsThread(void* args) {
                         // Error
                         handleError(0, 0, 0, 0, "WARNING: Error in pthread_kill() in signalsThread(), retrying in a moment...\n");
                         usleep(100);
-                    }
+                    } 
                     // Continuing only when the signal has been received by the client.
-                    if (current->receivedsignal && (current->waiting == 1 || current->waiting == 2)) current = current->next;
+                    if (current->receivedsignal && current->waiting == 1) current = current->next;
                     else usleep(100);
                 }
                 // Now all clients threads (in clientHandler()) are suspended
@@ -763,7 +764,7 @@ void* signalsThread(void* args) {
                 while (1) {
                     if (current == NULL) break;
                     current->receivedsignal = 0;
-                    if (current->waiting == 1) current->waiting = 0;
+                    current->waiting = 0;
                     current = current->next;
                 }
 
@@ -793,15 +794,9 @@ void* signalsThread(void* args) {
                         usleep(100);
                     }
 
-                    if (current->receivedsignal && (current->waiting == 1 || current->waiting == 2)) current = current->next;
+                    if (current->receivedsignal && current->waiting == 1) current = current->next;
                     else usleep(100);
                 }
-
-
-
-
-
-
 
                 // Now all clientHandler() thread are suspended on its mutex.
                 // The clients in disconnectClient() not, but this is not a problem.
@@ -859,7 +854,7 @@ void* signalsThread(void* args) {
                         }
                         current = current->next;
                     }
-                    if (nclientsconnected == (nclientsmessagesent)) endexit = 1;
+                    if (nclientsconnected == nclientsmessagesent) endexit = 1;
                     current = head;
                     while (1) {
                         if (current == NULL) break;
@@ -1781,6 +1776,7 @@ void acceptClient(void) {
     }
     printff(NULL, 0, "New client succesfully accepted (TMP ID): %lu.\n", clientid);
 
+
     // Initializing a mutex of type PTHREAD_MUTEX_ERRORCHECK.
     // This type of mutex provides error checking (which the default one does not have) that will be used in disconnectClient(). 
     // The following will be the (this) mutex behavior.
@@ -1834,6 +1830,16 @@ void acceptClient(void) {
     }
     printff(NULL, 0, "New client succesfully added to the clients list (TMP ID): %lu.\n", clientid);
     nclientsconnected++;
+
+    // Max clients (optional) feature (to disable set MAX_NUM_CLIENTS to 0).
+    if (MAX_NUM_CLIENTS != 0 && MAX_NUM_CLIENTS == nclientsconnected + 1) {
+        mULock(&listmutex);
+        sendMessage(new->socket_client_fd, MSG_ESCI, "Maximum number of clients reached. Disconnecting you... :(\n");
+        // Not killing the thread with handleError(), because it will be done from the next disconnectClient().
+        handleError(0, 0, 0, 0, "Maximum number of clients reached (%lu). Disconnecting the new client.\n", nclientsconnected);
+        disconnectClient(new);        
+        // HERE THE THREAD SHOULD BE DEAD, BECAUSE WE ARE TERMINATING OURSELFES.
+    }
 
     // Starting a new pthread to handle the new client.
     // The executed function will be clientHandler().
@@ -1958,6 +1964,9 @@ void* clientHandler(void* voidclient) {
 
     struct Message* received = NULL;
 
+    // Setting thread destructor.
+    threadSetup();
+
     mLock(&mutexprint);
     printff(NULL, 1, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) pthread_self());
     // Printing the disconnecting client's infos.
@@ -1966,31 +1975,12 @@ void* clientHandler(void* voidclient) {
     free(strclient);
     strclient = NULL;
     mULock(&mutexprint);
-    // Setting thread destructor.
-    threadSetup();
-
-    client->waiting = 2;
-
-    // Used to write and read nclientsconnected safety.
-    mLock(&listmutex);
-    
-    // Max clients (optional) feature (to disable set MAX_NUM_CLIENTS to 0).
-    if (MAX_NUM_CLIENTS != 0 && MAX_NUM_CLIENTS == nclientsconnected) {
-        mULock(&listmutex);
-        sendMessage(client->socket_client_fd, MSG_ESCI, "Maximum number of clients reached. Disconnecting you... :(\n");
-        // Not killing the thread with handleError(), because it will be done from the next disconnectClient().
-        handleError(0, 0, 0, 0, "Maximum number of clients reached (%u). Disconnecting the new client.\n", nclientsconnected);
-        disconnectClient(&client);        
-        // client->handlerequest not acquired yet, no need to release it.
-        // HERE THE THREAD SHOULD BE DEAD, BECAUSE WE ARE TERMINATING OURSELFES.
-    }
-
-    mULock(&listmutex);
 
     // Preliminary actions completed.
 
     while (1) {
 
+        client->waiting = 0;
         if (client->registerafter == NULL) {
             // Waiting messages.
             received = receiveMessage(client->socket_client_fd);
@@ -2039,7 +2029,7 @@ void* clientHandler(void* voidclient) {
         // Probably disconnect.
         if ((long)((void*)received) == -1L) {
             mULock(&(client->handlerequest));
-            disconnectClient(&client);
+            disconnectClient(client);
         }
 
         // If a player no sends requests an entire game and an entire pause,
@@ -2300,7 +2290,7 @@ void* clientHandler(void* voidclient) {
                 printff(NULL, 0, "Received a disconnection request thread (ID): %lu.\n", (uli)pthread_self());
                 destroyMessage(&received);
                 mULock(&(client->handlerequest));
-                disconnectClient(&client);
+                disconnectClient(client);
                 // THIS THREAD SHOULD NOW BE DEAD.
             }case MSG_ERR :
             case MSG_OK:
@@ -2655,38 +2645,14 @@ void threadDestructor(void* args) {
 
 }
 
-void* disconnectClientKiller(void* args) {
-
-    struct DisconnectClientThreadData* t = (struct DisconnectClientThreadData*) args;
-    uli tmpt = (uli) t->threadtokill;
-    int retvalue = pthread_cancel(t->threadtokill);
-    if (retvalue != 0) {
-        // Error
-    }
-    free(t->client);
-    free(t);
-    printff(NULL, 0, "DISCONNECTION: %lu (ID) thread client disconnected succesfully.\n", tmpt);
-    pthread_exit(NULL);
-
-    return NULL;
-
-}
 
 // ANCHOR disconnectClient()
 // This function disconnects a client, it also removes the client from the clients list.
 // It also frees all the heap allocated objects and destroys the relative mutex.
-// It takes as input a struct ClientNode** clienttodestroy that rapresent the interested client.
-void disconnectClient(struct ClientNode** clienttodestroy) {
+// It takes as input a struct ClientNode* client that rapresent the interested client.
+void disconnectClient(struct ClientNode* client) {
 
     int retvalue;
-
-    // Invalid clienttodestroy.
-    if (*clienttodestroy == NULL) {
-        // Error
-        handleError(0, 0, 0, 1, "Error, invalid NULL client to disconnect.\n");
-    }
-
-    struct ClientNode* client = *clienttodestroy;
 
     // Invalid client.
     if (client == NULL) {
@@ -2695,7 +2661,7 @@ void disconnectClient(struct ClientNode** clienttodestroy) {
     }
 
     // Printing the disconnecting client's infos.
-    char* strclient = serializeStrClient(*clienttodestroy);
+    char* strclient = serializeStrClient(client);
     printff(NULL, 0, "DISCONNECTION: %s", strclient);
     free(strclient);
     strclient = NULL;
@@ -2715,41 +2681,7 @@ disconnect_restart: {
     retvalue = pthread_mutex_trylock(&pausemutex);
     if (retvalue != 0) {
         if (retvalue == EBUSY) {
-            // PAUSE COULD BE ON!
-            // Pre-releasing the mutex to not stop signalsThread().
-            // But i don't know if the thread owner is me, need to detect this.
-            retvalue = pthread_mutex_trylock(&(client->handlerequest));
-            if (retvalue != 0) {
-                if (retvalue == EBUSY) {
-
-                    // Already acquired by someone.
-                    // client->handlerequest can be already acquired by:
-                    // - clientHandler() before of calling this funciton (so we have ourself the lock).
-                    // - signalsThread() in game pause.
-                    // Detecting and fixing these possibilities.
-                    // IMPORTANT: Not use in this case the wrapper mLock/mULock because we must handle in
-                    // a specific way the error.
-                    retvalue = pthread_mutex_unlock(&(client->handlerequest));
-                    if (retvalue == 0) {
-                        // Already locked by us previously of the calling of this function, released.
-                        usleep(100);
-                        goto disconnect_restart;
-                    }else if(retvalue == 1){
-                        // Already locked by someone else.
-                        usleep(100);
-                        goto disconnect_restart;
-                    }else{
-                        // Error
-                        handleError(0, 0, 0, 1, "Error in the disconnectClient(), unlocking the handlerequest mutex.\n");
-                    }
-                }else{
-                    // Error
-                    handleError(0, 0, 0, 1, "Error in the disconnectClient(), trylocking the handlerequest mutex.\n");
-                }
-            }
-            // trylock succeded on handlerequest, now i'm the owner, pre-releasing it,
-            // to leave it to the signalsThread() thread.
-            mULock(&(client->handlerequest));
+            // PAUSE IS ON!          
             // To avoiding to re-acquiring immediately.
             usleep(100);
             goto disconnect_restart;
@@ -2828,7 +2760,6 @@ disconnect_restart: {
         mULock(&listmutex);
 
         // Cleaning the client object.
-        client->socket_client_fd = -1;
         client->client_address_len = 0;
         client->next = NULL;
         client->points = 0LU;
@@ -2851,32 +2782,20 @@ disconnect_restart: {
             handleError(0, 0, 0, 1, "Error in disconnectClient() in the pthread_mutex_destroy().\n");
         }
 
-        *clienttodestroy = NULL;
-
-        printff(NULL, 0, "DISCONNECTION: %lu (ID) thread client is terminating.\n", (uli)client->thread);
-
-        if (client->thread == pthread_self()) {
-            void* data = malloc(sizeof(struct DisconnectClientThreadData));
-            if (data == NULL) {
-                // Error
-            }
-            ((struct DisconnectClientThreadData*)data)->client = client;
-            ((struct DisconnectClientThreadData*)data)->threadtokill = pthread_self();
-            pthread_t thread_killer;
-            retvalue = pthread_create(&thread_killer, NULL, disconnectClientKiller, data);
-            if (retvalue != 0) {
-                // Error
-                handleError(0, 1, 0, 0, "Error in pthread_create() in the disconnectClient().\n");
-            }     
-            // This should NOT return. 
-            pthread_join(thread_killer, NULL); 
-        }else{
-            uli tmpt = (uli) client->thread;
-            pthread_cancel(client->thread);
-            free(client);
-            printff(NULL, 0, "DISCONNECTION: %lu (ID) OTHER thread client disconnected succesfully.\n", tmpt);
-            return;
+        retvalue = close(client->socket_client_fd);
+        if (retvalue != 0){
+            // Error
         }
+        client->socket_client_fd = -1;
+
+        uli tmpt = (uli) client->thread;
+
+        free(client);
+
+        printff(NULL, 0, "DISCONNECTION: %lu (ID) client has disconnected succesfully.\n", tmpt);
+
+        pthread_exit(NULL);
+
 
     }
 
