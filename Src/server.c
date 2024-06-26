@@ -32,7 +32,7 @@ char pauseon = 0; // This var will be 1 if the game is paused, and 0 otherwise (
 pthread_mutex_t pausemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads during switching pause/game-on phases.
 pthread_t pausethread; // This will be a thread dedicated to execute the game pause. It will sleep the pause duration.
 
-#define MAX_NUM_CLIENTS 32 // This is the maximum number of connected clients to the server. It's use is optional since the clients data are stored in a unlimited (computational resources permitting) linked list.
+#define MAX_NUM_CLIENTS 0 // This is the maximum number of connected clients to the server. It's use is optional since the clients data are stored in a unlimited (computational resources permitting) linked list.
 uli nclientsconnected = 0LU; // This rapresent the number of connected clients to the server. It's include BOTH registered and unregistered users.
 
 #define NO_NAME "unregistered" // This will be the default name assigned to unregistered players.
@@ -1814,13 +1814,13 @@ void acceptClient(void) {
     nclientsconnected++;
 
     // Max clients (optional) feature (to disable set MAX_NUM_CLIENTS to 0).
-    if (MAX_NUM_CLIENTS != 0 && MAX_NUM_CLIENTS == nclientsconnected + 1) {
+    if (MAX_NUM_CLIENTS != 0 && MAX_NUM_CLIENTS == nclientsconnected) {
         mULock(&listmutex);
         sendMessage(new->socket_client_fd, MSG_ESCI, "Maximum number of clients reached. Disconnecting you... :(\n");
         // Not killing the thread with handleError(), because it will be done from the next disconnectClient().
         handleError(0, 0, 0, 0, "Maximum number of clients reached (%lu). Disconnecting the new client.\n", nclientsconnected);
-        disconnectClient(new);        
-        // HERE THE THREAD SHOULD BE DEAD, BECAUSE WE ARE TERMINATING OURSELFES.
+        disconnectClient(new, 0);   
+        return;    
     }
 
     // Starting a new pthread to handle the new client.
@@ -2013,7 +2013,7 @@ void* clientHandler(void* voidclient) {
         // Probably disconnect.
         if ((long)((void*)received) == -1L) {
             mULock(&(client->handlerequest));
-            disconnectClient(client);
+            disconnectClient(client, 1);
         }
 
         // If a player no sends requests an entire game and an entire pause,
@@ -2274,7 +2274,7 @@ void* clientHandler(void* voidclient) {
                 printff(NULL, 0, "Received a disconnection request thread (ID): %lu.\n", (uli)pthread_self());
                 destroyMessage(&received);
                 mULock(&(client->handlerequest));
-                disconnectClient(client);
+                disconnectClient(client, 1);
                 // THIS THREAD SHOULD NOW BE DEAD.
             }case MSG_ERR :
             case MSG_OK:
@@ -2629,7 +2629,7 @@ void threadDestructor(void* args) {
 // This function disconnects a client, it also removes the client from the clients list.
 // It also frees all the heap allocated objects and destroys the relative mutex.
 // It takes as input a struct ClientNode* client that rapresent the interested client.
-void disconnectClient(struct ClientNode* client) {
+void disconnectClient(struct ClientNode* client, char terminatethread) {
 
     int retvalue;
 
@@ -2768,8 +2768,8 @@ disconnect_restart: {
   
         printff(NULL, 0, "DISCONNECTION: %lu (ID) client has disconnected succesfully.\n", tmpt);
 
-        pthread_exit(NULL);
-
+        if (terminatethread) pthread_exit(NULL);
+        else return;
 
     }
 

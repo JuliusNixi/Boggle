@@ -151,7 +151,7 @@ void* clientHandler(void*);
 int submitWord(struct ClientNode*, char*);
 int searchWordInMatrix(int, int, char*);
 int validateWord(char*);
-void disconnectClient(struct ClientNode*);
+void disconnectClient(struct ClientNode*, char);
 void endGame(int);
 void updateClients(void);
 char* serializeStrClient(struct ClientNode*);
