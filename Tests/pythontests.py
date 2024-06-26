@@ -12,9 +12,9 @@ if len(sys.argv) != 3:
 
 random.seed(42)
 
-nclients = 50
-nactions = 30
-ntests = 10
+nclients = 70
+nactions = 50
+ntests = 15
 
 clients = []
 actions = ["help\n", "matrix\n", "end\n", "register_user", "p", "invalidcommand\n"]
@@ -56,6 +56,7 @@ print("All clients opened.")
 time.sleep(1)
 
 for t in range(ntests):
+    print(f"Test {t + 1}.")
     for a in range(nactions):
         # sleeping between every action
         randomactionsleep = random.uniform(0.01, 0.1)

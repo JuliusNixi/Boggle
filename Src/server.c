@@ -2659,7 +2659,7 @@ void* disconnectClientKiller(void* args) {
 
     struct DisconnectClientThreadData* t = (struct DisconnectClientThreadData*) args;
     uli tmpt = (uli) t->threadtokill;
-    int retvalue = pthread_kill(t->threadtokill, SIGQUIT);
+    int retvalue = pthread_cancel(t->threadtokill);
     if (retvalue != 0) {
         // Error
     }
