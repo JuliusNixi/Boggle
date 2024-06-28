@@ -8,6 +8,7 @@
 #include <termios.h>
 
 #define PROMPT_STR "[PROMPT BOGGLE]--> " // Prompt string.
+#define PROMPT_STR_IT "[PROMPT PAROLIERE]-->" // Prompt string ITALIAN.
 
 #define HELP_MSG "Avaible commands:\nhelp -> Show this page.\nregister_user user_name -> To register in the game.\nmatrix -> Get the current game matrix.\np word -> Submit a word.\nend -> Exit from the game.\n" // Help message.
 
@@ -321,6 +322,13 @@ void processInput(void) {
         if (strcmp("end", inputfinal) == 0 || strcmp("exit", inputfinal) == 0){
             printff(NULL, 0, "Bye, bye, see you soon! Thanks for playing.\n");
             sendMessage(client_fd, MSG_ESCI, NULL);
+            int retvalue;
+            retvalue = pthread_cancel(responses_thread);
+            if (retvalue != 0) {
+                // Error
+                handleError(1, 0, 0, 0, "Error in pthread_cancel().\n");
+            } 
+            printff(NULL, 0, "Responses thread cancelled succesfully.\n");
             pthread_exit(NULL);
             return;
         }
@@ -409,7 +417,7 @@ void inputHandler(void) {
 
         // Printing prompt.
         if (printprompt == 1)
-            printff(NULL, 0, PROMPT_STR);
+            printff(NULL, 0, PROMPT_STR_IT);
         else printprompt = 0;
 
         while (1) {
@@ -515,7 +523,9 @@ void* responsesHandler(void* args) {
        if ((long) received == -1L) {
             // Error
             // Probably disconnection.
-            handleError(0, 1, 0, 0, "Probably disconnected by the server.\n");
+            // No work kill this thread
+            handleError(0, 0, 0, 0, "\nProbably disconnected by the server.\n");
+            pthread_exit(NULL);
        }
 
        if (received == NULL) continue;
@@ -561,6 +571,7 @@ void threadDestructor(void* args) {
     // IMPORTANT TO AVOID MEMORY LEAKS!
     char* dataptr = pthread_getspecific(key);
     free(dataptr);
+
     // TODO threadDestrucotr()
     if (pthread_self() == responses_thread) {
 
@@ -586,9 +597,8 @@ void atExit(void) {
     // TODO atExit()
     printff(NULL, 0, "EXIT!\n");
 
-    int retvalue;
     if (client_fd){
-        retvalue = close(client_fd);
+        int retvalue = close(client_fd);
         if (retvalue != 0) {
             handleError(1, 0, 0, 0, "Error in socket close.\n");
         }else

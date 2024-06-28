@@ -1,12 +1,17 @@
-## Short description of the structure of the project source files.
-The boggle_server (paroliere_srv) executable depends from boggle_server.c, server.c, common.c..
-The boggle_client (paroliere_cl) executable depends from boggle_client.c, client.c, common.c..
+# Short description of the structure and dependencies of the project's sources files
+The "../Bin/boggle_server" ("../paroliere_srv") executable depends from "./Server/boggle_server.c", "./Server/server.c", "./Common/common.c".
+The "../Bin/boggle_client" ("../paroliere_cl") executable depends from "./Client/boggle_client.c", "./Client/client.c", "./Common/common.c".
 
-The boggle_server.c, server.c depend from server.h..
-The boggle_client.c, client.c depend from client.h..
+The "./Server/boggle_server.c", "./Server/server.c" depend from "./Server/server.h".
+The "./Client/boggle_client.c", "./Client/client.c" depend from "./Client/client.h".
 
-server.h, client.h depend from common.h..
+The "./Server/server.h", "./Client/client.h" depend from "./Common/common.h".
 
-common.c depends from common.h..
+The "./Common/common.c" depends from "./Common/common.h".
 
-Note that common.h and common.c include declarations and implementations used in both server and client.
+The "./Common/" files include declarations and implementations used in both server and client. The idea behind the project's structure it's that, the "./Server/boggle_server.c" file and the "./Server/server.c", use shared data structure contained by the "./Server/server.h". Similary for the client files. All the ".c" files (both client and server) depend on "./Common/common.c". All ".h" files depend on "./Common/common.h".
+
+## Compiling
+See "../README.md", the file in the project's root folder.
+
+

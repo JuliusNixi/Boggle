@@ -1,24 +1,22 @@
-# TODO.md
+# TODO
 
-List of things to work on.
+List of things to work on. Very few things because I forget very often to update this file.
 
-### Todo
+## To do
 
-- [ ] Restore time duration, pause game, changed to perform tests.
-- [ ] Check sendMessage() returns.
+- [ ] Restore times like games duration, pause duration, changed to perform tests.
 - [ ] Recheck all errors with handleError().
+- [ ] Rewrite, check, update the report.
+- [ ] Rewrite Src/ Makefile.
+- [ ] Rewrite, check, all .c in Studies/C/ files.
+- [ ] Rewrite root Makefile.
+- [ ] Rewrite root README.md.
+- [ ] Rewrite, check, Tests/C/tests.c
+- [ ] Rewrite, check, Tests/Python/pythontests.py.
+- [ ] Execute again Valgrind on server AND client. Fill the obtained output in the .txt file.
 
-### Done ✓
+## Done ✓
 
-- [x] Testing with small matrix size. 
-- [x] ClientNode* tail used? Yes in acceptClient().
-- [x] Masked signals SIGALRM and SIGUSR1.
-- [x] pthread_t scorer.
-- [x] common.h review.
-- [x] common.c review.
-- [x] boggle_client.c review.
-- [x] client.c review.
-- [x] client.h review.
-- [x] server.h review.
-
+- [x] Review project structure.
+- [x] Check again directives: slides PowerPoint, PDF document and Google Docs FAQ, updating code and report accordingly. 
 

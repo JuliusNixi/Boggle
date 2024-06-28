@@ -12,8 +12,8 @@ if len(sys.argv) != 3:
 
 random.seed(42)
 
-nclients = 70
-nactions = 50
+nclients = 100
+nactions = 100
 ntests = 15
 
 clients = []
@@ -29,6 +29,7 @@ VALID_WORDS_TESTS_FILE_PATH = "../Tests/fileCurrentValidsWords.txt"
 stdinclients = []
 
 def end():
+
     input("Actions completed. Press enter to kill all the clients and exit...")
 
     for i in range(nclients):
@@ -125,8 +126,8 @@ for t in range(ntests):
                 print(f"Broken pipe client {i}.")
                 r = 100
                 
-            # killing the client if r == 10
-            if r >= 95:
+            # killing the client
+            if r >= 98:
                 os.kill(clients[i].pid, signal.SIGINT)
                 stdinclients[i].write("kill")
 

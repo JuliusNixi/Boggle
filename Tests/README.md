@@ -1,11 +1,16 @@
-https://stackoverflow.com/questions/73977844/too-many-open-files-during-rspec-tests-on-macos
+# Tests folder
+This folder contains all the project's debugging and testing tools.
 
-make execs 2>&1 | tee outputserver.txt
+## C subfolder
+In the "./C" subfolder there is the "./C/tests.c" file, it contains some project's tests written in C.
 
-kill -TRAP <pid>
-https://stackoverflow.com/questions/5857300/gdb-ctrlc-doesnt-interrupt-process-as-it-usually-does-but-rather-terminates-t
-ps -u
+## Python subfolder
+In the "./Python" subfolder you will find some extensive project's tests written in Python 3.
 
+## Valgrind subfolder
+In the "./Valgrind" subfolder you'll find the "./Valgrind/valgrindfullcheckscommand.sh" file that contains a command to run all checks with Valgrind, and the result on server and client.
 
+## Notes
+In the "./debugandtestsnotes.txt" file you'll find some notes (especially commands) wich have been useful for debugging and testing.
 
 

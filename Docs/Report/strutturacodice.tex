@@ -1,4 +1,5 @@
-\chapter{Struttura codice}{\label{ch:strutturacodice}}
+\chapter{Struttura codice}
+
 Il codice si trova tutto nella carte Src\ (soruces).
 \\
 Le dipendenze sono le seguenti:
@@ -26,33 +27,31 @@ Si noti che common.h e common.c includono dichiarazioni ed implementazioni comun
 A seguire un diagramma delle dipendenze per il server. Quello del client \'e analogo.
 
 
-
-
-
+% Grafico dipendenze file.
 \usetikzlibrary{shapes,arrows,positioning}
 
-
+% Setup.
 \begin{tikzpicture}[
     node distance = 2cm and 3cm,
     file/.style = {rectangle, draw, rounded corners, minimum width=3cm, minimum height=2cm, align=center},
     arrow/.style = {->, thick}
 ]
 
-% First layer
+% Primo livello.
 \node[file] (boggle_server) {boggle\_server};
 
-% Second layer
+% Secondo livello.
 \node[file, below left=of boggle_server] (boggle_server_c) {boggle\_server.c};
 \node[file, below=of boggle_server] (server_c) {server.c};
 \node[file, below right=of boggle_server] (common_c) {common.c};
 
-% Third layer
+% Terzo livello.
 \node[file, below=of server_c] (server_h) {server.h};
 
-% Fourth layer
+% Quarto livello.
 \node[file, below=of server_h] (common_h) {common.h};
 
-% Connections
+% Connessioni.
 \draw[arrow] (boggle_server) -- (boggle_server_c);
 \draw[arrow] (boggle_server) -- (server_c);
 \draw[arrow] (boggle_server) -- (common_c);
@@ -62,6 +61,7 @@ A seguire un diagramma delle dipendenze per il server. Quello del client \'e ana
 \draw[arrow] (common_c) -- (common_h);
 
 \end{tikzpicture}
+% Fine grafico dipendenze file.
 
 
 

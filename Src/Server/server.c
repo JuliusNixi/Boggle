@@ -20,8 +20,8 @@ uli pausetime = 0LU;  // Time of the last pause startup.
 
 // TODO remove this 
 #define tempteststimeseconds 8
-#define PAUSE_DURATION 8 // Duration of the pause in minutes.
-
+#define PAUSE_DURATION 8 // Duration of the pause in minutes. Default 1 minute.
+// For the game duration time, see gameduration var in server.h
 //#define PAUSE_DURATION 7 // Duration of the pause in minutes.
 
 // TODO Restore word_len after tests
@@ -142,7 +142,7 @@ void* scorer(void* args) {
     // To use qsort i copied the list in the temporary array.
      
     qsort(array, nclientsqueuedone, sizeof(struct Queue*), sortPlayersByPointsMessage);
-    mLock(&mutexprint);
+  /*/  mLock(&mutexprint);
     printff(NULL, 1, "\n\t\tFINAL SCOREBOARD\n");
     for (unsigned int i = 0U; i < nclientsqueuedone; i++) {
         char* s = serializeStrClient(array[i]->client);
@@ -150,7 +150,7 @@ void* scorer(void* args) {
         free(s);
     }
     printff(NULL, 1, "\n");
-    mULock(&mutexprint);
+    mULock(&mutexprint);*/
 
 
     // Taking from the previously sorted array the maximum number of points.
@@ -948,7 +948,21 @@ void* signalsThread(void* args) {
                 while (1) {
                     if (current == NULL) break;
                     mLock(&(current->handlerequest));
+                    current = current->next;
+                }
+                // Disabling pause.
+                pauseon = 0;
+                // Starting a new game.
+                startGame();
+                // Preparing clients for a new game.
+                // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
+                updateClients();
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
 
+                    // Inform clients of the start of a new game and
+                    // sending the new game matrix.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
                     uli l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
                     char msgstartgame[l];
@@ -1028,13 +1042,6 @@ void* signalsThread(void* args) {
 
                     current = current->next;
                 }
-                // Disabling pause.
-                pauseon = 0;
-                // Starting a new game.
-                startGame();
-                // Preparing clients for a new game.
-                // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
-                updateClients();
                 // Releasing clients locks.
                 current = head;
                 while (1) {
@@ -2869,7 +2876,9 @@ char* serializeStrClient(struct ClientNode* c) {
     }
 
     // Preparing the string format.
-    char st[] = "Name: %s - IP: %s - Port: %lu - Points %lu - Thread ID: %lu\n";
+    //char st[] = "Name: %s - IP: %s - Port: %lu - Points %lu - Thread ID: %lu\n";
+    //char st[] = "Name: %s - Port: %lu - Points: %lu - Thread ID: %lu\n";
+    char st[] = "Name: %s\n";
 
     // Calculating name length.
     uli namelen;
@@ -2884,13 +2893,13 @@ char* serializeStrClient(struct ClientNode* c) {
     uli portlen = strlen(portstr);
     free(portstr);
 
-    // Calculating IP length.
+   /* // Calculating IP length.
     char buf[INET_ADDRSTRLEN] = {0}; 
     const char* s = inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
     if (s == NULL){
         // Error
         handleError(1, 1, 0, 0, "Error in serializeStrClient(), in the IP to string inet_ntop().\n");
-    }
+    }*/
 
     // Calculating points length (as string).
     char* pointsstr = itoa(c->points);
@@ -2906,17 +2915,25 @@ char* serializeStrClient(struct ClientNode* c) {
 
     // Allocating the needed heap memory to store the string.
     // +1 for '\0'.
-    char* rs = (char*) malloc((strlen(st) + namelen + INET_ADDRSTRLEN + portlen + pointslen + threadidstrlen + 1) * sizeof(char));
+    // (strlen(st) + namelen + INET_ADDRSTRLEN + portlen + pointslen + threadidstrlen + 1
+    char* rs = (char*) malloc((namelen + 1) * sizeof(char));
     if (rs == NULL) {
         // Error
         handleError(0, 1, 0, 0, "Error in serializeStrClient(), in the malloc..\n");
     }
     // Filling the string with data.
-    uli t = c->threadstarted == 0 ? 0LU : (uli) c->thread;
-    if (c->name != NULL) sprintf(rs, st, c->name, buf, (uli) port, (uli) c->points, (uli)t);
-    else sprintf(rs, st, NO_NAME, buf, (uli) port, (uli) c->points, (uli)t);
+  //  uli t = c->threadstarted == 0 ? 0LU : (uli) c->thread;
+    /*if (c->name != NULL) sprintf(rs, st, c->name, buf, (uli) port, (uli) c->points, (uli)t);
+    else sprintf(rs, st, NO_NAME, buf, (uli) port, (uli) c->points, (uli)t);*/
+// if (c->name != NULL) sprintf(rs, st, c->name, (uli) port, (uli) c->points, (uli)t);
+    // else sprintf(rs, st, NO_NAME, (uli) port, (uli) c->points, (uli)t);
+
+    char* mm = c->name == NULL ? NO_NAME : c->name;
+    sprintf(rs, st, mm);
 
     return rs;
+
+
 
 }
 
@@ -3077,12 +3094,15 @@ void gameEndQueue(struct ClientNode* e) {
     e->filledqueue = 1;
 
     // Printing infos.
-    char* namestr = csvNamePoints(m, 0);
-    char* pointsstr = csvNamePoints(m, 1);
-    printff(NULL, 0, "PUSHED: New object pushed to the tail queue.\nPUSHED: Player's name: %s. Player's points: %s. Thread (ID): %lu.\n", namestr, pointsstr, (uli) pthread_self());
-    free(namestr);
+ //   char* namestr = csvNamePoints(m, 0);
+//    char* pointsstr = csvNamePoints(m, 1);
+char namestr[] = "PEIRO";
+char pointsstr []= "50";
 
-    free(pointsstr);
+    printff(NULL, 0, "PUSHED: New object pushed to the tail queue.\nPUSHED: Player's name: %s. Player's points: %s. Thread (ID): %lu.\n", namestr, pointsstr, (uli) pthread_self());
+  //  free(namestr);
+
+  //  free(pointsstr);
 
     mULock(&queuemutex);
 

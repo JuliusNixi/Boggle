@@ -1,4 +1,5 @@
-\chapter{Struttura tests}{\label{ch:strutturatests}}
+\chapter{Struttura tests}
+
 Inizialmente l'idea era quella di scrivere i tests in C in un file eseguibile separato. Ed ho intrapreso questa strada, testimone il fatto che nella cartella Tests/ ho lasciato il file tests.c, il quale funziona, si pu\'o compilare ed eseguire con make. Tuttavia con lo sviluppo mi sono reso conto che per come avevo strutturato il progetto era disastroso. Avrei potuto testare poche singole funzioni ma non ad un livello soddisfacente nell'insieme. Causa il fatto di avere i codici divisi in pi\'u file ed di aver utilizzato per molte funzionalit\'a variabili globali condivise. Allora ho guardato qualche framework di testing in C, ma non ho trovato nulla che facesse al caso mio. Cos\'i messo alle strette ho pensato di approcciare il problema in modo "particolare". Ho pensato che avrei potuto utilizzare la semplicit\'a e la potenza di Python che conosco un poco, per fare i tests in modo esterno, ma qui simulando proprio il comportamento di utenti e server anche su larga scala. E ha funzionato benissimo! Solamente \textbf{mi dispiace di esser dovuto andare a scomodare un linguaggio che esula dal corso}. Tuttavia in questo modo ho potuto eseguire moltissimi tests che sono stati vitali e mi hanno permesso di correggere innumerevoli bugs. Per eseguire questi tests \'e sufficiente:
 \\
 1. Avviare il server.
@@ -8,3 +9,5 @@ Inizialmente l'idea era quella di scrivere i tests in C in un file eseguibile se
 Ci sono alcuni parametri all'inizio del file che possono essere modificati se voluto.
 \\
 Il file crea tantissimi processi client e per ognuno di essi svolge un numero di azioni che possono essere esattamente tutte quelle che un vero utente potrebbe eseguire. Inviare comandi non validi, registrarsi, richiedere la matrice, sottomettere una parola, di quelle valide e non valide, uscire e persino disconnettersi forzatamente. Tutto viene svolto casualmente con un intensivo uso di random (ma comunque replicabile tramite seed). Tra ogni azione si aspetta un numero casuale di millisecondi. I comandi vengono sottomessi da python, creando il processo del client, collegandosi tramite PIPE al suo stdin. L'output, ossia le risposte del client ricevute dal server viene salvato in dei file di logs in Tests/logs/, insieme all'elenco dei comandi inviati. 
+\\
+I tests dovrebbero funzionare con Python 3 con le librerie installate di default senza richiedere alcuna risorsa esterna.

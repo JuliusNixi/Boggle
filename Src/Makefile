@@ -37,9 +37,9 @@ EXEC = $(BINDIR)$(NC)
 EXET = $(TESTDIR)$(NT)
 
 # Object files bins.
-OBJS = $(EXES).o
-OBJC = $(EXEC).o
-OBJT = $(EXET).o
+OBJS = $(NS).o
+OBJC = $(NC).o
+OBJT = $(NT).o
 # Object files support.
 OBJSS = $(SS).o
 OBJSC = $(SC).o
@@ -109,7 +109,7 @@ tests: all
 # Delete all .o and exe files.
 clean: clear
 	-rm -f $(EXES) $(EXEC) $(EXET) $(OBJS) $(OBJC) $(OBJT) $(OBJSS) $(OBJSC) $(OBJSU) ../$(RNS) ../$(RNC)
-	-rm -f $(TESTDIR)logs/*.txt ($TESTDIR)fileCurrentValidsWords.txt
+	-rm -f $(TESTDIR)logs/*.txt $(TESTDIR)fileCurrentValidsWords.txt
 	-pkill -f $(NS) || true
 	-pkill -f $(NC) || true
 	-pkill -f $(RNS) || true

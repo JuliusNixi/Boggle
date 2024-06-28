@@ -1,0 +1,69 @@
+If make isn't used remember to compile using the gcc flags:
+-Wall -g -ggdb3
+
+To compile all and start debugging:
+cd ..
+make
+gdb ././Bin/boggle_server
+
+To disable gdb signals stop:
+handle SIGUSR1 noprint
+handle SIGALRM noprint
+
+To start the process, where all after run are the process' args:
+run localhost 8080
+
+On errors, for example a SIGSEGV, it's useful see the list of the functions called, you can use:
+backtrace
+
+To enter in a called function, use:
+select-frame n  With n the number of the frame obtained by the previous command.
+
+To get frame's infos:
+info frame
+
+To see all threads infos:
+info threads
+
+To switch (selecting) a thread:
+thread n    With n the number of the desired thread, obtained by the previous command.
+
+To see the content pointed by a pointer var:
+x/s pointerstring   Print the string of a char* pointerstring.
+x/d pointerint      Print the int pointed by int* pointerint.
+To see all the possibilities take a look at https://visualgdb.com/gdbreference/commands/x
+
+It's possible to print entire structs also using casting and the direct struct memory pointer value.
+For example to see the mutex's data (also the current owner):
+p *((pthread_mutex_t *) 0x7f37e8004da0)
+Or to see the content of a ClientNode struct:
+print *clientnode   With clientnode a ClientNode*.
+
+To see current called function's infos:
+info locals 
+Also useful:
+info args
+
+To see the open processes (also the PID):
+ps
+or:
+ps -u
+
+To stop the process and return on gdb (for example in case of deadlock), from another shell, out of gdb:
+kill -TRAP PID  With PID the process' ID, obtained by the previous commands.
+To see why CTRL + C doesn't work (because of sigwait()):
+https://stackoverflow.com/questions/5857300/gdb-ctrlc-doesnt-interrupt-process-as-it-usually-does-but-rather-terminates-t
+
+To kill forcibly a process:
+kill -9 PID     With PID the process' ID, obtained by the previous commands. 9 is SIGKILL, it's must be handled by the OS, not the process.
+
+To execute the server, keep seeing the STDOUT, but also log it in a file:
+../Bin/boggle_server localhost 8080 2>&1 | tee outputserver.txt
+
+On macOS I had to increase the limit of open files to run so many clients:
+https://stackoverflow.com/questions/73977844/too-many-open-files-during-rspec-tests-on-macos
+
+I debugged with gdb on the laboratory 2 shared machine.
+That's because on macOS there's not gdb. 
+There is lldb, but some of the previous commands are different.
+

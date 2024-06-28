@@ -229,8 +229,8 @@ readdata:
     // Reading/Waiting for the message data.
     if (readed->length != 0)
     retvalue = read(fdfrom, writingpointer, toread);
-    else
-    retvalue = read(fdfrom, writingpointer, sizeof(char*));
+    else 
+    retvalue = read(fdfrom, &writingpointer, sizeof(char*));
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
         free(readed->data);
@@ -415,7 +415,7 @@ senddata: {
     // Writing the message data.
     char* nulll = 0;
     if (writingpointer != 0) retvalue = write(fdto, writingpointer, towrite);
-    else retvalue = write(fdto, nulll, sizeof(char*));
+    else retvalue = write(fdto, &nulll, sizeof(char*));
 
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
@@ -566,9 +566,12 @@ void handleError(char printerrno, char killmain, char errorfromprintff, char kil
     if (killmain) {
         // We are the main.
         if (pthread_self() == mainthread){
-            pthread_cancel(mainthread);
+
             pthread_exit(NULL); // atExit() called after thread destructor.
+
+
         } 
+
         // We are not the main, we are another thread.
         // The pthread_cancel() allows the call to the killed thread destructor.
         retvalue = pthread_cancel(mainthread); // atExit() called after thread destructor.
