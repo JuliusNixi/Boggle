@@ -1,15 +1,33 @@
-#include <arpa/inet.h>
-#include <string.h>
+/*
 #include <ctype.h>
-#include <stdlib.h>
-#include <unistd.h>
+*/
 #include <stdio.h>
+#include <signal.h>
 #include <pthread.h>
-// from man
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <stdlib.h>
+// From man:
 // errno is thread-local; setting it in one thread does not affect its value in any other thread.
 #include <errno.h>
-#include <stdarg.h>
-#include <signal.h>
+#include <string.h>
+
+// Banner settings used in client and server banner.
+#define BANNER_LENGTH 80LU
+#define BANNER_SYMBOL '#'
+#define BANNER_NSPACES 4LU
+
+pthread_t mainthread; // Main thread.
+
+sigset_t signalmask; // Signal mask to handle signals, blocking it, to just let them handle to a dedicated thread.
+pthread_t signalsthread; // Thread that will handle the signals.
+
+struct sockaddr_in server_addr; // Socket server address.
+
+char setupfinished; // Used to notify the main thread to continue after initialization of all others threads.
+pthread_mutex_t setupmutex = PTHREAD_MUTEX_INITIALIZER; // Used to synchronize read/write threads operations with the above var.
+
+#define BUFFER_SIZE 1024U  // Size of the buffers that will be used in some cases.
 
 // Messages types as described in the project text.
 #define MSG_OK 'K'
@@ -24,58 +42,26 @@
 
 // Added by me.
 #define MSG_ESCI 'Q' // Message sent by the client to the server or vice versa to close the connection.
-#define MSG_IGNORATO 'I' // Message sent by the server to the client to notify that the sent request received will be ignored since it was RECEIVED AFTER the timer of end game trigger.
-
-#define BUFFER_SIZE 1024  // Size of the buffers that will be used in some cases.
-
-#define RECURSIVE_ERR_MSG  "Critical recursive error detected, exiting...\n" // Message to print when an error happens during the management of a previous one, potentially leading to endless mutual recursion.
-
-typedef unsigned long int uli; // Shortcut used sometimes.
+//#define MSG_IGNORATO 'I' // Message sent by the server to the client to notify that the sent request received will be ignored since it was RECEIVED AFTER the timer of end game trigger.
 
 struct Message { // Struct of the message that will be used in the communication between server and clients.
     char type;  // Type of message as above.
-    unsigned int length; // Length of the below data field.
-    char* data;  // Message content, heap allocated string, null terminated.
+    unsigned int length; // Length of the below data field, 0 if the below field is NULL.
+    char* data;  // Message content, heap allocated string, null terminated if present, otherwise NULL.
 };
 
-struct sockaddr_in server_addr; // Socket server address.
-
-sigset_t signal_mask; // Signal mask to handle signals (SIGINT and SIGALRM), blocking it, to just let them handle to the thread below. SIGPIPE blocked and handled but not from external functions.
-pthread_t sig_thr_id; // Thread that will handle the signals (SIGINT and SIGALRM).
-
-pthread_t mainthread; // Main thread.
-
-pthread_key_t key;  // Used to set custom threads destructors.
-pthread_once_t key_once; // Used to set custom threads destructors.
-
-char testmode;  // Used in Tests/tests.c to disable error handling.
-
-pthread_mutex_t mutexprint; // Mutex used to sync multiline threads printing with printff():
-#define BANNER_LENGTH 80
-#define BANNER_SYMBOL '#'
-#define BANNER_NSPACES 4
-
-char setupfinished; // Used to notify the main thread to continue after initialization of all others threads.
+typedef unsigned long int uli; // Shortcut used often.
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 void* signalsThread(void*);
-void atExit(void);
-void threadDestructor(void*);
 
 // Functions used both in client and server, their implementation normally is
 // the same, is done in common.c.
 // More infos in common.c.
 int parseIP(char*, struct sockaddr_in*);
 void toLowerOrUpperString(char*, char);
-struct Message* receiveMessage(int);
-void* sendMessage(int, char, char*);
+struct Message* receiveMessage(int, char*);
+char sendMessage(int, char, char*);
 void destroyMessage(struct Message**);
-void mLock(pthread_mutex_t*);
-void mULock(pthread_mutex_t*);
-void handleError(char, char, char, char, const char*, ...);
-void printff(va_list, char, const char*, ...);
-void makeKey(void);
-void threadSetup(void);
 char* bannerCreator(uli, uli, char*, char, char);
-
 

@@ -19,4 +19,7 @@ List of things to work on. Very few things because I forget very often to update
 
 - [x] Review project structure.
 - [x] Check again directives: slides PowerPoint, PDF document and Google Docs FAQ, updating code and report accordingly. 
+- [x] common.c.
+- [x] boggle_client.c.
+- [x] client.c.
 

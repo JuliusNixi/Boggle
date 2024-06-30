@@ -6,14 +6,11 @@
 
 int main(int argc, char** argv) {
 
-    // Printing banner.
+    // Printing start banner.
     char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "SETUP", BANNER_SYMBOL, 0);
-    // Normal printf because the printmutex used in printff() is not initialized yet.
-    printf("\n\n##################\n#     CLIENT     #\n##################\n\n");
-    if (banner){
-        printf("%s\n", banner);
-        free(banner);
-    }
+    fprintf(stdout, "\n\n##################\n#     CLIENT     #\n##################\n\n");
+    fprintf(stdout, "%s\n", banner);
+    free(banner);
 
     // Initializing local vars.
     int retvalue = 0; // To check system calls result (succes or failure).
@@ -23,91 +20,65 @@ int main(int argc, char** argv) {
 
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
-    testmode = 0;
-    // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
-    // In this case i must use pthread_mutex_init().
-    retvalue = pthread_mutex_init(&mutexprint, NULL);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 0, 0, "Error in printmutex initializing.\n");
-    }
-    setupfinished = 0;
 
-
-    printff(NULL, 0, "I'm the main thread (ID): %lu.\n", (uli)pthread_self());
-    // To setup the thread destructor.
-    threadSetup();
+    fprintf(stdout, "I'm the main thread (ID): %lu.\n", (uli) mainthread);
 
     // Creating a mask, that will block the SIGINT and SIGPIPE signals for all 
     // threads except the dedicated thread signalsThread().
-    // Important to do it as soon as possible.
+    // Important to do it as soon as possible to be able to handle appropriately the signals.
     // Not to be caught unprepared.
-    sigemptyset(&signal_mask);
-    sigaddset(&signal_mask, SIGINT);
-    sigaddset(&signal_mask, SIGPIPE);
+    sigemptyset(&signalmask);
+    sigaddset(&signalmask, SIGINT);
+    sigaddset(&signalmask, SIGPIPE);
 
-    // Registering exit function for main.
-    retvalue = atexit(atExit);
+    // Enabling the signals' mask.
+    retvalue = pthread_sigmask(SIG_BLOCK, &signalmask, NULL);
     if (retvalue != 0) {
         // Error
-        handleError(1, 1, 0, 0, "Error in registering exit cleanupper with atexit() in main function.\n");
     }
-    printff(NULL, 0, "Exit safe function (cleanup for the main with atexit()) registered correctly.\n");
-
-    // Enabling the mask.
-    retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 0, 0, "Error in setting the pthread signals mask.\n");
-    }
-    printff(NULL, 0, "Threads signals mask enabled correctly.\n");
+    fprintf(stdout, "Threads signals mask enabled correctly.\n");
 
     // Any newly created threads INHERIT the signal mask with these signals blocked. 
 
-    // Creating the thread that will handle ALL AND EXCLUSIVELY SIGINT and SIGPIPE signals
+    // Creating the pthread that will handle ALL AND EXCLUSIVELY SIGINT and SIGPIPE signals
     // by waiting with sigwait() forever in a loop.
-    retvalue = pthread_create(&sig_thr_id, NULL, signalsThread, NULL);
+    retvalue = pthread_create(&signalsthread, NULL, signalsThread, NULL);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 0, 0, "Error in creating the pthread signals handler.\n");
     }
-    printff(NULL, 0, "Signals registered and pthread handler started succesfully.\n", (uli) sig_thr_id);
-
+    fprintf(stdout, "Signals registered and pthread signals handler started succesfully.\n", (uli) signalsthread);
 
     // Check number of args.
     if (argc != 3) {
         // Error
-        handleError(0, 1, 0, 0, USAGE_MSG, argv[0]);
     }
 
     // Parsing port.
     uli port = strtoul(argv[2], NULL, 10);
     if (port > 65535LU) {
         // Error
-        handleError(0, 1, 0, 0, "Invalid port %lu. It should be less than 65535.\n", port);
     }
     server_addr.sin_port = htons(port);
 
+    // Socket type.
     server_addr.sin_family = AF_INET;
 
     // Parsing IP.
     retvalue = parseIP(argv[1], &server_addr);
     if (retvalue != 1) {
         // Error
-        handleError(0, 1, 0, 0, "Invalid IP: %s.\n", argv[1]);
     }
-    printff(NULL, 0, "Starting client on IP: %s and port: %lu.\n", argv[1], port);
+    fprintf(stdout, "Starting client by connecting to IP: %s and port: %lu.\n", argv[1], port);
 
-    printff(NULL, 0, "The args seems to be ok...\n");
+    fprintf(stdout, "The args seems to be ok...\n");
 
     // Creating socket.
 reconnecting:
     client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
     if (client_fd == -1) {
         // Error
-        handleError(0, 1, 0, 0, "Error in creating socket.\n");
     }
-    printff(NULL, 0, "Socket created.\n");
+    fprintf(stdout, "Socket created.\n");
 
     // Connecting to server.
     while (1) {
@@ -117,41 +88,52 @@ reconnecting:
             // So it will not be able to simply trying again a new connect.
             // Read here the notes.
             // https://man7.org/linux/man-pages/man2/connect.2.html
-            // Need to recreate the socket...
+            // Need to recreate the socket.
             // Error
             retvalue = close(client_fd);
-            if (retvalue != 0) {
+            if (retvalue == -1) {
                 // Error
-                handleError(1, 1, 0, 0, "Error in socket close(), during the failure of connect().\n");
             }
-            printff(NULL, 0, "Socket closed.\nError in connecting, retrying in 3 seconds. Is the server online?\n");
+            fprintf(stdout, "Socket closed.\nError in connecting, retrying in 3 seconds.\nIs the server online?\n");
             sleep(3);
             goto reconnecting;
         }else break;
     }
-    printff(NULL, 0, "Connected succesfully!\n");
+    fprintf(stdout, "Connected succesfully!\n");
 
     // Creating responses handler pthread.
-    retvalue = pthread_create(&responses_thread, NULL, responsesHandler, NULL);
+    retvalue = pthread_create(&responsesthread, NULL, responsesHandler, NULL);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 0, 0, "Error during the responses handler pthread creation.\n");
     }
-    printff(NULL, 0, "Responses pthread created succesfully.\n");
+    fprintf(stdout, "Responses pthread created succesfully.\n");
 
     // Waiting for the setup of other threads.
-    while(1) if (setupfinished >= 2) break; else usleep(100);
-
-    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
-    if (banner) {
-        printff(NULL, 0, "%s\n", banner);
-        free(banner);
+    char toexit = 0;
+    while (1) {
+        retvalue = pthread_mutex_lock(&setupmutex);
+        if (retvalue != 0) {
+            // Error
+        }
+        if (setupfinished == 2) toexit = 1;
+        retvalue = pthread_mutex_unlock(&setupmutex);
+        if (retvalue != 0) {
+            // Error
+        }
+        if (toexit) break;
+        // To avoid instant reacquiring.
+        else usleep(100);
     }
+
+    // Printing end banner.
+    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
+    fprintf(stdout, "%s\n", banner);
+    free(banner);
 
     // Start input management.
     inputHandler();
 
-    // TODO Close/Exti socket.
+    // TODO Close socket.
 
     return 0;
     
