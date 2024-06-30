@@ -117,6 +117,7 @@ int main(int argc, char** argv) {
     }
 
     // Setting default args and printing infos.
+    char seedpresent = 0;
     if (filemath != NULL) {
         matpath = filemath;
         usematrixfile = 1;
@@ -129,9 +130,10 @@ int main(int argc, char** argv) {
         gameduration = 3LU;
         fprintf(stdout, "Using DEFAULT match time duration %lu minutes.\n", gameduration);
     }
-    if (seed != 0LU)
+    if (seed != 0LU) {
+        seedpresent = 1;
         fprintf(stdout, "Using INSERTED seed %lu.\n", seed);
-    else {
+    }else {
         seed = 42LU;
         fprintf(stdout, "Using DEFAULT seed %lu.\n", seed);
     }
@@ -189,6 +191,10 @@ int main(int argc, char** argv) {
         // printff(NULL, 1, USAGE_MSG, argv[0]);
     }
 
+    if (usematrixfile && seedpresent) {
+        // Error
+    }
+
     fprintf(stdout, "The args seems to be ok...\n");
 
     // Setting rand seed.
@@ -203,44 +209,57 @@ int main(int argc, char** argv) {
         fprintf(stdout, "Trying to use DEFAULT dictionary file at %s.\n", filedict);
     }
     loadDictionary(filedict);
- arinza
+ 
     // Initializing game matrix.
-    initMatrix();
+    // Initializing the matrix with a special symbol (VOID_CHAR), useful for testing and debugging.
+    for (uli i = 0LU; i < NROWS; i++)
+        for (uli j = 0LU; j < NCOL; j++) 
+            matrix[i][j] = VOID_CHAR;
+    fprintf(stdout, "Game matrix succesfully initialized.\n");
 
     // Creating socket.
     // READ man socket, there are useful infos.
     socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
     if (socket_server_fd == -1) {
         // Error
-        handleError(0, 1, 0, 0, "Error in creating the server socket.\n");
     }
-    printff(NULL, 0, "Server socket created.\n");
+    fprintf(stdout, "Server socket created.\n");
     
     // Binding socket.
     retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
     if (retvalue == -1){
         // Error
-        handleError(0, 1, 0, 0, "Error in binding.\n");
     }
-    printff(NULL, 0, "Binding completed.\n");
+    fprintf(stdout, "Binding completed.\n");
 
     // Listening for incoming connections.
     retvalue = listen(socket_server_fd, SOMAXCONN);
     if (retvalue == -1) {
         // Error
-        // errno
-        handleError(1, 1, 0, 0, "Error in listening.\n");
     }
-    printff(NULL, 0, "Listening...\n");
+    fprintf(stdout, "Listening...\n");
 
     // Waiting for the setup of other threads.
-    while(1) if (setupfinished >= 1) break; else usleep(100);
-
-    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
-    if (banner) {
-        printff(NULL, 0, "%s\n", banner);
-        free(banner);
+    char toexit = 0;
+    while (1) {
+        retvalue = pthread_mutex_lock(&setupmutex);
+        if (retvalue != 0) {
+            // Error
+        }
+        if (setupfinished == 1) toexit = 1;
+        retvalue = pthread_mutex_unlock(&setupmutex);
+        if (retvalue != 0) {
+            // Error
+        }
+        if (toexit) break;
+        // To avoid instant reacquiring.
+        else usleep(100);
     }
+
+    // Printing end banner.
+    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
+    fprintf(stdout, "%s\n", banner);
+    free(banner);
 
     // Starting the first game.
     startGame();

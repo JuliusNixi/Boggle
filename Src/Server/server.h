@@ -1,5 +1,5 @@
 // Shared/Common CLIENT & SERVER cross files vars and libs.
-#include "common.h"
+#include "../Common/common.h"
 
 // Common server only cross files used vars and libs.
 int socket_server_fd; // Socket server file descriptor.
@@ -91,80 +91,65 @@ struct Queue { // Queue struct.
     struct Queue* next; // Pointer to the next element of the Queue.
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // Functions signatures server used in server.c and bloggle_server.c.
 // Implementation and infos in the server.c file.
+void loadDictionary(char*);
+void getMatrixNextIndexes(int*);
+void validateMatrix(void);
+void loadMatrixFromFile(char*);
+void generateRandomMatrix(void);
+char* serializeMatrixStr(void);
+void validateDictionary(void);
+char searchWordInMatrix(uli, uli, char*);
+void startGame(void);
+void updateClients(void);
+void acceptClient(void);
+void disconnectClient(struct ClientNode**, char);
+char* serializeStrClient(struct ClientNode*);
+char* itoa(uli);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void* scorer(void*);
 char* csvNamePoints(struct Message*, char);
 int sortPlayersByPointsMessage(const void*, const void*);
-void generateRandomMatrix(void);
-void loadMatrixFromFile(char*);
-void getMatrixNextIndexes(int*);
-void validateMatrix(void);
-void initMatrix(void);
-char* serializeMatrixStr(void);
-void loadDictionary(char*);
-void validateDictionary(void);
 int registerUser(char*, struct ClientNode*, struct Message*);
-void setAlarm(void);
-void startGame(void);
-void* gamePause(void*);
-void acceptClient(void);
 // I used unsigned long because i read that is the recommended type for handling POSIX time.
-char* itoa(uli);
 uli timeCalculator(uli, char);
 void sendCurrentMatrix(struct ClientNode*);
 void* clientHandler(void*);
 int submitWord(struct ClientNode*, char*);
-int searchWordInMatrix(int, int, char*);
 int validateWord(char*);
-void disconnectClient(struct ClientNode*, char);
 void endGame(int);
-void updateClients(void);
-char* serializeStrClient(struct ClientNode*);
 void createScoreboard(struct Queue**, int);
 void gameEndQueue(struct ClientNode*);
-void clearQueue(void);
 
 
 // Defined, commented and implemented all in common.h and common.c.
 // int parseIP(char*, struct sockaddr_in*); -> common.h
 // void toLowerOrUpperString(char*, char); -> common.h
-// struct Message* receiveMessage(int); -> common.h
-// void* sendMessage(int, char, char*); -> common.h
+// struct Message* receiveMessage(int, char*); -> common.h
+// char sendMessage(int, char, char*); -> common.h
 // void destroyMessage(struct Message**); -> common.h
-// void mLock(pthread_mutex_t*); -> common.h
-// void mULock(pthread_mutex_t*); -> common.h
-// void handleError(char, char, char, char, const char*, ...); -> common.h
-// void printff(va_list, char, const char*, ...); -> common.h
-// void makeKey(void); -> common.h
-// void threadSetup(void); -> common.h
 // char* bannerCreator(uli, uli, char*, char, char); -> common.h
-
-
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h
-// void atExit(void) -> common.h
-// void threadDestructor(void*); -> common.h
 ////////////////////////////////////////////////////////////////////////
 
 

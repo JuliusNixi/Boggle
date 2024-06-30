@@ -2,6 +2,8 @@
 // Shared server cross files vars and libs.
 #include "server.h"
 
+// TODO Check if all this is needed.
+
 // Current file vars and libs.
 #include <math.h>
 #include <sys/stat.h>
@@ -18,15 +20,15 @@ uli words_len = 0U;   // Length of BOTH char[][] above.
 uli matchtime = 0LU;  // Time of the last game startup.
 uli pausetime = 0LU;  // Time of the last pause startup.
 
-// TODO remove this 
+// TODO Reset times.
 #define tempteststimeseconds 8
 #define PAUSE_DURATION 8 // Duration of the pause in minutes. Default 1 minute.
 // For the game duration time, see gameduration var in server.h
 //#define PAUSE_DURATION 7 // Duration of the pause in minutes.
 
-// TODO Restore word_len after tests
+// TODO Restore word_len after tests.
 //#define WORD_LEN 4LU  // If set to an integer greater than 0, the server will refuse all the words that not match this length, even if present in the dictionary and in the current game matrix.
-#define WORD_LEN 0
+#define WORD_LEN 0LU
 
 char pauseon = 0; // This var will be 1 if the game is paused, and 0 otherwise (game in play). It is used by the clientHandler() threads to understand how to response to the clients requests.
 pthread_mutex_t pausemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads during switching pause/game-on phases.
@@ -312,7 +314,7 @@ int sortPlayersByPointsMessage(const void* a, const void* b) {
 
 }
 
-
+// ANCHOR generateRandomMatrix()
 // This function generate a random letters matrix of size as written in NCOL and NROWS.
 // The letters that will be used are only those present in the ALPHABET.
 // matrix, ALPHABET, NROWS and NCOLS are defined in the server.h.
@@ -321,8 +323,8 @@ void generateRandomMatrix(void) {
 
     int randint;
     // Iterating on game matrix.
-    for (unsigned int i = 0; i < NROWS; i++)
-        for (unsigned int j = 0; j < NCOL; j++) {
+    for (uli i = 0; i < NROWS; i++)
+        for (uli j = 0; j < NCOL; j++) {
             // Choosing a random letter from ALPHABET (global #define) and filling the matrix.
             randint = rand() % strlen(ALPHABET);
             // The characters written in the alphabet are used all in UPPERCASE version,
@@ -333,16 +335,17 @@ void generateRandomMatrix(void) {
     // Validating the new game matrix.
     validateMatrix();
 
-    printff(NULL, 0, "New random matrix created and validated succesfully.\n");
+    fprintf(stdout, "New random matrix created and validated succesfully.\n");
 
 }
 
-// This function fill the game matrix (matrix is a global char[NROWS][NCOL]) of size as written in NCOL and NROWS
-// by reading a file (with file path) received as arg from CLI.
+// ANCHOR loadMatrixFromFile()
+// This function fills the game matrix (matrix is a global char[NROWS][NCOL])
+// of size as written in NCOL and NROWS by reading a file (with file path) received as arg from CLI.
 // matrix, NROWS and NCOLS are defined in the server.h.
 // By passing a valid path file as argument, the function will start to read matrices line
-// by line (assuming one matrix for file line ended with \n) beginning from the first to the end of file.
-// If NULL is passed as arg, the function will load the next
+// by line (assuming one matrix for file line ended with \n) beginning from the first to the 
+// end of file. If NULL is passed as arg, the function will load the next
 // matrix from the current file, otherwise will start from the first line of the new file passed.
 // The current used file path is stored on the heap with a static char* var MAT_PATH.
 // The matrix will be loaded with all UPPERCASE characters regardless of how the characters
@@ -358,10 +361,13 @@ void loadMatrixFromFile(char* path) {
     static char* file = NULL;
     // Stat to get file informations.
     static struct stat s;
+    // Matrices file, file descriptor.
+    static int fd = -1;
 
+    // i will be the index used to read the file.
     // i is static, so i can remember between functions call
     // where I was left to read the file.
-    static unsigned int i = 0;
+    static uli i = 0LU;
 
     // String that will be allocated on the heap and will rapresent the matrix file path
     // (if present in the CLI args).
@@ -373,22 +379,21 @@ void loadMatrixFromFile(char* path) {
         MAT_PATH = (char*) malloc((strlen(path) + 1) * sizeof(char));
         if (MAT_PATH == NULL) {
             // Error
-            handleError(0, 1, 0, 0, "Error in allocating heap memory for the matrices file path.\n");
         }
         // Copying the path to in the heap var.
         strcpy(MAT_PATH, path);
         MAT_PATH[strlen(path)] = '\0';
         // Resetting i, a new file is passed, so i must restart from line 1.
-        i = 0;
+        i = 0LU;
         
         // IMPORTANT: To avoid loading same matrix forever in startGame().
         matpath = NULL;
-    }else
+    }else{
         // First call with NULL path.
         if (MAT_PATH == NULL) {
             // Error
-            handleError(0, 1, 0, 0, "Error, loadMatrixFromFile() has not been initialized. Recall it with a valid file path.\n");
         }
+    }
 
     int retvalue;
     uli counter = 0LU;
@@ -400,15 +405,11 @@ void loadMatrixFromFile(char* path) {
         retvalue = stat(MAT_PATH, &s);
         if (retvalue == -1) {
             // Error
-            handleError(0, 1, 0, 0, "Error in getting %s matrices file information.\n", MAT_PATH);
         }
         // Check if the file is regular.
         if(!S_ISREG(s.st_mode)){
             // Error
-            handleError(0, 1, 0, 0, "Error %s matrices file is not a regular file.\n", MAT_PATH);
         }
-
-        static int fd = -1;
 
         // Releasing previous file content if present.
         if (file != NULL) {
@@ -416,7 +417,6 @@ void loadMatrixFromFile(char* path) {
             retvalue = close(fd);
             if (retvalue == -1) {
                 // Error
-                // TODO e3
             }
             fd = -1;
         }
@@ -425,14 +425,12 @@ void loadMatrixFromFile(char* path) {
         file = (char*) malloc(sizeof(char) * (s.st_size + 1));
         if (file == NULL) {
             // Error
-            handleError(0, 1, 0, 0, "Error in allocating memory for the matrix file content.");
         }
 
         // Opening the file in readonly mode.
         fd = open(MAT_PATH, O_RDONLY, NULL);
         if (fd == -1) {
             // Error
-            handleError(0, 1, 0, 0, "Error in opening %s matrices file.\n", MAT_PATH);
         }
 
         // Reading the file content using a buffer of BUFFER_SIZE length.
@@ -441,26 +439,28 @@ void loadMatrixFromFile(char* path) {
             retvalue = read(fd, buffer, BUFFER_SIZE);
             if (retvalue == -1) {
                 // Error
-                handleError(0, 1, 0, 0, "Error in reading %s matrices file.\n", MAT_PATH);
             }
+
             // Exit while, end of file reached.
             if (retvalue == 0) break;
 
             // Copying the buffer in the main file array.
-            for (unsigned int i = 0; i < retvalue; i++)
-                file[counter++] = buffer[i];
+            for (uli j = 0LU; j < retvalue; j++)
+                file[counter++] = buffer[j];
         }
+
         file[counter] = '\0';
+
    }
 
     // Applying the next read matrix from file to the program matrix global var.
-    // Initializing iterator.
 
+    // Initializing iterator.
     getMatrixNextIndexes(NULL);
     int matrixnextindexes[2];
-    counter = 0;
+    counter = 0LU;
     // If i equals to the file size, I am at the end of it and I start reading all over again.
-    if (i == s.st_size) i = 0;
+    if (i == s.st_size) i = 0LU;
     for (; i < s.st_size; i++) {
         // Skipping spaces, '\r' and 'u' of 'Qu'.
         // https://stackoverflow.com/questions/1761051/difference-between-n-and-r
@@ -472,38 +472,43 @@ void loadMatrixFromFile(char* path) {
             getMatrixNextIndexes(matrixnextindexes);
             if (counter != NROWS * NCOL || matrixnextindexes[0] != -1) {
                 // Error
-                handleError(0, 1, 0, 0, "Error %s matrices file has an invalid format.\n", MAT_PATH);
+                // Check, i MUST to be at end of line and so end of matrix.
+                // Invalid format file.
             }
             i++;
             break;
         }
+
         // Getting next matrix indexes to write.
         getMatrixNextIndexes(matrixnextindexes);
         if (matrixnextindexes[0] == -1){
             // Error 
-            handleError(0, 1, 0, 0, "Error %s matrices file is in invalid format.\n", MAT_PATH);
+            // Invalid format file.
         }else {
             // The matrix are loaded with all characters UPPERCASE, regardless how
             // they are written in the file.
             matrix[matrixnextindexes[0]][matrixnextindexes[1]] = toupper(file[i]);
             counter++;
         }
+
     }
 
     // Validating the new matrix.
     validateMatrix();
 
-    printff(NULL, 0, "New matrix succesfully loaded and validated from %s matrix file.\n", MAT_PATH);
+    fprintf(stdout, "New matrix succesfully loaded and validated from %s matrix file.\n", MAT_PATH);
 
 }
 
 // ANCHOR signalsThread()
 // This function will be executed in a dedicated thread started as soon as possible in the main.
-// It will run forever (as long as the process lives) looping in a while(1);.
-// Will only deal with the management of SIGINT and SIGALRM signals, but
+// It will run forever (as long as the process lives) looping in a while(1).
+// Will only deal with the management of SIGINT, SIGALRM and SIGPIPE signals, but
 // all others could also be added without any problems.
 // The SIGINT is sent when CTRL + C are pressed on the keyboard.
-// The SIGALRM will be used to pause the game.
+// The SIGALRM will be used to trigger the game pause.
+// The SIGPIPE will be simply ignored, because it's triggered when a client/server disconnection
+// happens and this situation is already handled by the individual threads.
 // All other threads will block these signals.
 // This way should be better then registering the signals handlers with the sigaction().
 // Because we won't be interrupted and thus solve the very annoying problem of using
@@ -511,54 +516,52 @@ void loadMatrixFromFile(char* path) {
 // Note that still the problem of inter-thread competition persists and needs to be handled.
 void* signalsThread(void* args) {
 
-    printff(NULL, 0, "I'm the signalsThread() thread (ID): %lu.\n", (uli) sig_thr_id);
-    // Setupping thread destructor.
-    threadSetup();
+    fprintf(stdout, "I'm the signalsThread() thread (ID): %lu.\n", (uli) signalsthread);
+
+    int retvalue = pthread_mutex_lock(&setupmutex);
+    if (retvalue != 0) {
+        // Error
+    }
     setupfinished++;
+    retvalue = pthread_mutex_unlock(&setupmutex);
+    if (retvalue != 0) {
+        // Error
+    }
 
     int sig;    
-    int retvalue;
     while (1){
         // Intercepting signals previously setted in the mask in the main.
         // sigwait() atomically get the bit from the signals pending mask and set it to 0.
         // https://stackoverflow.com/questions/2575106/posix-threads-and-signals
-        retvalue = sigwait(&signal_mask, &sig);
+        retvalue = sigwait(&signalmask, &sig);
         if (retvalue != 0) {
             // Error
-            handleError(0, 1, 0, 0, "Error in sigwait().\n");
         }
 
         // Treatment of different signals.
         switch (sig){
             case SIGINT:{ 
                 // TODO SIGINT
-                printff(NULL, 0, "SIGINT intercepted, exiting...\n");
-                pthread_cancel(mainthread);
-                pthread_exit(NULL);
                 break;
             }case SIGALRM:{
                 // This will manage the SIGALRM signal triggered by the timer when the game is over.
 
                 // This is the CORE of the server.
-                // ANCHOR Game Core 
+                // ANCHOR Game Core.
 
                 /////////////////////////   GAME OVER   /////////////////////////
-                mLock(&mutexprint);
+
+                // TODO Prints all in a block, interleaved prints problem.
                 char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
-                if (banner) {
-                    printff(NULL, 1, "%s\n", banner);
-                    free(banner);
-                }
+                fprintf(stdout, "%s\n", banner);
+                free(banner);
+
                 banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 0);
-                if (banner) {
-                    printff(NULL, 1, "\n%s\n", banner);
-                    free(banner);
-                }
-                printff(NULL, 1, "The game is just ended. The requests from clients received until now will anyways be completed.\n");
-                mULock(&mutexprint);
+                fprintf(stdout, "\n%s\n", banner);
+                free(banner);
+                fprintf(stdout, "The game is just ended. The requests from clients received until now will anyways be completed.\n");
 
                 struct ClientNode* current;
-
 
 
 
@@ -573,21 +576,31 @@ void* signalsThread(void* args) {
                 
                 // Enabling pause and notifying the threads handlers of the end of game, to stop read()
                 // and start working on queue.
-                mLock(&pausemutex);
-                mLock(&listmutex);
+                retvalue = pthread_mutex_lock(&pausemutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
                 current = head;
-                // Locking threads handlers, when they complete their current request.
                 while (1) {
                     if (current == NULL) break;
 
-                    mLock(&(current->handlerequest));
+                    // Locking threads handlers, when they complete their current request.
+                    retvalue = pthread_mutex_lock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
 
+                    // Creating end game message to send it to the clients.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 0);
                     uli l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
                     char msgendgame[l];
                     strcpy(msgendgame, banner);
-                    msgendgame[l - 1] = '\0';
-                    msgendgame[l - 2] = '\n';
+                    msgendgame[l] = '\0';
+                    msgendgame[l - 1] = '\n';
                     free(banner);
                     banner = NULL;
                     
@@ -595,8 +608,8 @@ void* signalsThread(void* args) {
                     l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
                     char msgendgameend[l];
                     strcpy(msgendgameend, banner);
-                    msgendgameend[l - 1] = '\0';
-                    msgendgameend[l - 2] = '\n';
+                    msgendgameend[l] = '\0';
+                    msgendgameend[l - 1] = '\n';
                     free(banner);
                     banner = NULL;
 
@@ -649,7 +662,6 @@ void* signalsThread(void* args) {
                     retvalue = pthread_kill(current->thread, SIGUSR1); 
                     if (retvalue != 0) {
                         // Error
-                        handleError(0, 0, 0, 0, "WARNING: Error in pthread_kill() in signalsThread(), retrying in a moment...\n");
                         usleep(100);
                     } 
                     // Continuing only when the signal has been received by the client.
@@ -659,16 +671,22 @@ void* signalsThread(void* args) {
                 // Now all clients threads (in clientHandler()) are suspended
                 // on their mutexes (eventually read() are stopped),
                 // except for those in disconnectClient(), but these last are not relevant.
-                // Releasing all threads, now they can read the modified pauseon and will
+                // Releasing all threads locks, now they can read the modified pauseon and will
                 // work on the shared queue.
                 current = head;
                 while (1) {
                     if (current == NULL) break;
-                    mULock(&(current->handlerequest));
+                    retvalue = pthread_mutex_unlock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     current = current->next;
                 }
                 // Important to realease to not suspend during the pause the clients accepting.
-                mULock(&listmutex);
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
 
 
 
@@ -681,7 +699,7 @@ void* signalsThread(void* args) {
 
                 //////////////////  ENABLED PAUSE THREADS WORKING ON QUEUE  //////////////////
 
-                printff(NULL, 0, "Pause enabled. From now all the clients requests will be threated as in end game phase.\n");
+                fprintf(stdout, "Pause enabled. From now all the clients requests will be threated as in end game phase.\n");
 
                 // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
 
@@ -696,9 +714,9 @@ void* signalsThread(void* args) {
 
                 // Those blocked on registerUser() return to the beginning of clientHandler()
                 // and can continue in this task, so there is no danger of deadlock.
-                // Also for the disconnectClient() there is not the risk of deadlock.
+                // Also for the disconnectClient() threads there is not the risk of deadlock.
                 // After threads can once again return to respond to clients requests.
-                printff(NULL, 0, "Clients released and notified, now they should working on the queue.\n");
+                fprintf(stdout, "Clients released and notified, now they should working on the queue.\n");
 
 
 
@@ -713,10 +731,16 @@ void* signalsThread(void* args) {
 
                 // Checking if threads completed their jobs on queue.
                 while (1) {
-                    char endexit = 0;
-                    mLock(&queuemutex);
+                    char toexit = 0;
+                    retvalue = pthread_mutex_lock(&queuemutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     // nclientsconnected remember to use it only after acquiring the listmutex!
-                    mLock(&listmutex);
+                    retvalue = pthread_mutex_lock(&listmutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     uli filledqueueclients = 0LU;
                     current = head;
                     while(1) {
@@ -725,14 +749,20 @@ void* signalsThread(void* args) {
                         current = current->next;
                     }
                     // All threads have succesfully filled the queue.
-                    if (filledqueueclients == nclientsconnected) endexit = 1;
-                    mULock(&listmutex);
-                    mULock(&queuemutex);
-                    if (endexit) break;
+                    if (filledqueueclients == nclientsconnected) toexit = 1;
+                    retvalue = pthread_mutex_unlock(&listmutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    retvalue = pthread_mutex_unlock(&queuemutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    if (toexit) break;
                     // To avoid instant re-acquiring.
                     usleep(100);
                 }
-                printff(NULL, 0, "Queue has been succesfully filled by all the clients threads.\n");
+                fprintf(stdout, "Queue has been succesfully filled by all the clients threads.\n");
 
 
 
@@ -750,12 +780,22 @@ void* signalsThread(void* args) {
                 
                 // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
 
-                mLock(&queuemutex);
-                mLock(&listmutex);
+                retvalue = pthread_mutex_lock(&queuemutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                
                 current = head;
                 while (1) {
                     if (current == NULL) break;
-                    mLock(&(current->handlerequest));
+                    retvalue = pthread_mutex_lock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     current = current->next;
                 }
 
@@ -772,25 +812,22 @@ void* signalsThread(void* args) {
                 retvalue = pthread_create(&scorert, NULL, scorer, NULL);
                 if (retvalue != 0) {
                     // Error
-                    handleError(0, 1, 0, 0, "Error in pthread_create() in the creation of the scorer thread.\n");
                 }
                 // Waiting the score thread to finish.
                 retvalue = pthread_join(scorert, NULL);
                 if (retvalue != 0){
                     // Error
-                    handleError(0, 1, 0, 0, "Error in pthread_join() of the scorer thread.\n");
                 }
 
                 current = head;
                 // Notifying the threads handlers of the completed thread scorer(), to send
-                // the scoreboard to the clients.
+                // the scoreboard to their clients.
                 while (1) {
                     if (current == NULL) break;
                     threadsignalreceivedglobal = &(current->receivedsignal);
                     retvalue = pthread_kill(current->thread, SIGUSR1); 
                     if (retvalue != 0) {
                         // Error
-                        handleError(0, 0, 0, 0, "WARNING: Error in pthread_kill() in signalsThread(), retrying in a moment...\n");
                         usleep(100);
                     }
                     if (current->receivedsignal && current->waiting == 1) current = current->next;
@@ -812,13 +849,22 @@ void* signalsThread(void* args) {
                 current = head;
                 while (1) {
                     if (current == NULL) break;
-                    mULock(&(current->handlerequest));
+                    retvalue = pthread_mutex_unlock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     current = current->next;
                 }
-                mULock(&listmutex);
-                mULock(&queuemutex);
-                if(scoreboardstr != NULL) printff(NULL, 0, "Scorer thread is terminated, the final CSV scoreboard should be filled.\n");
-                else printff(NULL, 0, "Scorer thread is terminated, since there are no players, there is no scoreboard... :(\n");
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_mutex_unlock(&queuemutex);
+                if (retvalue != 0) {
+                    // Error
+                }  
+                if(scoreboardstr != NULL) fprintf(stdout, "Scorer thread is terminated, the final CSV scoreboard should be filled.\n");
+                else fprintf(stdout, "Scorer thread is terminated, since there are no players, there is no scoreboard... :(\n");
 
 
 
@@ -831,16 +877,22 @@ void* signalsThread(void* args) {
 
                 //////////////////  CLIENTS END GAME WAITING COMUNICATION  //////////////////
 
-                // Threads working on end game send message...
-                // After threads can once again return to respond to clients requests.
-                printff(NULL, 0, "Clients released and notified, now they should communicate to their clients the CSV scoreboard.\n");
+                // Threads working on end game send message.
+                // After, threads can once again return to respond to clients' requests.
+                fprintf(stdout, "Clients released and notified, now they should communicate to their clients the CSV scoreboard.\n");
                 while(1) {
-                    char endexit = 0;
-                    mLock(&listmutex);
+                    char toexit = 0;
+                    retvalue = pthread_mutex_lock(&listmutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     current = head;
                     while (1) {
                         if (current == NULL) break;
-                        mLock(&(current->handlerequest));
+                        retvalue = pthread_mutex_lock(&(current->handlerequest));
+                        if (retvalue != 0) {
+                            // Error
+                        }
                         current = current->next;
                     }
                     current = head;
@@ -848,20 +900,26 @@ void* signalsThread(void* args) {
                     while(1) {
                         if (current == NULL) break;
                         if (current->actionstoexecute == 4 || current->toexit) {
-                            // Client sent end game message.
+                            // Client has sent the end game message.
                             nclientsmessagesent++;
                         }
                         current = current->next;
                     }
-                    if (nclientsconnected == nclientsmessagesent) endexit = 1;
+                    if (nclientsconnected == nclientsmessagesent) toexit = 1;
                     current = head;
                     while (1) {
                         if (current == NULL) break;
-                        mULock(&(current->handlerequest));
+                        retvalue = pthread_mutex_unlock(&(current->handlerequest));
+                        if (retvalue != 0) {
+                            // Error
+                        }
                         current = current->next;
                     }
-                    mULock(&listmutex);
-                    if (endexit) break;
+                    retvalue = pthread_mutex_unlock(&listmutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    if (toexit) break;
                     // To avoid instant re-acquiring.
                     usleep(100);
                 }
@@ -870,9 +928,12 @@ void* signalsThread(void* args) {
                 scoreboardstr = NULL;
                 // Releasing pausemutex, so registerUser() and disconnectClient() if
                 // necessary could continue.
-                mULock(&pausemutex);
+                retvalue = pthread_mutex_unlock(&pausemutex);
+                if (retvalue != 0) {
+                        // Error
+                }
                 // Releasing also the listmutex is important to avoid to blocks the
-                // new user's socket connection acceptance.
+                // new user's socket connection acceptance during the game pause.
 
 
 
@@ -890,10 +951,35 @@ void* signalsThread(void* args) {
                 // So locking this mutex now doesn't make sense, because no other thread
                 // right now should be working on the shared queue, however it was done
                 // for clarity.
-                mLock(&queuemutex);
-                clearQueue();
-                printff(NULL, 0, "Queue should be now cleared.\n");
-                mULock(&queuemutex);
+                retvalue = pthread_mutex_lock(&queuemutex);
+                if (retvalue != 0) {
+                        // Error
+                }
+                if (headq == NULL || tailq == NULL) {
+                    // No players connected...
+                    // Nothing to do.
+                    return;
+                }
+                // Freeing heap allocated memory.
+                struct Queue* begin = tailq;
+                struct Queue* tmp = NULL;
+                while (1) {
+                    if (begin == NULL) break;
+                    tmp = begin->next;
+                    struct Queue* t = begin;
+                    if (begin->message) destroyMessage(&(begin->message));
+                    if (t) free(t);
+                    begin = tmp;
+                }
+                // Resetting queue.
+                nclientsqueuedone = 0LU;
+                headq = NULL;
+                tailq = NULL;
+                fprintf(stdout, "Queue should be now cleared.\n");
+                retvalue = pthread_mutex_unlock(&queuemutex);
+                if (retvalue != 0) {
+                        // Error
+                }
 
 
 
@@ -906,20 +992,18 @@ void* signalsThread(void* args) {
 
                 //////////////////  EXECUTING PAUSE  //////////////////
 
-                printff(NULL, 0, "Pause sleeping started.\n");
+                fprintf(NULL, 0, "Pause sleeping started.\n");
                 // Executing pause.
-                retvalue = pthread_create(&pausethread, NULL, gamePause, NULL);
-                if (retvalue != 0){
-                    // Error
-                    handleError(0, 1, 0, 0, "Error in pthread_create() in the creation of the gamePause thread.\n");
-                }
-                // Waiting the pause thread to finish.
-                retvalue = pthread_join(pausethread, NULL);
-                if (retvalue != 0){
-                    // Error
-                    handleError(0, 1, 0, 0, "Error in pthread_join() of the gamePause thread.\n");
-                }
-                printff(NULL, 0, "Pause sleeping finished.\n");
+                fprintf(stdout, "Sleeping zzz...\n");
+
+                // Getting new starting pause timestamp in POSIX time.
+                pausetime = (uli) time(NULL);
+
+                // Executing the pause.
+                // PAUSE_DURATION in minutes, but sleep takes seconds.
+                //sleep(PAUSE_DURATION * 60);
+                sleep(tempteststimeseconds);
+                fprintf(stdout, "Pause sleeping finished.\n");
 
 
 
@@ -929,25 +1013,31 @@ void* signalsThread(void* args) {
 
 
 
-                
+
                 //////////////////  STARTING A NEW GAME  //////////////////
 
                 // Disabling pause and starting a new game.
-                mLock(&pausemutex);
-                mLock(&listmutex);
+                retvalue = pthread_mutex_lock(&pausemutex);
+                if (retvalue != 0) {
+                        // Error
+                }
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                        // Error
+                }
 
                 banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
-                if (banner) {
-                    printff(NULL, 0, "%s\n", banner);
-                    free(banner);
-                    banner = NULL;
-                }
+                fprintf(stdout, "%s\n", banner);
+                free(banner);
 
                 // Locking threads to avoid unsafe multithreading situations.
                 current = head;
                 while (1) {
                     if (current == NULL) break;
-                    mLock(&(current->handlerequest));
+                    retvalue = pthread_mutex_lock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     current = current->next;
                 }
                 // Disabling pause.
@@ -967,15 +1057,15 @@ void* signalsThread(void* args) {
                     uli l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
                     char msgstartgame[l];
                     strcpy(msgstartgame, banner);
-                    msgstartgame[l - 1] = '\0';
-                    msgstartgame[l - 2] = '\n';
+                    msgstartgame[l] = '\0';
+                    msgstartgame[l - 1] = '\n';
                     free(banner);
                     banner = NULL;
 
                     // Sending matrix only to registered players.
                     char* str = NULL;
                     char* matstr  = serializeMatrixStr();
-                    char premessage[] = "New matrix:\n\0";
+                    char premessage[] = "New matrix:\n";
                     char matstrandpre[strlen(matstr) + strlen(premessage) + 1];
                     uli counter = 0LU;
                     while(1) {
@@ -993,7 +1083,7 @@ void* signalsThread(void* args) {
                         counter++;
                         counter2++;
                     }
-                    if (current->name != NULL && strcmp(current->name, NO_NAME) != 0)
+                    if (current->name != NULL)
                         str = matstrandpre;
                     else
                         str = NULL;
@@ -1002,8 +1092,8 @@ void* signalsThread(void* args) {
                     l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
                     char msgstartgameend[l];
                     strcpy(msgstartgameend, banner);
-                    msgstartgameend[l - 1] = '\0';
-                    msgstartgameend[l - 2] = '\n';
+                    msgstartgameend[l] = '\0';
+                    msgstartgameend[l - 1] = '\n';
                     free(banner);
                     banner = NULL;
 
@@ -1015,15 +1105,16 @@ void* signalsThread(void* args) {
                         if (msgstartgame[counter] == '\0') {
                             break;
                         }
-                        finalmsg[counter] =  msgstartgame[counter];
+                        finalmsg[counter] = msgstartgame[counter];
                         counter++;
                     }
                     counter2 = 0LU;
-                    while(str != NULL) {
+                    while(1) {
+                        if (str == NULL) break;
                         if (str[counter2] == '\0') {
                             break;
                         }
-                        finalmsg[counter] =  str[counter2];
+                        finalmsg[counter] = str[counter2];
                         counter++;
                         counter2++;
                     }
@@ -1046,11 +1137,20 @@ void* signalsThread(void* args) {
                 current = head;
                 while (1) {
                     if (current == NULL) break;
-                    mULock(&(current->handlerequest));
+                    retvalue = pthread_mutex_unlock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     current = current->next;
                 }
-                mULock(&listmutex);
-                mULock(&pausemutex);
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_mutex_unlock(&pausemutex);
+                if (retvalue != 0) {
+                    // Error
+                }
 
                 break;
             }case SIGPIPE : {
@@ -1060,7 +1160,6 @@ void* signalsThread(void* args) {
                 break;
             }default:
                 // Error
-                handleError(0, 0, 0, 0, "WARNING: signalsThread() intercepted an unexpected signal, ignoring it.\n");
                 break;
         }
     }
@@ -1069,6 +1168,7 @@ void* signalsThread(void* args) {
 
 }
 
+// ANCHOR getMatrixNextIndexes()
 // This function is an iterator, useful to read/write the matrix in complex functions.
 // It takes as input an integer array of 2 positions (pointer to it).
 // It fills array[0] with the matrix current row index.
@@ -1076,12 +1176,12 @@ void* signalsThread(void* args) {
 void getMatrixNextIndexes(int* matrixnextindexes) {
 
     // Static indexes, persitent between function calls.
-    static unsigned int i;
-    static unsigned int j;
+    static uli i;
+    static uli j;
     if (matrixnextindexes == NULL) {
         // Initialization or reset of the iterator is made by passing NULL as arg.
-        i = 0;
-        j = 0;
+        i = 0LU;
+        j = 0LU;
         return;
     }
     // Generating next indexes.
@@ -1091,7 +1191,7 @@ void getMatrixNextIndexes(int* matrixnextindexes) {
             matrixnextindexes[1] = j++;
             if (j != NCOL)
                 return;
-            j = 0;
+            j = 0LU;
             break;
         }
         i++;
@@ -1107,24 +1207,24 @@ void getMatrixNextIndexes(int* matrixnextindexes) {
 
 }
 
-// This function check if the current matrix content (global char[][] in server.h) is legit
-// in accordance with the ALPHABET (also defined in server.h).
-// If is found in the matrix at least 1 character not present in the ALPHABET,
+// ANCHOR validateMatrix()
+// This function checks if the current matrix content (global char[][] defined in server.h)
+// is legit in accordance with the ALPHABET (also defined in server.h).
+// If it's found in the matrix at least 1 character not present in the ALPHABET,
 // the matrix is not valid, and a critical error is throw.
 // If the matrix is valid, nothing happen.
-// The ALPHABET is defined as a global #define in server.h file.
 // This is useful to immediately notice any developmental errors that could lead
 // the matrix into an inconsistent state.
 void validateMatrix(void) {
 
-    for (unsigned int i = 0; i < NROWS; i++) {
-        for (unsigned int j = 0; j < NCOL; j++){
+    for (uli i = 0LU; i < NROWS; i++) {
+        for (uli j = 0LU; j < NCOL; j++){
             char c = matrix[i][j];
             char found = 0;
             // Searching char of matrix in the alphabet.
             // Matrix chars are saved in UPPERCASE.
             // Also the ALPHABET is always used in UPPERCASE.
-            for (unsigned int x = 0; x < strlen(ALPHABET); x++)
+            for (uli x = 0LU; x < strlen(ALPHABET); x++)
                 if (c == toupper(ALPHABET[x])) {
                     found = 1;
                     break;
@@ -1132,59 +1232,41 @@ void validateMatrix(void) {
             // Character not found, error.
             if (found == 0) {
                 // Error
-                handleError(0, 1, 0, 0, "Error invalid character %c in the matrix.\n", c);
             }
         }
     }
 
 }
 
-// This function initialize the game matrix (global server.h char[NROWS][NCOL]).
-// The function will simply fill the matrix with a special undefined char (VOID_CHAR).
-// matrix, NROWS, NCOLS, VOID_CHAR are defined in server.h.
-// Is not mandatory but recommended, to avoid annoying bugs during the development.
-// The matrix is a static char[][] that will contain the game characters.
-// Each matrix slot will rapresent a char of the game.
-// The symbol Qu is rapresented only with Q to save space.
-void initMatrix(void) {
-      
-    // Initializing the matrix with a special symbol (VOID_CHAR), useful for testing and debugging.
-    for (unsigned int i = 0; i < NROWS; i++)
-        for (unsigned int j = 0; j < NCOL; j++) 
-            matrix[i][j] = VOID_CHAR;
-    
-    printff(NULL, 0, "Game matrix succesfully initialized.\n");
-
-}
-
-// This function allocate on the heap a string.
-// It returns the pointer to it.
-// It's length is calculated from NROWS and NCOLS data.
+// ANCHOR serializeMatrixStr()
+// This function allocates on the heap a string.
+// It returns a pointer to it.
+// The string's length is calculated from NROWS and NCOLS data.
+// NCOLS and NROWS are defined in server.h.
 // The string will rapresent visually the game matrix.
-// The Qu will be show in the result even if, only the character Q is stored in the game matrix.
+// The 'Qu' will be show in the result even if, only the character 'Q' is stored in the game matrix.
 char* serializeMatrixStr(void) {
 /*
     
-    Below i calculate the string length of the matrix.
+    Below i calculate the string's length.
     There are 4 addends enclosed in the parenthesis below.
     The first is the length of the only data contained in the matrix 
     multiplied by 2 because every position could be Qu.
     The second addend is the number of spaces betwen letters.
-    The third rapresent the \n at the end of each line.
+    The third rapresent the '\n' at the end of each line.
     The fourth plus 1 is the string terminator (\0).
 
-    Is used to serialize the game matrix var into a visually pretty string.
+    Is used to serialize the game matrix var into a string.
+    Useful for sending or printing the game matrix.
     
 */
     // Matrix serialized string length.
     const uli MAT_STR_LEN = (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1);
 
     // Allocating the string on the heap.
-    char* matrixstring = (char*) malloc(sizeof(char)* MAT_STR_LEN);
+    char* matrixstring = (char*) malloc(sizeof(char) * MAT_STR_LEN);
     if (matrixstring == NULL) {
         // Error
-        handleError(0, 0, 0, 0, "WARNING: Error in allocating heap memory for the matrix string. Trying to continue returning NULL.\n");
-        return NULL;
     }
 
     // Checking the matrix validation.
@@ -1193,8 +1275,10 @@ char* serializeMatrixStr(void) {
     // Initializing the string with a special character, useful for testing and debugging.
     uli counter = 0LU;
     while (counter < MAT_STR_LEN) matrixstring[counter++] = VOID_CHAR;
+    // Insert string terminator.
+    matrixstring[MAT_STR_LEN] = '\0';
 
-    // Inserting \n at the end of each row.
+    // Inserting '\n' at the end of each row.
     uli r = 0LU;
     counter = 0LU;
     while (counter < MAT_STR_LEN) {
@@ -1244,7 +1328,7 @@ char* serializeMatrixStr(void) {
     }
 
     // Insert string terminator.
-    matrixstring[MAT_STR_LEN - 1] = '\0';
+    matrixstring[MAT_STR_LEN] = '\0';
 
     return matrixstring;
 
@@ -1259,6 +1343,7 @@ char* serializeMatrixStr(void) {
 // in addition to the presence in the current game matrix.
 // This function takes as input char* path, the dictionary file path to load.
 // It set also a current file global var words_len, that rapresent the "words" length.
+// All the words are loaded in memory in UPPERCASE, regardless how they are written in the file.
 void loadDictionary(char* path) {
 
     // Empty path.
@@ -1286,154 +1371,152 @@ void loadDictionary(char* path) {
         }
     }
 
-   // Stat to get file information, retvalue to check syscalls returns.
-   struct stat s;
-   int retvalue;
+    // Stat to get file information, retvalue to check syscalls returns.
+    struct stat s;
+    int retvalue;
 
-   // Performing stat on file.
-   retvalue = stat(path, &s);
-   if (retvalue == -1) {
-        // Error
-   }
-   
-   // Check if the file is regular.
-   if(!S_ISREG(s.st_mode)){
-        // Error
+    // Performing stat on file.
+    retvalue = stat(path, &s);
+    if (retvalue == -1) {
+            // Error
     }
-
-    // To store file content.
-    // Total size, in bytes + 1 for the '\0'. 
-    char file[s.st_size + 1];
-    char file_copy[s.st_size + 1];
-
-    // Opening the file in readonly mode.
-    int fd = open(path, O_RDONLY, NULL);
-    if (fd == -1) {
-        // Error
-    }
-
-    // Reading the file content using a buffer of BUFFER_SIZE length.
-    char buffer[BUFFER_SIZE];
-    uli counter = 0LU;
-    while (1) {
-        retvalue = read(fd, buffer, BUFFER_SIZE);
-        if (retvalue == -1) {
+    
+    // Check if the file is regular.
+    if(!S_ISREG(s.st_mode)){
             // Error
         }
 
-        // Exit while, end of file reached.
-        if (retvalue == 0) break;
+        // To store file content.
+        // Total size, in bytes + 1 for the '\0'. 
+        char file[s.st_size + 1];
+        char file_copy[s.st_size + 1];
 
-        // Copying the buffer in the main file array.
-        for (uli i = 0LU; i < retvalue; i++)
-            file[counter++] = buffer[i];
-    }
-
-    // Terminating the file content.
-    file[s.st_size] = '\0';
-
-    // Copying the file content, to use strtok() on the first instance.
-    strcpy(file_copy, file);
-    file_copy[s.st_size] = '\0';
-
-    // Counting file lines and allocating heap space.
-    char* str = file;
-    counter = 0LU;
-    while (str != NULL) {
-        // strtok() modifies the string content.
-        // It tokenize all '\n' '\r' '\n\r' '\r\n'.
-        // This tokens are replaced with '\0'.
-        // The first time strtok() need to be called with string pointer, then with NULL.
-        if (counter == 0LU) str = strtok(str, "\n\r");
-        else str = strtok(NULL, "\n\r");
-        counter++;
-    }
-
-    // Allocating heap spaces for "words" and setting "words_len".
-    words_len = --counter;
-    words = (char**) malloc(sizeof(char*) * words_len);
-    if (words == NULL) {
-        // Error
-    }
-
-    // Copying each word (line) of the file in "words[i]".
-    counter = 0LU;
-    str = file_copy;
-    while (str != NULL) {
-        // Totkenizing with strtok().
-        if (counter == 0LU) str = strtok(str, "\n\r");
-        else str = strtok(NULL, "\n\r");
-
-        if (str == NULL) break;
-
-        // Allocating heap space.
-        words[counter++] = (char*) malloc(sizeof(char) * (strlen(str) + 1));
-        if (words[counter - 1] == NULL) {
+        // Opening the file in readonly mode.
+        int fd = open(path, O_RDONLY, NULL);
+        if (fd == -1) {
             // Error
         }
 
-        // Copying the word in the new words[i] heap space.
-        strcpy(words[counter - 1], str);
-        words[counter - 1][strlen(words[counter - 1])] = '\0';
+        // Reading the file content using a buffer of BUFFER_SIZE length.
+        char buffer[BUFFER_SIZE];
+        uli counter = 0LU;
+        while (1) {
+            retvalue = read(fd, buffer, BUFFER_SIZE);
+            if (retvalue == -1) {
+                // Error
+            }
 
-    }
+            // Exit while, end of file reached.
+            if (retvalue == 0) break;
 
-    // Converting all words to UPPERCASE.
-    for (uli i = 0LU; i < words_len; i++)
-        toLowerOrUpperString(words[i], 'U');
+            // Copying the buffer in the main file array.
+            for (uli i = 0LU; i < retvalue; i++)
+                file[counter++] = buffer[i];
+        }
 
-    fprintf(stdout, "Words dictionary succesfully loaded from %s file with %lu words.\n", path, counter);
+        // Terminating the file content.
+        file[s.st_size] = '\0';
+
+        // Copying the file content, to use strtok() on the first instance.
+        strcpy(file_copy, file);
+        file_copy[s.st_size] = '\0';
+
+        // Counting file lines and allocating heap space.
+        char* str = file;
+        counter = 0LU;
+        while (str != NULL) {
+            // strtok() modifies the string content.
+            // It tokenize all '\n' '\r' '\n\r' '\r\n'.
+            // This tokens are replaced with '\0'.
+            // The first time strtok() need to be called with string pointer, then with NULL.
+            if (counter == 0LU) str = strtok(str, "\n\r");
+            else str = strtok(NULL, "\n\r");
+            counter++;
+        }
+
+        // Allocating heap spaces for "words" and setting "words_len".
+        words_len = --counter;
+        words = (char**) malloc(sizeof(char*) * words_len);
+        if (words == NULL) {
+            // Error
+        }
+
+        // Copying each word (line) of the file in "words[i]".
+        counter = 0LU;
+        str = file_copy;
+        while (str != NULL) {
+            // Totkenizing with strtok().
+            if (counter == 0LU) str = strtok(str, "\n\r");
+            else str = strtok(NULL, "\n\r");
+
+            if (str == NULL) break;
+
+            // Allocating heap space.
+            words[counter++] = (char*) malloc(sizeof(char) * (strlen(str) + 1));
+            if (words[counter - 1] == NULL) {
+                // Error
+            }
+
+            // Copying the word in the new words[i] heap space.
+            strcpy(words[counter - 1], str);
+            words[counter - 1][strlen(words[counter - 1])] = '\0';
+
+        }
+
+        // Converting all words to UPPERCASE.
+        for (uli i = 0LU; i < words_len; i++)
+            toLowerOrUpperString(words[i], 'U');
+
+        fprintf(stdout, "Words dictionary succesfully loaded from %s file with %lu words.\n", path, counter);
 
 }
 
-// This function validate a dictionary previous loaded with loadDictionary() function.
+// ANCHOR validateDictionary()
+// This function validates a dictionary previous loaded in memory with loadDictionary() function.
 // If loadDictionary() hasn't be called before an error will be throw.
-// Validate it means that a new global copy of "words" var is created and allocated on the heap.
+// Validate means that a new global copy of "words" var is created and allocated on the heap.
 // To know what is "words", refer to the function loadDictionary().
 // This new copy will be called "words_valid", it will be (as "words") as char**.
-// It will contains only the words present in "words" var AND in the current game matrix.
-// To save memory, only the words_valid var will be allocated on the heap, its elements, 
+// It will contain only the words present in "words" var AND in the current game matrix.
+// To save memory, only the "words_valid" var will be allocated on the heap, its elements, 
 // instead, char* (pointer to string), will simply be copied from "words" var.
-// Then each char* of new "words_valid" will be modfied in this way:
+// Then each char* of the new "words_valid" var will be modfied in this way:
 // - if the "words_valid[i]" word is present in the current game matrix, the pointer 
 // will remain the same, no modification is done.
 // - otherwise, if the "words_valid[i]" word is NOT present in the current game matrix,
 // the pointer (char*) will be increased to reach '\0'.
-// In this way the dictionary file strings (words) will be present in memory only one time.
-// Note that "words_valid" will also be useful as support to trace the player already submitted words.
-// Since the "words_valid" is a copy of "words", "words_valid" length will be the same,
+// In this way the dictionary file's strings (words) will be present in memory only one time.
+// Since the "words_valid" is a copy of "words", "words_valid" length will be the same as "words",
 // already previously (with loadDictionary()) setted in the global current file var "words_len".
 // IMPORTANT: Remember to call this function whenever the current game matrix is changed.
 void validateDictionary(void) {
 
     // Dictionary not loaded.
-    if (words == 0) {
+    if (words == NULL) {
         // Error
-        handleError(0, 1, 0, 0, "Error, cannot validate the words if a dictionary has not been previously loaded.\nCall loadDictionary() before and retry.\n");
     }
 
-    // Realising (if already present) words_valid.
-    if (words_valid != 0)
+    // Realising (if already present) "words_valid".
+    if (words_valid != NULL)
         free(words_valid);
 
     // Allocating space for the new words_valid.
     words_valid = (char**) malloc(sizeof(char*) * words_len);
-    if (words_valid == 0) {
+    if (words_valid == NULL) {
         // Error
-        handleError(0, 1, 0, 0, "Error, cannot allocate heap memory for the words_valid var.\n");
     }
 
     // Copyinig pointers from "words" current file global var to the new "words_valid".
-    for (unsigned int i = 0; i < words_len; i++)
+    for (uli i = 0LU; i < words_len; i++)
         words_valid[i] = words[i];
 
-    // Iterate on all words loaded in "words" (current file var) from the dictionary file.
-    for (unsigned int x = 0; x < words_len; x++) {
+    // Iterate on all words loaded in "words" (current file global var) from the dictionary file.
+    for (uli x = 0LU; x < words_len; x++) {
         char found = 0;
 
         // Iterating on each character of the game matrix.
-        for (unsigned int i = 0; i < NROWS; i++) {
-            for (unsigned int j = 0; j < NCOL; j++){
+        for (uli i = 0LU; i < NROWS; i++) {
+            for (uli j = 0LU; j < NCOL; j++){
                 // If the word is founded in the current game matrix, 1 is returned by searchWordInMatrix(),
                 // 0, otherwise. When the word is founded the first time (found == 1),
                 // we will set NROWS and NCOL to exit for prematurely.
@@ -1445,67 +1528,69 @@ void validateDictionary(void) {
             }
         }         
 
-        // Deleting (BY INCREASING ONLY THE COPY OF "WORDS" POINTERS) the x-word not found.
+        // Deleting (BY INCREASING ONLY THE COPY FROM "WORDS" POINTERS) the x-word not found.
         // At the end "words_valid" var will contain only all words from the previously loaded
         // dictionary file AND present in the current game matrix. 
         // The other words will be represented by '\0'.
         if (!found) {
-            while(words_valid[x][0] != '\0'){
+            while(words_valid[x][0] != '\0')
                 words_valid[x] = words_valid[x] + 1;
-            } 
         }
+
     }
 
     // Printing results.
     char found = 0;
-    mLock(&mutexprint);
-    printff(NULL, 1, "Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
+    // TODO Printing all data in blocks, fix the interleaving prints.
+    fprintf(stdout, "Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
     
     
     int retvalue;
-    int fileCurrentValidsWords = -1;
-    fileCurrentValidsWords = open(VALID_WORDS_TESTS_FILE_PATH, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);  
-    if (fileCurrentValidsWords == -1) {
+    // The founded words (valid words) in the dictionary file and now in the current game matrix,
+    // will be written in a text file. This will be used to perform tests.
+    int fileCurrentValidsWordsFD = -1;
+    fileCurrentValidsWordsFD = open(VALID_WORDS_TESTS_FILE_PATH, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);  
+    if (fileCurrentValidsWordsFD == -1) {
         // Error
-        handleError(0, 1, 0, 1, "Error in opening %s dicfileCurrentValidsWordstionary file.\n", VALID_WORDS_TESTS_FILE_PATH);
     }
 
-    for (unsigned int i = 0; i < words_len; i++)
+    for (uli i = 0LU; i < words_len; i++) {
+        // Valid word.
         if (words_valid[i][0] != '\0') {
-            printff(NULL, 1, "%s\n", words_valid[i]);
 
-            retvalue = write(fileCurrentValidsWords, words_valid[i], sizeof(char) * strlen(words_valid[i]));
+            fprintf(stdout, "%s\n", words_valid[i]);
+
+            retvalue = write(fileCurrentValidsWordsFD, words_valid[i], sizeof(char) * strlen(words_valid[i]));
             if (retvalue == -1) {
                 // Error
-                // TODO e
             }
-            retvalue = write(fileCurrentValidsWords, "\n", sizeof(char));
+            // Writing new line.
+            retvalue = write(fileCurrentValidsWordsFD, "\n", sizeof(char));
             if (retvalue == -1) {
                 // Error
-                // TODO e2
             }
 
             found = 1;
 
         }
-        
-    retvalue = close(fileCurrentValidsWords);
+    }
+    
+    // Closing the text file.
+    retvalue = close(fileCurrentValidsWordsFD);
     if (retvalue == -1) {
         // Error
-        // TODO e4
     }
 
+    // Printing some other stuff.
     if (found == 0) {
-        printff(NULL, 1, "No words of the current game matrix have been found in the dictionary file... :(\n");
-        mULock(&mutexprint);
+        fprintf(stdout, "No words of the current game matrix have been found in the dictionary file... :(\n");
         return;
     }
-    printff(NULL, 1, "The WORD_LEN value is: %lu. ", WORD_LEN);
+    fprintf(stdout, "The WORD_LEN value is: %lu.\n", WORD_LEN);
     if (WORD_LEN > 0LU)
-        printff(NULL, 1, "WORD_LEN greater than 0.\nEven if present in the list above, the words with a length < WORD_LEN will be refused.\n");
+        fprintf(stdout, "WORD_LEN greater than 0.\nEven if present in the list above, the words with a length < WORD_LEN will be refused.\n");
     else
-        printff(NULL, 1, "WORD_LEN is 0, all the above words will be accepted.\n");
-    mULock(&mutexprint);
+        fprintf(stdout, "WORD_LEN is 0, all the above words will be accepted regardless their length.\n");
 
 }
 
@@ -1671,33 +1756,15 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
 
 }
 
-// This function simply set a POSIX timer using the global var "gameduration",
-// to handle the game time.
-// The default gameduration is 3 minutes setted in main().
-// The gameduration can also be inserted by a CLI arg.
-void setAlarm(void) {
-
-    // Alarm takes as input seconds, but the user input (gameduration var) is in minutes.
-
-    //alarm(60 * gameduration);
-    gameduration = tempteststimeseconds;
-    alarm(gameduration);
-
-    printff(NULL, 0, "The game duration timer is now setted to %lu minutes.\n", gameduration);
-
-}
-
+// ANCHOR startGame()
 // This function starts a new game.
 void startGame(void) {
 
-    mLock(&mutexprint);
+    // TODO Mutex lock, multiple prints.
     char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
-    if (banner) {
-        printff(NULL, 1, "\n%s\n", banner);
-        free(banner);
-    }
-    printff(NULL, 1, "A new game is started right now.\n");
-    mULock(&mutexprint);
+    fprintf(stdout, "\n%s\n", banner);
+    free(banner);
+    fprintf(stdout, "A new game is started right now.\n");
 
     // Getting new game start timestamp time in POSIX.
     matchtime = (uli) time(NULL);
@@ -1710,43 +1777,23 @@ void startGame(void) {
 
     // Print the new current game matrix.
     char* mat = serializeMatrixStr();
-    printff(NULL, 0, "Current new matrix:\n%s", mat);
+    fprintf(stdout, "Current new matrix:\n%s", mat);
     free(mat);
 
     // Validate the dictionary with the new game matrix.
     validateDictionary();
 
     // Setting the new pause timer.
-    setAlarm();
+    // The default gameduration is 3 minutes setted in main().
+    // The gameduration can also be inserted by a CLI arg.
+    // Alarm takes as input seconds, but the user input (gameduration var) is in minutes.
+    //alarm(60 * gameduration);
+    gameduration = tempteststimeseconds;
+    alarm(gameduration);
+    fprintf(stdout, "The game duration timer is now setted to %lu minutes.\n", gameduration);
 
 }
 
-// This function will run in a dedicated thread.
-// Will simply sleep for a PAUSE_DURATION.
-void* gamePause(void* args) {
-
-    // Setup thread destructor.
-    threadSetup();
-
-    printff(NULL, 0, "I'm the pause pthread, ready to sleep (ID): %lu.\n", (uli) pthread_self());
-    printff(NULL, 0, "Sleeping zzz...\n");
-
-    // Getting new starting pause timestamp in POSIX time.
-    pausetime = (uli) time(NULL);
-
-    // Executing the pause.
-    // PAUSE_DURATION in minutes, but sleep takes seconds.
-    
-    // REMEMBER CHANGING PAUSE_DURATION AFTER TESTS!
-    //sleep(PAUSE_DURATION * 60);
-    sleep(tempteststimeseconds);
-
-    // Terminating the thread. This WILL NOT return.
-    pthread_exit(NULL);
-
-    return NULL;
-
-}
 
 // ANCHOR acceptClient()
 // This function will wait a new client socket connection using accept() function.
@@ -1755,16 +1802,16 @@ void* gamePause(void* args) {
 // Finally will start a new pthread to handle the new client connected.
 // ClientNode is a global struct defined in server.h file.
 // This function will wait forever (as long as the a new connection happen).
-// This function is called forever (as long as the process lives) in a main while(1);.
+// This function is called forever (as long as the process lives) in a main while(1).
 // This function will be executed always from the the main thread.
 void acceptClient(void) {
 
     // Pre-allocating heap memory for a new client node.
+    // It's just one client, we don't waste a lot of memory.
     struct ClientNode* new = NULL;
     new = (struct ClientNode*) malloc(sizeof(struct ClientNode));
     if (new == NULL) {
         // Error
-        handleError(0, 1, 0, 0, "Error in allocating heap memory for a new player/client.\n");
     }
 
     clientid++;
@@ -1776,39 +1823,41 @@ void acceptClient(void) {
         new->socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(new->client_addr)), &(new->client_address_len));
         if (new->socket_client_fd == -1) {
             // Error
-            // errno
-            handleError(1, 0, 0, 0, "WARNING: Error in accepting a new client i will try again in 1 second.\n");
-            sleep(1);
         }else
             break;
     }
-    printff(NULL, 0, "New client succesfully accepted (TMP ID): %lu.\n", clientid);
+    fprintf(stdout, "New client succesfully accepted (TMP ID): %lu.\n", clientid);
 
-    // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
-    // In this case i must use pthread_mutex_init().
+    // Cannot use PTHREAD_MUTEX_INITIALIZER, because can be used only on static allocated mutexes.
+    // Initialization should be performed like this.
     retvalue = pthread_mutex_init(&(new->handlerequest), NULL);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 0, 0, "Error in mutex initializing in acceptClient().\n");
     }
 
     // Initializing new client fileds.
+    // int socket_client_fd; Previously setted.
     new->next = NULL;
+    new->threadstarted = 0;
     new->points = 0LU;
+    // These two below fields are truly initalized when the client is registered in registerUser().
+    new->words_validated = NULL;
+    new->name = NULL;
+    /////////////////////
     new->registerafter = NULL;
     new->actionstoexecute = 0;
     new->receivedsignal = 0;
+    new->waiting = 0;
     new->toexit = 0;
     new->filledqueue = 0;
-    // These below fields are truly initalized when the client is registered in registerUser().
-    new->words_validated = NULL;
-    new->name = NULL;
-    new->threadstarted = 0;
 
     // Adding the client to the list and updating global vars head and tail useful
     // to manage the list.
     // Lock the mutex.
-    mLock(&listmutex);
+    retvalue = pthread_mutex_lock(&listmutex);
+    if (retvalue != 0) {
+        // Error
+    }
     // Empty list.
     if (head == NULL || tail == NULL) {
         head = new;
@@ -1818,17 +1867,19 @@ void acceptClient(void) {
         tail->next = new;
         tail = tail->next;
     }
-    printff(NULL, 0, "New client succesfully added to the clients list (TMP ID): %lu.\n", clientid);
+    fprintf(stdout, "New client succesfully added to the clients list (TMP ID): %lu.\n", clientid);
+    
     nclientsconnected++;
 
-    // Max clients (optional) feature (to disable set MAX_NUM_CLIENTS to 0).
+    // Max clients (optional) feature. To disable set MAX_NUM_CLIENTS to 0.
     if (MAX_NUM_CLIENTS != 0 && MAX_NUM_CLIENTS == nclientsconnected) {
-        mULock(&listmutex);
+        retvalue = pthread_mutex_unlock(&listmutex);
+        if (retvalue != 0) {
+            // Error
+        }
         sendMessage(new->socket_client_fd, MSG_ESCI, "Maximum number of clients reached. Disconnecting you... :(\n");
-        // Not killing the thread with handleError(), because it will be done from the next disconnectClient().
-        handleError(0, 0, 0, 0, "Maximum number of clients reached (%lu). Disconnecting the new client.\n", nclientsconnected);
-        disconnectClient(new, 0);   
-        // No kill this thread!
+        disconnectClient(new, 0);
+        // IMPORTANT: Remember to not kill this thread! Otherwise no more acceptance of clients.
         return;    
     }
 
@@ -1843,30 +1894,33 @@ void acceptClient(void) {
     retvalue = pthread_create(&(new->thread), NULL, clientHandler, new);
     if (retvalue != 0) {
         // Error
-        handleError(0, 1, 0, 0, "Error in starting a new client handler pthread.\n");
     }
-    printff(NULL, 0, "New client thread started succesfully (TMP ID): %lu.\n", clientid);
+    fprintf(stdout, "New client thread started succesfully (TMP ID): %lu.\n", clientid);
 
-    mULock(&listmutex);  
+    retvalue = pthread_mutex_unlock(&listmutex);
+    if (retvalue != 0) {
+        // Error
+    }
     
 }
 
+// ANCHOR itoa()
 // This function is the "inverse" of atoi().
-// It takes a number (unsigned long int) and returns a pointer to an heap allocated string
-// containing the char corresponding to the digits of the number received.
-// It is used to convert values in string to send it in the char* data field of the struct Message.
+// It takes a number n (unsigned long int, alias uli) and returns a pointer to an heap
+// allocated string containing the chars corresponding to the digits of the number received.
+// It's' used to convert values in strings.
 char* itoa(uli n) {
 
     // Below i calculate the number of digits of the received n as input.
     // In this way i can allocate a string of the correct length without wasting space.
     // Based on StackOverflow, but tested and seems to work.
-    uli ndigits = n == 0 ? 1LU : floor (log10 ( (n))) + 1LU;
 
-    // Allocating heap space for the new string, of length calculated above.
-    char* strint = (char*) malloc(sizeof(char) * ++ndigits);
+    uli ndigits = n <= 9 ? 1LU : floor (log10 ( (n))) + 1LU;
+
+    // Allocating heap space for the new string of length calculated above.
+    char* strint = (char*) malloc(sizeof(char) * ++ndigits); // +1 for '\0'.
     if (strint == NULL) {
         // Error
-        handleError(0, 0, 0, 1, "Error in allocating heap memory, in itoa().\n");
     }
 
     // Inserting in the string the number received as input.
@@ -1924,30 +1978,28 @@ void sendCurrentMatrix(struct ClientNode* client) {
 
 }
 
+// ANCHOR clientHandler()
 // This function will run in a separated dedicated thread and will manage the client's requests.
-// Each client is served by a thread.
+// Each client will be served by a thread.
 // The returned object and the input are void*.
 // The output will not be defined (not used, simply returning NULL).
 // Input (received void*) must be converted to the correct type struct ClientNode*.
-// It rapresents a pointer to the struct ClientNode of the client to be managed.
-// The function will wait untill a message is received with read().
+// It rapresents a pointer to the struct ClientNode of the client lists to be managed.
+// The function will wait untill a message is received with read() in receiveMessage().
 // Then it will process the request and will reply back to the client.
-// Each (this function) thread can be interrupted (during read()) by the signal SIGUSR1 sent by the
-// signalsThread() thread to notify of end game.
-// After this, the clients threads will perform endgame actions and change how they respond
-// to client's requests noting that no game is in progress and we are in a pause.
+// Each (this function) thread can be interrupted (during read() in receiveMessage()) 
+// by the signal SIGUSR1 sent by the signalsThread() thread to notify of end game.
+// After this, the clients threads will perform some end game actions and change how they respond
+// to clients' requests noting that no game is in progress and we are in a pause.
 // All requests (except registerUser() and disconnectClient()) that are running
 // (and so received BEFORE) during the activation of the timer WILL BE COMPLETED.
-// After that, the threads, will perform endgame actions, specifically will fill a shared
+// After that, the threads, will perform end game actions, specifically will fill a shared
 // queue, will wait for the scorer() thread to makes the final CSV scoreboard and finally will send
 // it to each corresponding client handled by the corresponding thread clientHandler().
 void* clientHandler(void* voidclient) {
 
-    // ANCHOR clientHandler()
-
     if (voidclient == NULL) {
         // Error
-        handleError(0, 0, 0, 1, "Error, clientHandler() received an empty void-lient.\n");
     }
 
     // Casting void* to ClientNode*.
@@ -1957,38 +2009,43 @@ void* clientHandler(void* voidclient) {
 
     client->threadstarted = 1;
 
-    // Setting thread destructor.
-    threadSetup();
-
-    mLock(&mutexprint);
-    printff(NULL, 1, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) pthread_self());
-    // Printing the disconnecting client's infos.
+    // TODO Block prints interleaved.
+    fprintf(stdout, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) client->thread);
+    // Printing the connected client's infos.
     char* strclient = serializeStrClient(client);
-    printff(NULL, 1, "CONNECTED: %s", strclient);
+    fprintf(stdout, "CONNECTED: %s", strclient);
     free(strclient);
     strclient = NULL;
-    mULock(&mutexprint);
+
+    int retvalue;
 
     // Preliminary actions completed.
 
     while (1) {
 
         client->waiting = 0;
+        char returncode;
+        // This code could be:
+        // - 0: A disconnection happened.
+        // - 1: Nornally interrupted by a signal.
+        // - 2: Unexpected error.
+        // - 3: Read 0 bytes (at the message beginning, so the message's type).
+        // - 4: Completed message received succesfully.
         if (client->registerafter == NULL) {
-            // Waiting messages.
-            received = receiveMessage(client->socket_client_fd);
+            // Waiting a message.
+            received = receiveMessage(client->socket_client_fd, &returncode);
         }else{
             // There is a previous registerUser() message to be processed because of an interruption
             // due to the end of the game.
             // To remember that the message is still in process and the received content is valid.
             received = client->registerafter;
             client->registerafter = NULL;
+            returncode = 4;
         }
 
-        // Avoiding interrupts while processing response by acquiring client->handlerequest.
         // In this way EVERY REQUEST RECEIVED BEFORE the TIMER, will be processed
-        // EXCEPT the registerUser(), that will still be executed automatically after
-        // the management of the end of game.
+        // EXCEPT the registerUser() and disconnectClient(), that will still be 
+        // executed automatically after the management of the end of game.
         /*
         
         man pthread_mutex_lock
@@ -1999,10 +2056,9 @@ void* clientHandler(void* voidclient) {
         
         */
         
-
         // Acquiring the lock.
         while (1) {
-            int retvalue = pthread_mutex_trylock(&(client->handlerequest));
+            retvalue = pthread_mutex_trylock(&(client->handlerequest));
             if (retvalue != 0) {
                 if (retvalue == EBUSY) {
                     usleep(100);
@@ -2010,7 +2066,6 @@ void* clientHandler(void* voidclient) {
                     continue;
                 }else{
                     // Error
-                    handleError(0, 0, 0, 1, "Error in acquiring the handlerequest mutex at the begginning of clientHandler().\n");
                 }
             }
             // Lock acquired.
@@ -2020,8 +2075,11 @@ void* clientHandler(void* voidclient) {
         // Processing the request.
 
         // Probably disconnect.
-        if ((long)((void*)received) == -1L) {
-            mULock(&(client->handlerequest));
+        if (returncode == 0) {
+            retvalue = pthread_mutex_unlock(&(client->handlerequest));
+            if (retvalue != 0) {
+                // Error
+            }
             disconnectClient(client, 1);
         }
 
@@ -2030,6 +2088,7 @@ void* clientHandler(void* voidclient) {
         // So, it will not fill the queue and the signalsThread() thread
         // will wait forever -> DEADLOCK!
         // For that is important to reset client->actionstoexecute in the signalThread() thread.
+ arinza       
         // Executed when the game is paused.
         if (pauseon)
             // First time after end game.
@@ -2412,32 +2471,43 @@ int submitWord(struct ClientNode* player, char* word) {
 }
 
 // ANCHOR searchWordInMatrix()
-// This function search a word in the current game matrix passed by char* word.
+// This function searches a word in the current game matrix, passed by char* word.
 // It starts from a matrix element indicated by
 // i and j, respectively the row and column indexes.
 // It continues to search recursively on adjacent elements (but not the diagonal ones).
-// A letter of the matrix CANNOT be USED MULTIPLE times to compose the word.
+// A letter of the matrix CANNOT BE USED MULTIPLE times to compose the word.
 // It returns 1 if at least one occurrence of the word was found in the matrix, 0 otherwise.
-int searchWordInMatrix(int i, int j, char* word) {
+char searchWordInMatrix(uli i, uli j, char* word) {
 
     // Matrix access out of bounds.
     if (i < 0 || i > NROWS - 1 || j < 0 || j > NCOL - 1) return 0;
+
     char c = word[0];
+
     // End word reached, word found.
     if (c == '\0') return 1;
-    // Checking if the current matrix element is equal to the next character of the word searched.
+
+    // Checking if the current matrix element is equal to the next (current) character of the word
+    // searched.
     if (matrix[i][j] == c) {
-        // Handle Qu case.
+        // Handle 'Qu' case.
         if (c == 'Q' && word[1] == 'U') word++;
+
         word++;
+
         // Temporarily marking the character as VOID_CHAR, to indicate that it has already
         // been used in subsequent function calls.
         matrix[i][j] = VOID_CHAR;
-        int s = searchWordInMatrix(i - 1, j, word) + searchWordInMatrix(i, j - 1, word) + searchWordInMatrix(i, j + 1, word) + searchWordInMatrix(i + 1, j, word) > 0 ? 1 : 0;
+
+        char s = searchWordInMatrix(i - 1, j, word) + searchWordInMatrix(i, j - 1, word) + searchWordInMatrix(i, j + 1, word) + searchWordInMatrix(i + 1, j, word) > 0 ? 1 : 0;
+        
         // Restoring the original character in the matrix and returning the result.
         matrix[i][j] = c;
+
         return s;
     }
+
+    // Character wanted not found.
     return 0;
 
 }
@@ -2475,7 +2545,7 @@ int validateWord(char* word) {
     uli s = strlen(word);
     // 'Qu' correction.
     uli cs = s;
-    for (unsigned int i = 0; i < cs; i++)
+    for (uli i = 0LU; i < cs; i++)
         if (i + 1 != cs && word[i] == 'Q' && word[i + 1] == 'U') s--;
     // If is set a constraint (WORD_LEN > 0) on the minimum word length, it is applied.
     if (WORD_LEN > 0 && cs < WORD_LEN) return -1;
@@ -2499,194 +2569,35 @@ int validateWord(char* word) {
 
 }
 
-// ANCHOR atExit()
-// This function is registered by the main thread with atexit().
-// Will be executed before exiting by the main thread.
-void atExit(void) {
-
-    // I am the main thread mandatorily.
-
-    // TODO atExit()
-    printff(NULL, 0, "EXIT!\n");
-
-    int retvalue;
-    // Not using mLock() and mULock() wrappers to avoid recursive errors.
-    // Acquiring all locks to block all threads.
-    retvalue = pthread_mutex_lock(&pausemutex);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-    }
-    retvalue = pthread_mutex_lock(&queuemutex);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-    }
-    retvalue = pthread_mutex_lock(&listmutex);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-    }
-    struct ClientNode* c = head;
-    while (1) {
-        if (c == NULL) break;
-        retvalue = pthread_mutex_lock(&(c->handlerequest));
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-        }     
-        c = c->next;
-    }
-
-    // Cancelling the signal thread.
-    retvalue = pthread_cancel(sig_thr_id);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-    }
-
-    // Closing clients sockets connections.
-    c = head;
-    while (1) {
-        if (c == NULL) break;
-        sendMessage(c->socket_client_fd, MSG_ESCI, NULL);
-        retvalue = close(c->socket_client_fd);
-        if (retvalue == -1){
-            // Error
-            handleError(1, 1, 1, 1, RECURSIVE_ERR_MSG);
-        }
-        c = c->next;
-    }
-
-    // Cancelling clients threads.
-    c = head;
-    while (1) {
-        if (c == NULL) break;
-        retvalue = pthread_cancel(c->thread);
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-        }
-        c = c->next;
-    }
-
-    // Destroying clients mutexes.
-    c = head;
-    while (1) {
-        if (c == NULL) break;
-        retvalue = pthread_mutex_destroy(&(c->handlerequest));
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-        }
-        c = c->next;
-    }
-
-    // Freeing heap allocated clients.
-    c = head;
-    while (1) {
-        if (c == NULL) break;
-        free(c->name);
-        free(c->words_validated);
-        if (c->registerafter != NULL)
-            free(c->registerafter->data);
-        free(c->registerafter);
-        struct ClientNode* tmp = c->next;
-        free(c);
-        c = tmp;
-    }
-
-    // Freeing dictionary file data.
-    for (unsigned int i = 0; i < words_len; i++)
-        free(words[i]);
-    free(words);
-    free(words_valid);
-
-    // Cancelling the pause thread.
-    // If not in running nothing happens.
-    retvalue = pthread_cancel(pausethread);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-    }
-
-    nclientsconnected = 0U;
-
-    // Cancelling the scorer thread.
-    // If not in running nothing happens.
-    retvalue = pthread_cancel(scorert);
-    if (retvalue != 0) {
-        // Error
-        handleError(0, 1, 1, 1, RECURSIVE_ERR_MSG);
-    }
-
-    // Freeing the queue struct.
-    struct Queue* cq = tailq;
-    while(1) {
-        if (cq == NULL) break;
-        if (cq->message != NULL) {
-            free(cq->message->data);
-            free(cq->message);
-        }
-        struct Queue* tmp;
-        tmp = cq->next;
-        free(cq);
-        cq = tmp;
-    }
-
-    // Freeing scoreboard.
-    if (scoreboardstr != NULL) free(scoreboardstr);
-
-    // Closing server socket.
-    retvalue = close(socket_server_fd);
-    if (retvalue == -1){
-        // Error
-        handleError(1, 1, 1, 1, RECURSIVE_ERR_MSG);
-    }
-
-    printff(NULL, 0, "Main thread cleaner executed succesfully!\n");
-
-    _exit(0);
-
-}
-
-// This function shunts the various threads when destroyed to its specific destructor.
-// (Since with the POSIX-key implementation all threads must have the same registered destructor.
-void threadDestructor(void* args) {
-
-    // IMPORTANT TO AVOID MEMORY LEAKS!
-    char* dataptr = pthread_getspecific(key);
-    free(dataptr);
-    if (pthread_self() == sig_thr_id) {
-        // TODO threadDestructor()
-    }else if(pthread_self() == mainthread){
-        // Delegate to the atExit(), executed after the returns of this function.
-        exit(EXIT_SUCCESS);
-    }else{
-        // User clientHandler() thread.
-    }
-
-
-}
-
-
 // ANCHOR disconnectClient()
-// This function disconnects a client, it also removes the client from the clients list.
+// This function disconnects a client.
+// It removes the client from the clients list.
 // It also frees all the heap allocated objects and destroys the relative mutex.
-// It takes as input a struct ClientNode* client that rapresent the interested client.
-void disconnectClient(struct ClientNode* client, char terminatethread) {
+// It also sets to NULL the value of the pointer to the caller's client. This to avoid errors
+// by reference to memory that has already been freed.
+// It takes as input a struct ClientNode** clienttodestroy that rapresent the interested client.
+// It also takes as input a char terminatethread. This is 1 if we want to TERMINATE the 
+// CALLER thread, so it's used when the function is called itself by the client's thread that
+// wants to be disconnected. This is 0 otherwise, for example if this function is called by the
+// main thread in acceptClient() and we DON'T WANT TO TERMINATE the thread.
+void disconnectClient(struct ClientNode** clienttodestroy, char terminatethread) {
 
     int retvalue;
+
+    if (clienttodestroy == NULL) {
+        // Error
+    }
+
+    struct ClientNode* client = *clienttodestroy;
 
     // Invalid client.
     if (client == NULL) {
         // Error
-        handleError(0, 0, 0, 1, "Error, disconnectClient() received an empty client.\n");
     }
 
     // Printing the disconnecting client's infos.
     char* strclient = serializeStrClient(client);
-    printff(NULL, 0, "DISCONNECTION: %s", strclient);
+    fprintf(stdout, "DISCONNECTION: %s", strclient);
     free(strclient);
     strclient = NULL;
 
@@ -2711,7 +2622,6 @@ disconnect_restart: {
             goto disconnect_restart;
         }else{
             // Error
-            handleError(0, 0, 0, 1, "Error in the disconnectClient(), trylocking the pausemutex mutex.\n");
         }
     }
 }
@@ -2719,23 +2629,26 @@ disconnect_restart: {
 
         // OWNING pause MUTEX.
         
-        // Now possible danger situation cannot happen because signalsThread() and
+        // Now possible danger situations cannot happen because signalsThread() and
         // eventually others clientHandler() are locked out (waiting on pausemutex)
         // and cannot acquire the listmutex.
 
         // Removing client from the list (the client destruction will be done LATER in this function).
-        mLock(&listmutex);
+        retvalue = pthread_mutex_lock(&listmutex);
+        if (retvalue != 0) {
+            // Error
+        }
         char found = 0;
         // Empty list (impossible if a client is requested to be disconnected).
         if (head == NULL || tail == NULL) {
             // Error
-            handleError(0, 1, 0, 0, "Error, cannot disconnect the client, because the player list is empty.\n");
         }
         // Going trought the clients list.
         struct ClientNode* current = head;
         struct ClientNode* prev = head;
         struct ClientNode* tmp = NULL;
         while (1) {
+            // Found.
             if (current == client){
                 if (current == head && current == tail) found = 1;
                 else if (current == head) found = 2;
@@ -2744,9 +2657,8 @@ disconnect_restart: {
                 break;
             }
             if (current == NULL){
+                // Error
                 // This is an error. The disconnected client is not in the list!?
-                found = 0;
-                break;
             }
             tmp = current;
             current = current->next;
@@ -2774,32 +2686,45 @@ disconnect_restart: {
             }
         }else{
             // Error
-            mULock(&pausemutex);
-            mULock(&listmutex);
-            handleError(0, 0, 0, 0, "WARNING: Error, the client you asked to remove from the clients list is not in it, trying to continue ignoring this request.\n");
+            retvalue = pthread_mutex_unlock(&pausemutex);
+            if (retvalue != 0) {
+                // Error
+            }
+            retvalue = pthread_mutex_unlock(&listmutex);
+            if (retvalue != 0) {
+                // Error
+            }
             return;
         }
         nclientsconnected--;
-        mULock(&pausemutex);
-        mULock(&listmutex);
+        retvalue = pthread_mutex_unlock(&pausemutex);
+        if (retvalue != 0) {
+            // Error
+        }
+        retvalue = pthread_mutex_unlock(&listmutex);
+        if (retvalue != 0) {
+            // Error
+        }
 
         // Cleaning the client object.
         client->client_address_len = 0;
         client->next = NULL;
+        retvalue = pthread_mutex_destroy(&(client->handlerequest));
+        if (retvalue != 0) {
+            // Error
+        }
         client->points = 0LU;
-        client->actionstoexecute = 0;
-        client->waiting = 0;
         if (client->words_validated) free(client->words_validated);
         client->words_validated = NULL;
         if (client->name) free(client->name);
         client->name = NULL;
         if (client->registerafter) free(client->registerafter);
         client->registerafter = NULL;
-        retvalue = pthread_mutex_destroy(&(client->handlerequest));
-        if (retvalue != 0) {
-            // Error
-            handleError(0, 0, 0, 1, "Error in disconnectClient() in the pthread_mutex_destroy().\n");
-        }
+        client->actionstoexecute = 0;
+        client->receivedsignal = 0;
+        client->waiting = 0;
+        client->toexit = 0;
+        client->filledqueue = 0;
 
         retvalue = close(client->socket_client_fd);
         if (retvalue != 0){
@@ -2807,11 +2732,13 @@ disconnect_restart: {
         }
         client->socket_client_fd = -1;
 
-        uli tmpt = client->threadstarted == 0 ? 0LU : (uli)client->thread;
+        uli tmpt = client->threadstarted == 0 ? 0LU : (uli) client->thread;
 
         free(client);
+
+        *clienttodestroy = NULL;
   
-        printff(NULL, 0, "DISCONNECTION: %lu (ID) client has disconnected succesfully.\n", tmpt);
+        fprintf(stdout, "DISCONNECTION: %lu (ID) client has disconnected succesfully.\n", tmpt);
 
         if (terminatethread) pthread_exit(NULL);
         else return;
@@ -2831,16 +2758,16 @@ void endGame(int signum) {
 
 }
 
+// ANCHOR updateClients()
 // Update players infos at start of a new game.
 // Resetting points and setup the "words_validated", filling it with the words present in
 // the current game matrix (using "words_valid").
-// IT ASSUME that all mutexes are ALREADY LOCKED BY THE CALLER!
+// IT ASSUMES that needed mutexes are ALREADY LOCKED BY THE CALLER!
 void updateClients(void) {
 
     // loadDictionary() and/or validateDictionary() not called before.
     if (words == NULL || words_valid == NULL) {
         // Error
-        handleError(0, 1, 0, 0, "Error in updateClients(), \"words\" or \"words_valid\" are NULL. Call loadDictionary() and validateDictionary() before.\n");
     }
 
     // Going through the list.
@@ -2849,52 +2776,52 @@ void updateClients(void) {
         if (current == NULL) break;
         // Resetting points.
         current->points = 0LU;
-        // IMPORTANT: Copying the new words_valid (of the new matrix).
+        // IMPORTANT: Copying the new "words_valid" (of the new matrix).
         if (current->name != NULL)
-            for (unsigned int i = 0; i < words_len; i++) (current->words_validated)[i] = words_valid[i];
+            for (uli i = 0LU; i < words_len; i++) (current->words_validated)[i] = words_valid[i];
         current = current->next;
     }
 
-    printff(NULL, 0, "Clients updated succesfully! Online %lu players.\nLet's play... :)\n", nclientsconnected);
+    fprintf(stdout, "Clients updated succesfully! Online %lu players.\nLet's play... :)\n", nclientsconnected);
 
 }
 
-// This function take as input a struct ClientNode* rapresenting a client
-// (element of clients list).
+// ANCHOR serializeStrClient()
+// This function takes as input a struct ClientNode* c, rapresenting a client.
 // It allocates on the heap a string, it fills it with all the client's informations, and
 // finally returns the heap allocated string pointer.
 char* serializeStrClient(struct ClientNode* c) {
 
     if (c == NULL) {
+        // Error
         // printf(NULL) -> SISGEV so cannot trying to continue returning NULL.
-        handleError(0, 1, 0, 0, "Error, the client arg of the serializeStrClient() is NULL.\n");
     }
 
     // Preparing the string format.
-    //char st[] = "Name: %s - IP: %s - Port: %lu - Points %lu - Thread ID: %lu\n";
-    //char st[] = "Name: %s - Port: %lu - Points: %lu - Thread ID: %lu\n";
-    char st[] = "Name: %s\n";
+    char st[] = "Name: %s - IP: %s - Port: %lu - Points %lu - Thread ID: %lu.\n";
 
     // Calculating name length.
     uli namelen;
-    if (c->name != NULL) namelen = strlen(c->name);
-    else namelen = strlen(NO_NAME); 
+    char* name;
+    if (c->name != NULL) name = c->name;
+    else name = NO_NAME;
+    namelen = strlen(name);
     
     // Getting port.
-    uli port = (uli)ntohs((c->client_addr).sin_port);
+    uli port = (uli) ntohs((c->client_addr).sin_port);
     // Port to string.
     char* portstr = itoa(port);
     // Calculating port length (as string).
     uli portlen = strlen(portstr);
     free(portstr);
 
-   /* // Calculating IP length.
-    char buf[INET_ADDRSTRLEN] = {0}; 
-    const char* s = inet_ntop(AF_INET, &(c->client_addr.sin_addr), buf, c->client_address_len);
+    // Getting IP.
+    char buff[INET_ADDRSTRLEN] = {0}; 
+    const char* s = inet_ntop(AF_INET, &(c->client_addr.sin_addr), buff, c->client_address_len);
     if (s == NULL){
         // Error
-        handleError(1, 1, 0, 0, "Error in serializeStrClient(), in the IP to string inet_ntop().\n");
-    }*/
+    }
+    uli iplength = strlen(s);
 
     // Calculating points length (as string).
     char* pointsstr = itoa(c->points);
@@ -2910,25 +2837,16 @@ char* serializeStrClient(struct ClientNode* c) {
 
     // Allocating the needed heap memory to store the string.
     // +1 for '\0'.
-    // (strlen(st) + namelen + INET_ADDRSTRLEN + portlen + pointslen + threadidstrlen + 1
-    char* rs = (char*) malloc((namelen + 1) * sizeof(char));
+    uli totallength =  strlen(st) + namelen + iplength + portlen + pointslen + threadidstrlen + 1;
+    char* rs = (char*) malloc((totallength) * sizeof(char));
     if (rs == NULL) {
         // Error
-        handleError(0, 1, 0, 0, "Error in serializeStrClient(), in the malloc..\n");
     }
-    // Filling the string with data.
-  //  uli t = c->threadstarted == 0 ? 0LU : (uli) c->thread;
-    /*if (c->name != NULL) sprintf(rs, st, c->name, buf, (uli) port, (uli) c->points, (uli)t);
-    else sprintf(rs, st, NO_NAME, buf, (uli) port, (uli) c->points, (uli)t);*/
-// if (c->name != NULL) sprintf(rs, st, c->name, (uli) port, (uli) c->points, (uli)t);
-    // else sprintf(rs, st, NO_NAME, (uli) port, (uli) c->points, (uli)t);
 
-    char* mm = c->name == NULL ? NO_NAME : c->name;
-    sprintf(rs, st, mm);
+    // Filling the string with data.
+    sprintf(rs, st, name, buff, port, c->points, c->threadstarted ? (uli) c->thread : 0LU);
 
     return rs;
-
-
 
 }
 
@@ -3103,39 +3021,6 @@ char pointsstr []= "50";
 
 }
 
-// ANCHOR clearQueue()
-// This function clear the end game queue to prepare it for the next game end.
-// IT ASSUMES THAT THE queuemutex HAS BEEN ACQUIRED BY THE CALLER!
-void clearQueue(void) {
-
-    if (headq == NULL || tailq == NULL) {
-        // No players connected...
-        // Nothing to do.
-        return;
-    }
-
-    // Freeing heap allocated memory.
-    struct Queue* begin = tailq;
-    struct Queue* tmp = NULL;
-    while (1) {
-        if (begin == NULL) break;
-        tmp = begin->next;
-        struct Queue* t = begin;
-        if (begin->message) destroyMessage(&(begin->message));
-        if (t) free(t);
-        begin = tmp;
-    }
-
-    // Resetting queue.
-    nclientsqueuedone = 0LU;
-    headq = NULL;
-    tailq = NULL;
-
-}
-
-
-
-
 
 /*
 
@@ -3216,5 +3101,4 @@ required by the project text. Finally now all the threads can receive and respon
 the clients requests considering the variable “pauseon” the fact that the game is paused.
 
 */
-
 

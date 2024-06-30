@@ -6,8 +6,8 @@ int client_fd; // Client/Server socket file descriptor.
 
 pthread_t responsesthread; // This thread will handle the responses received from the server asynchronously.
 
-// Functions signatures only client used. Implementation and infos in the client.c file.
-void destroyStringList(void);
+// Functions signatures client used in client.c and boggle_client.c.
+// Implementation and infos in the client.c file.
 void setUnblockingGetChar(void);
 void setBlockingGetChar(void);
 char clearInput(void);
