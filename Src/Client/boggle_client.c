@@ -20,6 +20,13 @@ int main(int argc, char** argv) {
 
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
+    setupfinished = 0;
+    // Cannot use PTHREAD_MUTEX_INITIALIZER, because can be used only on static allocated mutexes.
+    // Initialization should be performed like this.
+    retvalue = pthread_mutex_init(&setupmutex, NULL);
+    if (retvalue != 0) {
+        // Error
+    }
 
     fprintf(stdout, "I'm the main thread (ID): %lu.\n", (uli) mainthread);
 
@@ -46,7 +53,7 @@ int main(int argc, char** argv) {
     if (retvalue != 0) {
         // Error
     }
-    fprintf(stdout, "Signals registered and pthread signals handler started succesfully.\n", (uli) signalsthread);
+    fprintf(stdout, "Signals registered and pthread signals handler started succesfully.\n");
 
     // Check number of args.
     if (argc != 3) {

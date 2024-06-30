@@ -1251,39 +1251,35 @@ char* serializeMatrixStr(void) {
 }
 
 // ANCHOR loadDictionary()
-// This function allocate and load in memory on the heap a char array[][] called "words".
+// This function allocates and loads in memory on the heap a char array[][] called "words".
 // "words" is a char** global var.
-// Each line is a char* to a word (allocated on the heap) of the dictionary file.
+// Each line of the dictionary file is a char* to a word (allocated on the heap).
 // Assuming the dictionary file contains one word at each line terminated by \n or \r\n.
 // Dictionary file is used to check if a word submitted by a client is legit,
 // in addition to the presence in the current game matrix.
-// It used when the optional --dic is setted by CLI with a file path passed as arg.
-// If --dic is not present, will be passed to this function DEFAULT_DICT #defined
-// in the main.
-// The function takes as input the file path to the dictionary.
+// This function takes as input char* path, the dictionary file path to load.
 // It set also a current file global var words_len, that rapresent the "words" length.
 void loadDictionary(char* path) {
-
 
     // Empty path.
     if (path == NULL) {
         // Error
-        handleError(0, 1, 0, 1, "Error, loadDictionary() received an empty path.\n");
     }
 
     // Dictionary already loaded, updating it.
     if (words != NULL) {
-        // Cleaning words and words_valid.
-        // Clear also words_valid is a good idea to not create a possible insubstantial state.
-        for (unsigned int i = 0; i < words_len; i++)
+        // Cleaning "words".
+        for (uli i = 0LU; i < words_len; i++)
             free(words[i]);
         free(words);
         words = NULL;
-        words_len = 0U;
 
-        // Cleaning words_valid.
+        words_len = 0LU;
+
+        // Cleaning "words_valid".
+        // Clearing also "words_valid" is a good idea to not create a possible insubstantial state.
         if (words_valid != NULL) {
-            for (unsigned int i = 0; i < words_len; i++)
+            for (uli i = 0LU; i < words_len; i++)
                 free(words_valid[i]);  
             free(words_valid);
             words_valid = NULL;      
@@ -1298,14 +1294,11 @@ void loadDictionary(char* path) {
    retvalue = stat(path, &s);
    if (retvalue == -1) {
         // Error
-        handleError(0, 1, 0, 1, "Error in getting %s dictionary file informations.\n", path);
    }
    
-
    // Check if the file is regular.
    if(!S_ISREG(s.st_mode)){
         // Error
-        handleError(0, 1, 0, 1, " %s dictionary is not a regular file.\n", path);
     }
 
     // To store file content.
@@ -1317,41 +1310,41 @@ void loadDictionary(char* path) {
     int fd = open(path, O_RDONLY, NULL);
     if (fd == -1) {
         // Error
-        handleError(0, 1, 0, 1, "Error in opening %s dictionary file.\n", path);
     }
 
     // Reading the file content using a buffer of BUFFER_SIZE length.
     char buffer[BUFFER_SIZE];
-    unsigned int counter = 0;
+    uli counter = 0LU;
     while (1) {
         retvalue = read(fd, buffer, BUFFER_SIZE);
         if (retvalue == -1) {
             // Error
-            handleError(0, 1, 0, 1, "Error in reading %s dictionary file.\n", path);
         }
+
         // Exit while, end of file reached.
         if (retvalue == 0) break;
 
         // Copying the buffer in the main file array.
-        for (unsigned int i = 0; i < retvalue; i++)
+        for (uli i = 0LU; i < retvalue; i++)
             file[counter++] = buffer[i];
     }
 
     // Terminating the file content.
     file[s.st_size] = '\0';
+
     // Copying the file content, to use strtok() on the first instance.
     strcpy(file_copy, file);
     file_copy[s.st_size] = '\0';
 
     // Counting file lines and allocating heap space.
     char* str = file;
-    counter = 0U;
+    counter = 0LU;
     while (str != NULL) {
-        // strtok() modifies the string content (with "s", the "file" also is modified).
+        // strtok() modifies the string content.
         // It tokenize all '\n' '\r' '\n\r' '\r\n'.
-        // This tokens are replaced with '\0'
+        // This tokens are replaced with '\0'.
         // The first time strtok() need to be called with string pointer, then with NULL.
-        if (counter == 0U) str = strtok(str, "\n\r");
+        if (counter == 0LU) str = strtok(str, "\n\r");
         else str = strtok(NULL, "\n\r");
         counter++;
     }
@@ -1361,33 +1354,35 @@ void loadDictionary(char* path) {
     words = (char**) malloc(sizeof(char*) * words_len);
     if (words == NULL) {
         // Error
-        handleError(0, 1, 0, 1, "Error in allocating heap space for the dictionary file content.\n");
     }
 
-    // Copying each words (line) of the file in "words[i]".
-    counter = 0U;
+    // Copying each word (line) of the file in "words[i]".
+    counter = 0LU;
     str = file_copy;
     while (str != NULL) {
         // Totkenizing with strtok().
-        if (counter == 0) str = strtok(str, "\n\r");
+        if (counter == 0LU) str = strtok(str, "\n\r");
         else str = strtok(NULL, "\n\r");
+
         if (str == NULL) break;
+
         // Allocating heap space.
         words[counter++] = (char*) malloc(sizeof(char) * (strlen(str) + 1));
         if (words[counter - 1] == NULL) {
             // Error
-            handleError(0, 1, 0, 1, "Error in loadDictionary() while allocating heap space for a word.\n");
         }
+
         // Copying the word in the new words[i] heap space.
         strcpy(words[counter - 1], str);
         words[counter - 1][strlen(words[counter - 1])] = '\0';
+
     }
 
     // Converting all words to UPPERCASE.
-    for (unsigned int i = 0; i < words_len; i++)
+    for (uli i = 0LU; i < words_len; i++)
         toLowerOrUpperString(words[i], 'U');
 
-    printff(NULL, 0, "Words dictionary succesfully loaded from %s file with %u words.\n", path, counter);
+    fprintf(stdout, "Words dictionary succesfully loaded from %s file with %lu words.\n", path, counter);
 
 }
 

@@ -2,7 +2,7 @@
 This folder contains all the project's debugging and testing tools.
 
 ## C subfolder
-In the "./C" subfolder there is the "./C/tests.c" file, it contains some project's tests written in C.
+In the "./C" subfolder there is the "./C/tests.c" file, it contains some project's tests written in C. There is also the "./C/clienttester.c" file, it's a basic server that accepts only 1 client and sends to it messages to test its server's responses printing.
 
 ## Python subfolder
 In the "./Python" subfolder you will find some extensive project's tests written in Python 3.

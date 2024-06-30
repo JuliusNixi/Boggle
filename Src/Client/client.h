@@ -1,5 +1,5 @@
 // Shared/Common CLIENT & SERVER cross files vars and libs.
-#include "common.h"
+#include "../Common/common.h"
 
 // Common client only cross files used vars and libs.
 int client_fd; // Client/Server socket file descriptor.

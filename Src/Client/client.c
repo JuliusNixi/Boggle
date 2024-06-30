@@ -8,7 +8,7 @@
 #include <termios.h>
 
 #define PROMPT_STR "[PROMPT BOGGLE]--> " // Prompt string.
-#define PROMPT_STR_IT "[PROMPT PAROLIERE]-->" // Prompt string ITALIAN.
+#define PROMPT_STR_IT "[PROMPT PAROLIERE]--> " // Prompt string ITALIAN.
 
 #define HELP_MSG "Avaible commands:\nhelp -> Show this page.\nregister_user user_name -> To register in the game.\nmatrix -> Get the current game matrix.\np word -> Submit a word.\nend -> Exit from the game.\n" // Help message.
 
@@ -16,7 +16,7 @@
 struct termios oldChars; // To save current terminal settings.
 struct termios newChars; // To set new terminal settings.
 int oldfl;
-char printprompt = 1; // This var is used to determine what to print and what not to print.
+char printprompt; // This var is used to determine what to print and what not to print.
 
 char* inputfinal;  // This heap allocated string will contain the full user input of arbitrary length.
 char input[BUFFER_SIZE + 1]; // An input temporary buffer, we will handle arbitrary input length by using more BUFFER_SIZE strings in a list. +1 for the '\0'.
@@ -41,7 +41,6 @@ void destroyStringList(void) {
     while (1) {
         if (current == NULL) break;
         memset(current->s, '\0', BUFFER_SIZE + 1);
-        free(current->s);
         struct StringNode* tmp = current->n;
         free(current);
         current = tmp;
@@ -137,9 +136,7 @@ char clearInput(void) {
 // This functions handles the user's input.
 void inputHandler(void) {
 
-    // Periodically stop the read() and check for server's responses to print.
-    // This is NOT about changing the mode of the getchar() function.
-    fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+    printprompt = 1;
 
     while (1){
 
@@ -178,11 +175,20 @@ void inputHandler(void) {
 
         // TL;DR: Solves the problem of not knowing the length of user input.
         
+        // Periodically stop the read() and check for server's responses to print.
+        // This is NOT about changing the mode of the getchar() function.
+        // This MUST be done every while loop.
+        int retvalue = fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
+        if (retvalue == -1) {
+            // Error
+        }
 
         // Printing prompt.
         if (printprompt == 1)
             fprintf(stdout, PROMPT_STR_IT);
         else printprompt = 0;
+
+        fflush(stdout);
 
         while (1) {
                 
@@ -195,7 +201,6 @@ void inputHandler(void) {
             usleep(CHECK_RESPONSES_MICROSECONDS);
 
             // Reading from STDIN the user input.
-            int retvalue;
             retvalue = read(STDIN_FILENO, input, BUFFER_SIZE);
             // Terminating the line.
             input[retvalue] = '\0';
@@ -417,7 +422,7 @@ void inputHandler(void) {
                     // a situation like this:
                     // -> USERINPUT...
                     clearInput();
-                    printff(NULL, 0, "\n");
+                    fprintf(stdout, "\n");
                 }
 
                 if (printprompt == 3) {
@@ -429,10 +434,10 @@ void inputHandler(void) {
                     char i = clearInput();
                     if (i == 0) {
                         // First case.
-                        printff(NULL, 0, "\n");
+                        fprintf(stdout, "\n");
                     }else {
                         // Second case.
-                        printff(NULL, 0, "\n");
+                        fprintf(stdout, "\n");
                     }
                     // No difference.
                     // But for readability better to distinguish them.
@@ -449,7 +454,10 @@ void inputHandler(void) {
                 }
 
                 // Here the server's response/s is/are printed.
-                mLock(&listmutex);
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
                 struct MessageNode* current = head;
                 while(1) {
                     if (current == NULL) break;
@@ -459,13 +467,13 @@ void inputHandler(void) {
                     // Printing the server's responses based on the message type.
                     switch (received->type){
                         case MSG_MATRICE: {
-                            fprint(stdout, "%s", received->data);
+                            fprintf(stdout, "%s", received->data);
                             break;
                         }case MSG_OK:{
-                            fprint(stdout, "%s", received->data);
+                            fprintf(stdout, "%s", received->data);
                             break;
                         }case MSG_ERR: {
-                            fprint(stdout, "%s", received->data);
+                            fprintf(stdout, "%s", received->data);
                             break;
                         }case MSG_TEMPO_ATTESA: {
                             fprintf(stdout, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
@@ -520,7 +528,10 @@ void inputHandler(void) {
                     current = tmp;
                 } // End while.
                 head = NULL;
-                mULock(&listmutex);
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
 
                 printprompt = 1;
 
@@ -582,7 +593,6 @@ void* responsesHandler(void* args) {
     struct Message* received = NULL;
 
     while (1){
-
        // Wait to receive a message.
        char returncode;
        received = receiveMessage(client_fd, &returncode); 
@@ -592,7 +602,6 @@ void* responsesHandler(void* args) {
         // - 2: Unexpected error.
         // - 3: Read 0 bytes (at the message beginning, so the message's type).
         // - 4: Completed message received succesfully.
-
         // TODO Check returncode, the code below must be inserted in this switch in the fourth case.
         switch (returncode){
             case 0:
@@ -615,7 +624,10 @@ void* responsesHandler(void* args) {
         new->next = NULL;
         new->m = received;
 
-        mLock(&listmutex);
+        retvalue = pthread_mutex_lock(&listmutex);
+        if (retvalue != 0) {
+            // Error
+        }
         // Adding to the list.
         if (head == NULL) {
             // List empty.
@@ -629,7 +641,10 @@ void* responsesHandler(void* args) {
             }
             c->next = new;
         }  
-        mULock(&listmutex);
+        retvalue = pthread_mutex_unlock(&listmutex);
+        if (retvalue != 0) {
+            // Error
+        }
 
         continue;
 
@@ -665,7 +680,6 @@ void* signalsThread(void* args) {
     }
 
     int sig;    
-    int retvalue;
     while (1){
         // Intercepting signals previously setted in the mask in the main.
         // sigwait() atomically get the bit from the signals pending mask and set it to 0.

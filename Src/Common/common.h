@@ -1,6 +1,4 @@
-/*
 #include <ctype.h>
-*/
 #include <stdio.h>
 #include <signal.h>
 #include <pthread.h>
@@ -25,7 +23,7 @@ pthread_t signalsthread; // Thread that will handle the signals.
 struct sockaddr_in server_addr; // Socket server address.
 
 char setupfinished; // Used to notify the main thread to continue after initialization of all others threads.
-pthread_mutex_t setupmutex = PTHREAD_MUTEX_INITIALIZER; // Used to synchronize read/write threads operations with the above var.
+pthread_mutex_t setupmutex; // Used to synchronize read/write threads operations with the above var.
 
 #define BUFFER_SIZE 1024U  // Size of the buffers that will be used in some cases.
 
@@ -42,7 +40,7 @@ pthread_mutex_t setupmutex = PTHREAD_MUTEX_INITIALIZER; // Used to synchronize r
 
 // Added by me.
 #define MSG_ESCI 'Q' // Message sent by the client to the server or vice versa to close the connection.
-//#define MSG_IGNORATO 'I' // Message sent by the server to the client to notify that the sent request received will be ignored since it was RECEIVED AFTER the timer of end game trigger.
+#define MSG_IGNORATO 'I' // Message sent by the server to the client to notify that the sent request received will be ignored since it was RECEIVED AFTER the timer of end game trigger.
 
 struct Message { // Struct of the message that will be used in the communication between server and clients.
     char type;  // Type of message as above.
