@@ -1174,19 +1174,18 @@ char* serializeMatrixStr(void) {
 /*
     
     Below i calculate the string's length.
-    There are 4 addends enclosed in the parenthesis below.
+    There are 3 addends enclosed in the parenthesis below.
     The first is the length of the only data contained in the matrix 
     multiplied by 2 because every position could be Qu.
     The second addend is the number of spaces betwen letters.
     The third rapresent the '\n' at the end of each line.
-    The fourth plus 1 is the string terminator (\0).
 
     Is used to serialize the game matrix var into a string.
     Useful for sending or printing the game matrix.
     
 */
     // Matrix serialized string length.
-    const uli MAT_STR_LEN = (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1);
+    const uli MAT_STR_LEN = (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS);
 
     // Allocating the string on the heap.
     char* matrixstring = (char*) malloc(sizeof(char) * MAT_STR_LEN);
