@@ -1,11 +1,13 @@
-#include "../Src/server.h"
+#include "../../Src/Server/server.h"
 
-extern unsigned int duration;
+// Remember to compile with also "../../Src/Common/common.c" and "../../Src/Server/server.c".
+
+// This file contains some basic tests on some functions.
 
 // Printing the game matrix without using serializeMatrixStr() to perform the tests.
 void printManualMatrix(void) {
-    for (unsigned int i = 0; i < NROWS; i++) {
-        for (unsigned int j = 0; j < NCOL; j++)
+    for (uli i = 0LU; i < NROWS; i++) {
+        for (uli j = 0LU; j < NCOL; j++)
             printf("%c ", matrix[i][j]);
         printf("\n");
     }
@@ -13,33 +15,15 @@ void printManualMatrix(void) {
 
 int main(void) {
 
-    // Enabling testmode, to avoid some conflicts in the errors handling.
-    testmode = 1;
-
     // Setting the rand seed.
     srand(42);
 
     // Number of tests.
     int tests = 5;
 
-    // PTHREAD_MUTEX_INITIALIZER only available with statically allocated variables.
-    // In this case i must use pthread_mutex_init().
-    int retvalue = pthread_mutex_init(&mutexprint, NULL);
-    if (retvalue != 0) {
-        // Error
-        printf("Error in mutexprint mutex init.\n");
-        exit(EXIT_FAILURE);
-    }
-    setupfinished = 0;
-
-    // Testing initMatrix.
-    printf("Testing initMatrix...\n");
-    initMatrix();
-    printManualMatrix();
-
     // Testing generateRandomMatrix.
     printf("Testing generateRandomMatrix...\n");
-    for (unsigned int i = 0; i < tests; i++) {
+    for (uli i = 0LU; i < tests; i++) {
         generateRandomMatrix();
         printManualMatrix();
     }
@@ -47,7 +31,7 @@ int main(void) {
     // Testing getMatrixNextIndexes.
     printf("Testing getMatrixNextIndexes...\n");
     int matrixnextindexes[2];
-    for (unsigned int i = 0; i < tests * 4; i++) {
+    for (uli i = 0LU; i < tests * 4; i++) {
         getMatrixNextIndexes(matrixnextindexes);
         printf("i: %d j: %d \n", matrixnextindexes[0], matrixnextindexes[1]);
     }
@@ -64,13 +48,16 @@ int main(void) {
 
     // Testing serializeMatrixStr.
     printf("Testing serializeMatrixStr...\n");
-    for (unsigned int i = 0; i < tests; i++) {
+    for (uli i = 0LU; i < tests; i++) {
+        printf("---------------------------------\n");
         generateRandomMatrix();
+        printf("*********************************\n");
         char* s = serializeMatrixStr();
         printf("%s", s);
         free(s);
         printf("--------------ABOVE THE SERIALIZED, BELOW THE NORMAL (MANUAL)--------------\n");
         printManualMatrix();
+        printf("---------------------------------\n");
     }
 
     // Re-testing validateMatrix.
@@ -82,10 +69,10 @@ int main(void) {
     strcat(newalpha, ALPHABET);
     strcat(newalpha, trash);
     toLowerOrUpperString(newalpha, 'U');
-    for (unsigned int x = 0; x < tests; x++) {
+    for (uli x = 0LU; x < tests; x++) {
         // Changing random character in the matrix with some not allowed.
-        for (unsigned int i = 0; i < NROWS; i++)
-            for (unsigned int j = 0; j < NCOL; j++) {
+        for (uli i = 0LU; i < NROWS; i++)
+            for (uli j = 0LU; j < NCOL; j++) {
                 // Choosing random char of the new alphabet.
                 int r = rand() % strlen(newalpha);
                 char c = newalpha[r];
@@ -104,10 +91,9 @@ int main(void) {
 
     // Testing loadMatrixFromFile.
     printf("Testing loadMatrixFromFile...\n");
-    #define MAT_PATH "../Data/profmatrices.txt"
-    for (unsigned int i = 0; i < tests; i++) {
+    for (uli i = 0LU; i < tests; i++) {
         // Loading all the file the first time.
-        if (i == 0) loadMatrixFromFile(MAT_PATH);
+        if (i == 0) loadMatrixFromFile("../../Data/Matrices/mymatrices.txt");
         // Loading the next matrix (file row).
         else loadMatrixFromFile(NULL);
         char* s = serializeMatrixStr();

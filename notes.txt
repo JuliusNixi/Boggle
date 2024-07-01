@@ -1,13 +1,5 @@
-Il processo server deve necessariamente essere lanciato mediante il seguente comando:
-> ./paroliere_srv nome_server porta_server [--matrici data_filename]
-[--durata durata_in_minuti] [--seed rnd_seed] [--diz dizionario]
-> ./paroliere_cl nome_server porta_server
-
 Ammettere comandi anche italiani, relazione.
 Ammettere parametri anche italiani, relazione.
-
-Scompattando l’archivio, dovrà essere possibile compilare il codice tramite make (con
-target di default). L’archivio dovrà anche contenere la relazione.
 
 Verrà valutato:
 Compilazione e creazione degli eseguibili, correttezza del Makefile
@@ -23,7 +15,7 @@ Chiarezza e completezza della relazione
 
 Aggiungere filosofia di suddivisione dei vari files nella relazione, sezione struttura progetto.
 
-Correggere i percorsi dei files. Il file "ponte dei tests" e il file dizionario di default ipotizzando che i professori eseguano MANUALMENTE I BINARI nella root e quindi con WORKING DIRECTORY root del progetto. Aggiornare di conseguenza il warinng nella relazione.
+Aggiornare il warinng nella relazione della working directory.
 
 CHIEDERE AL DOCENTE, IL TRIE NON CONVIENE PERCHE' OGNI CARATTERE 1 BYTE E OGNI CHAR* O STRUCT* (CON SOLO 1 CHAR E 1 STRUCT* NEXT) HA SIZEOF DI 8.
 

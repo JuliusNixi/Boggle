@@ -7,12 +7,7 @@ List of things to work on. Very few things because I forget very often to update
 - [ ] Restore times like games duration, pause duration, changed to perform tests.
 - [ ] Handle all errors.
 - [ ] Rewrite, check, update the report.
-- [ ] Rewrite Src/ Makefile.
 - [ ] Rewrite, check, all .c in Studies/C/ files.
-- [ ] Rewrite root Makefile.
-- [ ] Rewrite root README.md.
-- [ ] Rewrite, check, Tests/C/tests.c
-- [ ] Rewrite, check, Tests/Python/pythontests.py.
 - [ ] Execute again Valgrind on server AND client. Fill the obtained output in the .txt file.
 
 ## Done ✓
@@ -27,5 +22,10 @@ List of things to work on. Very few things because I forget very often to update
 - [x] server.h.
 - [x] server.c.
 - [x] boggle_server.c.
+- [x] Rewrite, check, Tests/C/tests.c
+- [x] Rewrite, check, Tests/Python/pythontests.py.
+- [x] Rewrite root Makefile.
+- [x] Remove/delete Src/ Makefile.
+- [x] Rewrite root README.md.
 
 

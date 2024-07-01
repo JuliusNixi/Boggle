@@ -4,7 +4,7 @@
 // Current file vars and libs.
 #include <getopt.h> // Used to check optionals args.
 #define USAGE_MSG "Invalid args. Usage: ./%s server_ip server_port [--matrices matrices_filepath] [--duration game_duration_in_minutes] [--seed rnd_seed] [--dic dictionary_filepath].\n" // Message to print when the user inserts wrong args.
-#define DEFAULT_DICT "../../Data/Dicts/dictionary_ita.txt" // Default dictionary file path, used when --dic is not present.
+#define DEFAULT_DICT "./Data/Dicts/dictionary_ita.txt" // Default dictionary file path, used when --dic is not present.
 
 int main(int argc, char** argv) {
 

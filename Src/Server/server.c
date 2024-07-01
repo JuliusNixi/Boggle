@@ -38,7 +38,7 @@ uli nclientsconnected = 0LU; // This rapresent the number of connected clients t
 
 uli clientid = 0LU;  // A temporary client's ID used to identify a client before its thread starting.
 
-#define VALID_WORDS_TESTS_FILE_PATH "../Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary.
+#define VALID_WORDS_TESTS_FILE_PATH "./Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary. For more info see "../../Tests/Python/pythontests.py".
 
 pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads ad the end of game to fill the queue.
 struct Queue* headq = NULL; // Pointer to the queue head.
@@ -1155,6 +1155,8 @@ void validateMatrix(void) {
             // Character not found, error.
             if (found == 0) {
                 // Error
+                // TODO Used in tests.c the print, should mantain it.
+                fprintf(stderr, "Invalid matrix by validateMatrix()!\n");
             }
         }
     }

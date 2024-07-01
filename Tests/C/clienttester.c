@@ -1,15 +1,21 @@
 #include "../../Src/Common/common.h"
 
-// Compile with "../../Src/Common/common.c" file.
+// Remember to compile with also "../../Src/Common/common.c".
+
+// This file is a very basic client tester.
+// It's a simplified server, which is intended to test the client abstracting
+// from the complex operations that the real project server should have.
+// It simply accepts one client, wait a random time in seconds, and write a fixed message.
 
 int main(void) {
 
+    // Setting port.
     uli port = 8080LU;
-
     server_addr.sin_port = htons(port);
 
     server_addr.sin_family = AF_INET;
     
+    // Setting IP.
     inet_aton("127.0.0.1", &server_addr.sin_addr);
 
     int socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
@@ -18,9 +24,10 @@ int main(void) {
 
     listen(socket_server_fd, SOMAXCONN);
 
+    // Client's acceptance.
     struct sockaddr_in client_addr;
     socklen_t client_address_len;
-    client_address_len = (socklen_t) sizeof(client_addr)
+    client_address_len = (socklen_t) sizeof(client_addr);
     int socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(client_addr)), &(client_address_len));
 
     printf("Client accepted!\n");
@@ -33,7 +40,7 @@ int main(void) {
         // Sleeping random seconds.
         int randint = rand() % 5;
         sleep(randint);
-        // 1 means OK.
+        // 1, if returned, means OK.
         char r = sendMessage(socket_client_fd, MSG_OK, teststring);
         printf("Result: %d.\n", (int) r);
     }
