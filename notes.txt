@@ -40,3 +40,5 @@ A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motiva
 Q29: Viene detto questo nelle specifiche: "..dopo che il vincitore è stato nominato, comunicano ai rispettivi client il risultato finale". In che senso viene decretato un vincitore, devo inviare al client il nome del vincitore o, di nuovo, basta il messaggio in CSV con il nome del vincitore come primo? Anche perché viene detto di usare un messaggio ("La comunicazione ai client del risultato finale avviene tramite il messaggio MSG_PUNTI_FINALI”).
 A29: Trovate un modo ragionevole, implementatelo e descrivetelo nella relazione.
 
+Aggiungere a relazione l'utilizzo di ULI per le size e char per le variabili booleane.
+

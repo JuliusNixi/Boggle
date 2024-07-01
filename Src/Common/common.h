@@ -40,7 +40,6 @@ pthread_mutex_t setupmutex; // Used to synchronize read/write threads operations
 
 // Added by me.
 #define MSG_ESCI 'Q' // Message sent by the client to the server or vice versa to close the connection.
-#define MSG_IGNORATO 'I' // Message sent by the server to the client to notify that the sent request received will be ignored since it was RECEIVED AFTER the timer of end game trigger.
 
 struct Message { // Struct of the message that will be used in the communication between server and clients.
     char type;  // Type of message as above.

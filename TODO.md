@@ -5,7 +5,7 @@ List of things to work on. Very few things because I forget very often to update
 ## To do
 
 - [ ] Restore times like games duration, pause duration, changed to perform tests.
-- [ ] Recheck all errors with handleError().
+- [ ] Handle all errors.
 - [ ] Rewrite, check, update the report.
 - [ ] Rewrite Src/ Makefile.
 - [ ] Rewrite, check, all .c in Studies/C/ files.
@@ -24,4 +24,8 @@ List of things to work on. Very few things because I forget very often to update
 - [x] boggle_client.c.
 - [x] client.h.
 - [x] client.c.
+- [x] server.h.
+- [x] server.c.
+- [x] boggle_server.c.
+
 

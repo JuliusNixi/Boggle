@@ -107,38 +107,20 @@ void acceptClient(void);
 void disconnectClient(struct ClientNode**, char);
 char* serializeStrClient(struct ClientNode*);
 char* itoa(uli);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-void* scorer(void*);
+void processReceivedRequest(struct Message*, struct ClientNode*);
+void gameEndQueue(struct ClientNode*);
 char* csvNamePoints(struct Message*, char);
-int sortPlayersByPointsMessage(const void*, const void*);
-int registerUser(char*, struct ClientNode*, struct Message*);
-// I used unsigned long because i read that is the recommended type for handling POSIX time.
-uli timeCalculator(uli, char);
-void sendCurrentMatrix(struct ClientNode*);
 void* clientHandler(void*);
+int registerUser(char*, struct ClientNode*, struct Message*);
+// I used unsigned long because i read on internet that is a recommended type
+// for handling POSIX time.
+uli timeCalculator(uli, char);
 int submitWord(struct ClientNode*, char*);
 int validateWord(char*);
 void endGame(int);
-void createScoreboard(struct Queue**, int);
-void gameEndQueue(struct ClientNode*);
-
+void* scorer(void*);
+int sortPlayersByPointsMessage(const void*, const void*);
+void createScoreboard(struct Queue**, uli);
 
 // Defined, commented and implemented all in common.h and common.c.
 // int parseIP(char*, struct sockaddr_in*); -> common.h

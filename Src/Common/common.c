@@ -338,8 +338,7 @@ char sendMessage(int fdto, char type, char* data) {
             case MSG_TEMPO_ATTESA:
             case MSG_TEMPO_PARTITA:
             case MSG_PUNTI_PAROLA:
-            case MSG_PUNTI_FINALI:
-            case MSG_IGNORATO: {
+            case MSG_PUNTI_FINALI: {
                 // OK, nothing to do for all.
                 ;
                 break;

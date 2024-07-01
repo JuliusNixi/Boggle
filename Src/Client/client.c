@@ -1,3 +1,4 @@
+// ANCHOR File begin.
 // Shared client cross files vars and libs.
 #include "client.h"
 
@@ -339,7 +340,7 @@ void inputHandler(void) {
                         if (strcmp("matrix", inputfinal) == 0 || strcmp("matrice", inputfinal) == 0) {
                             sendMessage(client_fd, MSG_MATRICE, NULL);
                             commandfound = 1;
-                            // TODO Control sendMessage() return.
+                            // TODO Control sendMessage() return also in the server.
                         }
                         // Might be a command with at least two words.
                         // Tokenizing using a space (' ') the user's input.
@@ -506,9 +507,6 @@ void inputHandler(void) {
                             break;
                         }case MSG_ESCI : {
                             // TODO Server disconnection alert.
-                            break;
-                        }case MSG_IGNORATO : {
-                            // TODO Ignored request.
                             break;
                         }case MSG_REGISTRA_UTENTE:
                         case MSG_PAROLA: {
