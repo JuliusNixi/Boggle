@@ -651,6 +651,7 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
     // Null-terminate the string.
     result[index] = '\0';
 
+    // bannertext characters replacement in case of voidstringornot.
     if (voidstringornot) {
         s = result;
         while (1) {

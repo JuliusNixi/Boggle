@@ -528,7 +528,7 @@ void* signalsThread(void* args) {
                     char msgendgame[l];
                     strcpy(msgendgame, banner);
                     msgendgame[l] = '\0';
-                    msgendgame[l - 1] = '\n';
+                    msgendgame[l - 2] = '\n';
                     free(banner);
                     banner = NULL;
                     
@@ -537,7 +537,7 @@ void* signalsThread(void* args) {
                     char msgendgameend[l];
                     strcpy(msgendgameend, banner);
                     msgendgameend[l] = '\0';
-                    msgendgameend[l - 1] = '\n';
+                    msgendgameend[l - 2] = '\n';
                     free(banner);
                     banner = NULL;
 

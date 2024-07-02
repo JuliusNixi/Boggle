@@ -134,7 +134,7 @@ reconnecting:
 
     // Printing end banner.
     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
-    fprintf(stdout, "%s\n", banner);
+    fprintf(stdout, "%s\n\n", banner);
     free(banner);
 
     // Start input management.
