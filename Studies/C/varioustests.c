@@ -13,9 +13,11 @@ int main(void) {
     char c[1]; 
     read(STDIN_FILENO, c, 1);
     printf("C: %c\n", *c);
+
     // Trying to flush STDIN.
     // We want to discard "ello\n" present in the STDIN buffer.
     fflush(stdin);
+
     // We expect a new prompt and not to see "ello\n" if it works.
     #define N 100
     char res[N];
@@ -24,7 +26,7 @@ int main(void) {
     // This not work... fflush() does not work with STDIN... :(
 
     // Resetting.
-    // STDIN now clear.
+    // STDIN now clear and buffered cleared.
     memset(res, 0, N); // Resetting buffer.
 
     // Let's do another try...

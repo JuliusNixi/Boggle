@@ -1,20 +1,23 @@
 // This file contains all the tests needed to develop the async client.
 // Async, in this case, means that the client waits for the user's input in a ThreadA.
-// a ThreadB stays listening to capture responses from the server
+// A ThreadB stays listening to capture responses from the server
 // and places them in a list. 
 // Periodically, the ThreadA interrupts the read() of the user input and checks if there 
 // are any server responses in the list to be printed.
 // In this latter case, it prints the server's responses and then come back
 // to waits for user's input.
+// If there's no responses received from the server, the read() user's input come back to where
+// it was left and the user doesn't notice anything.
 
-// CLARIFICATIONS: It's not 100% asynchronous in the true meaning of the word,
-// the server's responses are received from the server, and inserted into the list
+// CLARIFICATIONS: This client implementation is not 100% asynchronous in the true meaning
+// of the word, the server's responses are received from the server, and inserted into the list
 // asynchronously by the ThreadB, but aren't printed INSTANTANEOUSLY ASYNC,
 // instead, at regular intervals, the ThreadA stops waiting for user's input and checks
 // for server's responses in the list and prints them, but since this time interval
 // can be chosen very low, the user will perceive almost a pure asynchronous behavior.
 
 /*
+
 The key concept on which the client development was structured is the cleanup of the printing
 of server's responses, and the subsequent printing (and input handling) of the prompt.
 
@@ -26,9 +29,9 @@ In particular, the problem was that when a response from the server is received 
 the user might be in the middle of a typing and have already entered characters into the STDIN
 buffer.
 
-To see the problem in action take a look at brokeninputoutput.c.
+To see the problem in action take a look at "./brokeninputoutput.c".
 
-I identified two different ways to deal with the problem:
+I identified two different ways to deal with this problem:
 
 1) Prevent the problem (of the "dirty" STDIN buffer).
 Develop the client as a single thread, which waits for the user to complete the input
@@ -40,27 +43,28 @@ the input with the one that prints the server's responses.
 Both solutions, however, have the same fallacy, the read() must be compulsorily blocking,
 to be sure that it reads the entire STDIN buffer.
 
-2) We cure the problem, let the STDIN buffer be allowed to "dirty" and flush it when necessary.
+2) We cure the problem, let the STDIN buffer allowed to be "dirty" and flush it when necessary.
 It sounds simple, but it is not so.... 
 I have tried a lot of methods and read these discussions:
 https://stackoverflow.com/questions/2979209/using-fflushstdin
 https://stackoverflow.com/questions/2187474/i-am-not-able-to-flush-stdin-how-can-i-flush-stdin-in-c
 https://stackoverflow.com/questions/36715002/how-to-clear-stdin-before-getting-new-input
 Never a final solution...
-I ended up going crazy with a library called "curses.h":
+I ended up going crazy with a library called ncurses:
 https://en.wikipedia.org/wiki/Curses_(programming_library)
 That allows you to manage the terminal in detail, but it was like using bazooka to kill a fly.
-Solving the problem but generated many others.
+Solving the problem but generated many others unnecessary complications.
 
 I finally found and adapted a method used in this below code.
 
 To summarize, I interrupt the read() very often.
 If there are server's responses I print them, clean up the STDIN with a NON-BLOCKING getchar()
 and return to the clean prompt, so if the user has typed something incomplete can retype
-it or changes it (following the response received). Instead, if there is no server response,
+it or changes it (following the response received seen). Instead, if there is no server response,
 the read resumes with the user's entered STDIN and nothing happens.
 
-See termiostest.h to better understand.
+See "./termiostests.c" to better understand how the termios lib is used.
+
 */
 
 #include <unistd.h>
@@ -74,54 +78,66 @@ See termiostest.h to better understand.
 // This can be generalized to inputs of arbitrary length.
 // But for these tests we don't care.
 #define N 100
-char input[N];
+char input[N + 1]; // +1 for the '\0'.
 
-#define PROMPT "-> "
+#define PROMPT_STR "--> "
 
-#define TIME_CHECK_RESPONSES_MICROSECONDS 100
-
+#define CHECK_RESPONSES_MICROSECONDS 100
 struct termios oldChars;
 struct termios newChars;
-
 int oldfl;
+char printprompt;
 
-int printprompt = 1;
+// This function is used to transform the getchar() function from blocking to unblocking.
+void setUnblockingGetChar(void){
 
-void setUnblockingGetChar(){
-  oldfl = fcntl(0, F_GETFL); // Saving current fcntl settings.
-  fcntl(0, F_SETFL, O_NONBLOCK);
-  tcgetattr(0, &oldChars); // Saving current terminal settings.
-  newChars = oldChars;
-  newChars.c_lflag &= ~ICANON; // Disabling buffering.
-  // newChars.c_lflag &= echo ? ECHO : ~ECHO; // Modifying echo mode.
-  tcsetattr(0, TCSANOW, &newChars); // Setting new terminal settings.
-}
-
-void setBlockingGetChar(){
-    fcntl(0, F_SETFL, oldfl & ~O_NONBLOCK); // Setting old fcntl settings.
-    tcsetattr(0, TCSANOW, &oldChars);  // Setting old terminal settings.
-}
-
-// This function substitute all the '\n' with '\0' in the input. 
-// It returns 1 if at least a '\n' is found in the input, 0 otherwise.
-int sanitizeCheckInput(){
-
-    char* c = input;
-    int counter = 0;
-    while(c[0] != '\0'){
-        if (c[0] == '\n'){
-            c[0] = '\0';
-            counter++;
-        } 
-        c++;
+    // Saving current fcntl settings.
+    oldfl = fcntl(0, F_GETFL); 
+    if (oldfl == -1) {
+            // Error
     }
-    return counter == 0 ? 0 : 1;
+    // Setting getchar() to unblocking.
+    int retvalue = fcntl(0, F_SETFL, O_NONBLOCK); 
+    if (retvalue == -1) {
+        // Error
+    }
+    // Saving current terminal settings.
+    retvalue = tcgetattr(0, &oldChars); 
+    if (retvalue == -1) {
+        // Error
+    }
+    newChars = oldChars;
+    // Disabling buffering.
+    newChars.c_lflag &= ~ICANON; 
+    // newChars.c_lflag &= echo ? ECHO : ~ECHO; // Modifying echo mode.
+    // Setting new terminal settings.
+    retvalue = tcsetattr(0, TCSANOW, &newChars); 
+    if (retvalue == -1) {
+        // Error
+    }
 
 }
+
+// This function is used to restore the getchar() function from unblocking to blocking.
+void setBlockingGetChar(void) {
+
+    // Setting old fcntl settings.
+    int retvalue = fcntl(0, F_SETFL, oldfl & ~O_NONBLOCK);
+    if (retvalue == -1) {
+        // Error
+    }
+    // Setting old terminal settings.
+    tcsetattr(0, TCSANOW, &oldChars);  
+    if (retvalue == -1) {
+        // Error
+    }
+
+}
+
 
 // This function clears the user's input.
 // It clears the input buffer.
-// It also clears the user's STDIN buffer, for that an unblocking getchar() was needed.
+// It clears the user's STDIN buffer, for that an unblocking getchar() was needed.
 // It returns 1 if at least one char has been removed from STDIN, 0 otherwise.
 int clearInput(void) {
 
@@ -139,21 +155,106 @@ int clearInput(void) {
     }
     setBlockingGetChar();
 
-    // This extra line is needed because the fcntl is changed.
-    // It has been restored to the original, but this change is missing (also in the original).
-    // It is needed to periodically stop the read() and check for server's responses to print.
-    fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
-
     return cleared;
 
 }
 
-// Simulate received responses from server.
-void printResponses(void) {
+int main(void) {
+
+    // Initializing seed.
+    srand(42);
+
+    printprompt = 1;
+
+    while(1) {
+
+        // Periodically stop the read() and check for server's responses to print.
+        // This is NOT about changing the mode of the getchar() function.
+        // This MUST be done every while loop.
+        fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
     
+        // Printing prompt.
+        if (printprompt == 1)
+            printf(PROMPT_STR);
+        else printprompt = 0;
+
+        fflush(stdout);
+
+        // Waiting for the user's input.
+        // After this time the read() is automatically interrupted to check if there
+        // are server's responses to print.
+        // if there are not, it is taken back and the user does not notice it.
+        usleep(CHECK_RESPONSES_MICROSECONDS);
+
+        // Reading input.
+        int retvalue;
+        retvalue = read(STDIN_FILENO, input, N);
+
+        if (retvalue > 0) {
+
+                // Terminating the line.
+                input[retvalue] = '\0';
+
+                // Something has been read (r > 0).
+
+                // MAY or MAY NOT have read ALL the data that the user would want to.
+                // The user may have entered LESS data than N but with '\n', so it's completed,
+                // OR the input is NOT completed ('\n' missing).
+                
+                // Checking if the input contains a '\n', to detect if it is completed or not,
+                // to know if it's necessary or not printing the newline and prompt and 
+                // to process the input.
+                char* c = input;
+                unsigned int counter = 0U;
+                while(c[0] != '\0'){
+                    if (c[0] == '\n'){
+                        c[0] = '\0';
+                        counter++;
+                    } 
+                    c++;
+                }
+                if (counter == 0 ? 0 : 1) {
+                    // The input is completed, we can process it.
+                    printf("INSERTED: %s.\n", input);
+                    // Processing...
+                    printprompt = 1;
+                }else {
+                    // The input is not completed, clearing the input. Maybe there is 
+                    // a situation like this:
+                    // -> USERINPUT...
+
+                    // To know what to do (printing and clearing input), we need to know 
+                    // whether there are server's responses to print or not.
+                    // So we delegate this task to after, setting this flag.
+                    printprompt = 2;
+
+                }
+        }else{
+            // retvalue <= 0.
+            // errno == 35 on macOS.
+            // errno == 11 on Linux.
+            if (errno == 35 || errno == 11){
+                // Normal interrupt to display server's responses received.
+                // Two cases:
+                // 1. ->
+                // 2. -> USERINPUT...
+
+                // To know what to do (printing and clearing input), we need to know 
+                // whether there are server's responses to print or not.
+                // So we delegate this task to after, setting this flag.
+                printprompt = 3;
+
+            }else {
+                // Unexpected strange error.
+                printf("Unexpected error.\n");
+                _exit(1);
+            }
+        }
+
+    // Checking for server's responses.
     // Generate a random number and decide whether to simulate the printing of some server's
     // responses or not.
-    int somethingtoprint = rand() % 1000000 >= 999990;
+    char somethingtoprint = (rand() % 1000000) >= 999990;
 
     if (somethingtoprint) {
 
@@ -189,6 +290,7 @@ void printResponses(void) {
 
         // Useless placeholder text that rapresent the server's response to print.
         printf("NOISE\nNOISE\n");
+
         printprompt = 1;
 
     }else{
@@ -213,89 +315,6 @@ void printResponses(void) {
         // For readability better to distinguish them.
 
     }
-        
-    return;
-
-}
-
-int main(void) {
-
-    // Initializing seed.
-    srand(42);
-
-    // Initializing is needed (to set the read() timeout).
-    clearInput();
-
-    while(1) {
-
-        fflush(stdout);
-
-        // Printing prompt.
-        if (printprompt == 1)
-            printf(PROMPT);
-        else printprompt = 0;
-
-        // Waiting for the user's input.
-        // After this time the read() is automatically interrupted to check if there
-        // are server's responses to print.
-        // However, it is taken back and the user does not notice it.
-        usleep(TIME_CHECK_RESPONSES_MICROSECONDS);
-
-        // Reading input.
-        int retvalue;
-        retvalue = read(STDIN_FILENO, input, N);
-
-        if (retvalue != -1) {
-                // Something has been read (r > 0) or r == 0.
-
-                // MAY or MAY NOT have read ALL the data that the user would want to.
-                // The user may have entered LESS data than N but with '\n', so it's completed,
-                // OR the input is NOT completed ('\n' missing).
-                
-                // Checking if the input contains a '\n', to detect if it is completed or not,
-                // to know if it's necessary or not printing the newline and prompt and 
-                // to process the input.
-                if (sanitizeCheckInput()) {
-                    // The input is completed, we can process it.
-                    printf("INSERTED: %s.\n", input);
-                    // Processing...
-                    printprompt = 1;
-                }else {
-                    // The input is not completed, clearing the input. Maybe there is 
-                    // a situation like this:
-                    // -> USERINPUT...
-
-                    // To know what to do (printing and clearing input), we need to know 
-                    // whether there are server's responses to print or not.
-                    // So we defer this task to the function printResponses(), setting this flag.
-                    printprompt = 2;
-
-                }
-        }else{
-            // -1.
-            // EAGAIN
-            if (errno == 35){
-                // Interrupt to display server's responses received.
-
-                // Two cases:
-                // 1. ->
-                // 2. -> USERINPUT...
-
-                // To know what to do (printing and clearing input), we need to know 
-                // whether there are server's responses to print or not.
-                // So we defer this task to the function printResponses(), setting this flag.
-                printprompt = 3;
-
-            }else {
-                // Unexpected strange error.
-                printf("Unexpected error.\n");
-                fflush(stdout);
-                _exit(1);
-            }
-        }
-
-        // Checking for server's responses.
-        printResponses();
 
         fflush(stdout);
 

@@ -1,5 +1,9 @@
 // This file illustrates a client I/O management problem,
-// to understand the problem better look at inputoutputasynctests.c.
+// to see the problem solution i found, look at "./inputoutputasynctests.c".
+
+// To see the problem write something in the prompt, without pressing ENTER, after
+// a bit, when the timer will ring, "NOISE" will be printed. Now press ENTER, the content
+// of the STDIN buffer persists after the interruption, this is bad.
 
 #include <stdio.h>
 #include <unistd.h>
@@ -8,24 +12,22 @@
 #include <string.h>
 
 sigset_t signal_mask;
-
-pthread_t maint;
 pthread_t sig_thr_id;
 
-#define TIMER_SECONDS 10
+pthread_t maint;
+
+#define TIMER_SECONDS 5
 
 // This thread will handle with sigwait() only the SIGALRM signal.
 void* signalsThread(void* args) {
 
     int sig;
-    int retvalue;
     while (1) {
-        retvalue = sigwait(&signal_mask, &sig);
+        sigwait(&signal_mask, &sig);
         if (sig == SIGALRM) {
 
             // Simulating a server's response to print.
-            printf("\n");
-            printf("NOISE\n");
+            printf("\nNOISE\n");
             fflush(stdout);
             // Interrupt the read() in the main thread.
             pthread_kill(maint, SIGUSR1);
@@ -40,7 +42,9 @@ void* signalsThread(void* args) {
 
 // Nothing, just to interrupt the read() in the main thread.
 void sigUSR1Handler(int signum) {
+
     return;
+    
 }
 
 int main(void) {
@@ -50,18 +54,19 @@ int main(void) {
     // Blocking the SIGALRM to prepare it for the signalsThread().
     sigemptyset(&signal_mask);
     sigaddset(&signal_mask, SIGALRM);
-    int retvalue = pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
+    pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
 
-    // Creating the SIGALRM thread handler.
-    retvalue = pthread_create(&sig_thr_id, NULL, signalsThread, NULL);
+    // Creating the SIGALRM thread handler (signalsThread()).
+    pthread_create(&sig_thr_id, NULL, signalsThread, NULL);
 
-    // Setting the void SIGUSR1 that will be used to interrupt from the signalsThread(),
-    // when the timer expires, the read() in the main thread.
+    // Setting the void SIGUSR1 handler that will be used to interrupt from the signalsThread(),
+    // when the timer expires, the read() in the main (this) thread.
     struct sigaction sigusr1; 
     sigusr1.sa_flags = 0;
     sigusr1.sa_handler = sigUSR1Handler;   
-    retvalue = sigaction(SIGUSR1, &sigusr1, NULL);
+    sigaction(SIGUSR1, &sigusr1, NULL);
 
+    // Setting the first time the alarm.
     alarm(TIMER_SECONDS);
 
     // Input buffer.
@@ -80,13 +85,13 @@ int main(void) {
         if (retvalue > 0) {
             // Processing the user's input and clearing the buffer.
             printf("INSERTED: %s", buffer);
-            memset(buffer, '\0', N);
             fflush(stdout);
+            memset(buffer, '\0', N);
         }else{
 
-            // HERE THE STDIN BUFFER PROBLEM
+            // HERE THE STDIN BUFFER PROBLEM!
             
-            // fflush(stdin); // Not work.
+            // fflush(stdin); // Not works.
             // scanf("%*[^\n]%*c"); // Works but remains waiting for more input.
             // int c; while ((c = getchar()) != '\n' && c != EOF); // Works but remains waiting for more input.
             // fpurge(stdin); // Not always available.

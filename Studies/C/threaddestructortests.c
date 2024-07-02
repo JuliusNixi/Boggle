@@ -3,28 +3,30 @@
 #include <stdlib.h>
 
 // This file contains the tests to create a thread destructor function, called before
-// the thread exits to cleanup.
+// the thread exits to cleanup some data if necessary.
 // Moreover, this mechanism permits to a thread to save its specific "key", an 
 // object that can be used to save thread specific data.
 
-// A simplier alternative previous considered was:
+// A simplier alternative previous considered as thread destructor was:
 // void pthread_cleanup_push(void (*routine)(void *), void *arg);
 // void pthread_cleanup_pop(int execute);
 // But these functions, require to be called in pairs, with the thread code
 // (one at the beginning and one at the end of thread code) and the thread exit must
 // mandatorily be in the middle, so they are very limiting.
 
+// At the end not implemented in the project because not needed.
+
 static pthread_key_t key;
 static pthread_once_t key_once = PTHREAD_ONCE_INIT;
 
 pthread_t t, t2, maint;
 
-// Destructor of all threads.
-void localThreadsDestructor(void* args) {
+// Destructor of all threads. Called before destruction of a registered thread.
+void threadsDestructor(void* args) {
 
     // Can be used args to know wich thread is calling this function.
-    printf("Destructor called for the thread %c. With ID: %lu.\n", *((char*)args), (unsigned long)pthread_self());
-    fflush(stdout);
+    printf("Destructor called for the thread %c. With ID: %lu.\n", *((char*)args), (unsigned long) pthread_self());
+    // Remember to free the allocated memory to avoid leaks!
     free(args);
 
     return;
@@ -35,13 +37,12 @@ void localThreadsDestructor(void* args) {
 void makeKey(void){
 
     printf("makeKey(). Executed only once. I am the thread (ID): %lu.\n", (unsigned long) pthread_self());
-    fflush(stdout);
-    pthread_key_create(&key, localThreadsDestructor);
+    pthread_key_create(&key, threadsDestructor);
     return;
 
 }
 
-// This function MUST be executed by all threads to register the thread destructor.
+// This function MUST be executed by all threads to register each thread destructor.
 void registerDestructor(void) {
 
     void* ptr = NULL;
@@ -50,21 +51,17 @@ void registerDestructor(void) {
     pthread_once(&key_once, makeKey);
 
     printf("registerDestructor(). I am the thread (ID): %lu.\n", (unsigned long) pthread_self());
-    fflush(stdout);
 
     char data;
     pthread_t current = pthread_self();
     if (current == maint) data = 'M';
     else if (current == t) data = 'T';
-    else if (current == t2) data = 'R'; // T2 == R.
+    else if (current == t2) data = 'R';
 
-    // This if is executed only the first time (by each thread) to setup the data.
     if ((ptr = pthread_getspecific(key)) == NULL) {
         ptr = malloc(sizeof(char));
         *((char*)(ptr)) = data;
-        printf("I am executed only one from each thread (ID): %lu.\n", (unsigned long) pthread_self());
-        fflush(stdout);
-        // ... Other things that may be necessary carried out ONLY the FIRST TIME. ...
+        printf("Registered data from thread (ID): %lu.\n", (unsigned long) pthread_self());
         pthread_setspecific(key, ptr);
     }
 
@@ -80,13 +77,11 @@ void registerDestructor(void) {
 void* f(void* args){
 
     t = pthread_self();
-    printf("Hello from t (ID): %lu.\n", (unsigned long) t);
-    fflush(stdout);
+    printf("Hello from t (thread ID): %lu.\n", (unsigned long) t);
 
     registerDestructor();
 
     printf("T thread exiting...\n");
-    fflush(stdout);
 
     return NULL;
 
@@ -95,24 +90,19 @@ void* f(void* args){
 // Second thread function.
 void* f2(void* args) {
 
-    t2 = pthread_self();
-    printf("Hello from t2 (ID): %lu.\n", (unsigned long) t2);
-    fflush(stdout);
+    printf("Hello from t2 (thread ID): %lu.\n", (unsigned long) t2);
 
     registerDestructor();
 
     printf("T2 thread exiting...\n");
-    fflush(stdout);
 
     return NULL;
 
 }
 
-// atexit() function.
 void atExit(void){
 
     printf("I am the atExit() function. Called by thread (should be the main) (ID): %lu.\n", (unsigned long) pthread_self());
-    fflush(stdout);
     return;
 
 }
@@ -125,18 +115,18 @@ int main(void) {
     maint = pthread_self();
     printf("Hello from main (ID): %lu.\n", (unsigned long) maint);
 
-    fflush(stdout);
-    
+    // Creating two threads.    
     pthread_create(&t, NULL, f, NULL);
     pthread_create(&t2, NULL, f2, NULL);
 
+    // Remember to register the thread destructor also for the main thread!
     registerDestructor();
 
+    // Waiting other threads to terminate.
     pthread_join(t, NULL);
     pthread_join(t2, NULL);
 
     printf("Main exiting...\n");
-    fflush(stdout);
 
     // Important, without this it's called directly the atExit() and not the thread destructor
     // for the main.

@@ -5,16 +5,21 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <string.h>
 
 // This file contains some tests on the socket disconnection and related errors.
 // https://stackoverflow.com/questions/33053507/econnreset-in-send-linux-c
 
+void sigPIPEHandler(int signum) {
+
+    pid_t p = getpid();
+    // Not safe in a handler, but for these tests I will take the risk...
+    printf("SIGPIPE HANDLER PID: %d.\n", p);
+
+}
 
 void clientForcedDisconnection(void) {
 
-    int retvalue = 0;
-    unsigned long int port = 8080LU;
+    unsigned long port = 8080LU;
     struct sockaddr_in server_addr;
     server_addr.sin_port = htons(port);
     server_addr.sin_family = AF_INET;
@@ -24,47 +29,44 @@ void clientForcedDisconnection(void) {
     pid_t p = fork();
     if (p == 0) {
         // Son.
-        sleep(3);
+        sleep(1);
         int client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created client.\n");
-        sleep(2);
-        retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Connected succesfully!\n");
         char x = 'X';
         write(client_fd, &x, 1);
         printf("Message sent by the client: %c!\n", x);
-        sleep(5);
-        printf("Client exiting...\n");
+        printf("Client exiting forcibly...\n");
         exit(EXIT_SUCCESS);
     }else{
         // Father.
         int socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created server.\n");
-        retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Binding complete.\n");
-        retvalue = listen(socket_server_fd, SOMAXCONN);
+        listen(socket_server_fd, SOMAXCONN);
         printf("Listening...\n");
-        sleep(4);
         socklen_t l = (socklen_t) sizeof(server_addr);
         int socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(server_addr)), &l);
         printf("Client accepted by the server.\n");
         while (1) {
             // Reading a char.
             char x = '-';
-            retvalue = read(socket_client_fd, &x, 1);
+            int retvalue = read(socket_client_fd, &x, 1);
             printf("Readed by the server (code: %d): %c.\n", retvalue, x);
             if (retvalue <= 0) {
-                printf("Errno code: %d.\n", (int)errno);
-                perror("Errno: ");
+                printf("Errno code: %d.\n", (int) errno);
+                perror("Errno message");
                 fflush(stdout);
                 break;
             } 
-            fflush(stdout);
             sleep(1);
         }
-        printf("Server exiting...\n");
+        printf("Server exiting, BEFORE CLOSING FD...\n");
         close(socket_client_fd);
         close(socket_server_fd);
+        printf("Waiting for the son process...\n");
         fflush(stdout);
         waitpid(p, NULL, 0);
     }
@@ -75,8 +77,7 @@ void clientForcedDisconnection(void) {
 
 void clientCorrectDisconnection(void) {
 
-    int retvalue = 0;
-    unsigned long int port = 8081LU;
+    unsigned long port = 8081LU;
     struct sockaddr_in server_addr;
     server_addr.sin_port = htons(port);
     server_addr.sin_family = AF_INET;
@@ -86,47 +87,46 @@ void clientCorrectDisconnection(void) {
     pid_t p = fork();
     if (p == 0) {
         // Son.
-        sleep(3);
+        sleep(1);
         int client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created client.\n");
-        sleep(2);
-        retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Connected succesfully!\n");
         char x = 'X';
         write(client_fd, &x, 1);
         printf("Message sent by the client: %c!\n", x);
-        sleep(5);
-        printf("Client exiting closing fd...\n");
+        printf("Client exiting, BEFORE CLOSING FD...\n");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }else{
         // Father.
         int socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created server.\n");
-        retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Binding complete.\n");
-        retvalue = listen(socket_server_fd, SOMAXCONN);
+        listen(socket_server_fd, SOMAXCONN);
         printf("Listening...\n");
-        sleep(4);
         socklen_t l = (socklen_t) sizeof(server_addr);
         int socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(server_addr)), &l);
         printf("Client accepted by the server.\n");
         while (1) {
             // Reading a char.
             char x = '-';
-            retvalue = read(socket_client_fd, &x, 1);
+            int retvalue = read(socket_client_fd, &x, 1);
             printf("Readed by the server (code: %d): %c.\n", retvalue, x);
             if (retvalue <= 0) {
-                printf("Errno code: %d.\n", (int)errno);
-                perror("Errno: ");
+                printf("Errno code: %d.\n", (int) errno);
+                perror("Errno message");
                 break;
             } 
             fflush(stdout);
             sleep(1);
         }
-        printf("Server exiting...\n");
+        printf("Server exiting, BEFORE CLOSING FD...\n");
         close(socket_client_fd);
         close(socket_server_fd);
+        printf("Waiting for the son process...\n");
+        fflush(stdout);
         waitpid(p, NULL, 0);
     }
 
@@ -137,8 +137,7 @@ void clientCorrectDisconnection(void) {
 
 void serverForcedDisconnection(void) {
 
-    int retvalue = 0;
-    unsigned long int port = 8082LU;
+    unsigned long port = 8082LU;
     struct sockaddr_in server_addr;
     server_addr.sin_port = htons(port);
     server_addr.sin_family = AF_INET;
@@ -148,54 +147,56 @@ void serverForcedDisconnection(void) {
     pid_t p = fork();
     if (p == 0) {
         // Son.
-        sleep(3);
+        sleep(1);
         int client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created client.\n");
-        sleep(2);
-        retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        int retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Connected succesfully!\n");
         char x = 'X';
         write(client_fd, &x, 1);
         printf("Message sent by the client: %c!\n", x);
-        sleep(5);
 
+        // Now the client will read something from the server!
+        printf("Client reading!\n");
         x = '-';
         retvalue = read(client_fd, &x, 1);
         printf("Readed by the client (code: %d): %c.\n", retvalue, x);
         if (retvalue <= 0) {
             printf("Read client error...\n");
-            printf("Errno code: %d.\n", (int)errno);
-            perror("Errno: ");
+            printf("Errno code: %d.\n", (int) errno);
+            perror("Errno message");
         } 
-        printf("Client exiting closing fd...\n");
+        printf("Client exiting, BEFORE CLOSING FD...\n");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }else{
         // Father.
+        // Now two processes for the server are needed because, one will die cause the error we generate.
         pid_t p2;
         p2 = fork();
         if (p2 == 0) {
             // Son.
             int socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
             printf("Socket created server.\n");
-            retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+            bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
             printf("Binding complete.\n");
-            retvalue = listen(socket_server_fd, SOMAXCONN);
+            listen(socket_server_fd, SOMAXCONN);
             printf("Listening...\n");
-            sleep(4);
             socklen_t l = (socklen_t) sizeof(server_addr);
             int socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(server_addr)), &l);
             printf("Client accepted by the server.\n");
             while (1) {
                 // Reading a char.
                 char x;
-                retvalue = read(socket_client_fd, &x, 1);
+                int retvalue = read(socket_client_fd, &x, 1);
                 printf("Readed by the server (code: %d): %c.\n", retvalue, x);
                 break;
             }
-            printf("Server exiting...\n");
+            printf("Server exiting forcibly...\n");
             exit(EXIT_SUCCESS);
         }else{
+            printf("Waiting sons processes.\n");
+            fflush(stdout);
             waitpid(p2, NULL, 0);
             waitpid(p, NULL, 0);
             printf("Waited OK.\n");
@@ -209,8 +210,7 @@ void serverForcedDisconnection(void) {
 
 void serverCorrectDisconnection(void) {
 
-    int retvalue = 0;
-    unsigned long int port = 8083LU;
+    unsigned long port = 8083LU;
     struct sockaddr_in server_addr;
     server_addr.sin_port = htons(port);
     server_addr.sin_family = AF_INET;
@@ -220,56 +220,58 @@ void serverCorrectDisconnection(void) {
     pid_t p = fork();
     if (p == 0) {
         // Son.
-        sleep(3);
+        sleep(1);
         int client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created client.\n");
-        sleep(2);
-        retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Connected succesfully!\n");
         char x = 'X';
         write(client_fd, &x, 1);
         printf("Message sent by the client: %c!\n", x);
-        sleep(5);
 
+        // Now the client will read something from the server!
+        printf("Client reading!\n");
         x = '-';
-        retvalue = read(client_fd, &x, 1);
+        int retvalue = read(client_fd, &x, 1);
         printf("Readed by the client (code: %d): %c.\n", retvalue, x);
         if (retvalue <= 0) {
             printf("Read client error...\n");
-            printf("Errno code: %d.\n", (int)errno);
-            perror("Errno: ");
+            printf("Errno code: %d.\n", (int) errno);
+            perror("Errno message");
         } 
-        printf("Client exiting closing fd...\n");
+        printf("Client exiting, BEFORE CLOSING FD...\n");
         close(client_fd);
         exit(EXIT_SUCCESS);
     }else{
         // Father.
+        // Now two processes for the server are needed because, one will die cause the error we generate.
         pid_t p2;
         p2 = fork();
         if (p2 == 0) {
             // Son.
             int socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
             printf("Socket created server.\n");
-            retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+            bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
             printf("Binding complete.\n");
-            retvalue = listen(socket_server_fd, SOMAXCONN);
+            listen(socket_server_fd, SOMAXCONN);
             printf("Listening...\n");
-            sleep(4);
             socklen_t l = (socklen_t) sizeof(server_addr);
             int socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(server_addr)), &l);
             printf("Client accepted by the server.\n");
             while (1) {
                 // Reading a char.
                 char x;
-                retvalue = read(socket_client_fd, &x, 1);
+                int retvalue = read(socket_client_fd, &x, 1);
                 printf("Readed by the server (code: %d): %c.\n", retvalue, x);
                 break;
             }
-            printf("Server exiting closing fd...\n");
+            printf("Server exiting, BEFORE CLOSING FD...\n");
             close(socket_client_fd);
             close(socket_server_fd);
             exit(EXIT_SUCCESS);
         }else{
+            printf("Waiting sons processes.\n");
+            fflush(stdout);
             waitpid(p2, NULL, 0);
             waitpid(p, NULL, 0);
             printf("Waited OK.\n");
@@ -278,20 +280,15 @@ void serverCorrectDisconnection(void) {
 }
 
 void clear(void) {
-    // Reading a '\n'.
-    printf("...Press enter to continue...\n");
-    fflush(stdout);
-    char x;
-    read(STDIN_FILENO, &x, 1);
-    system("clear");
-    fflush(stdout);
+    
+    printf("\n\n----------------------------------------------------\n\n");
     return;
+
 }
 
 void unhandledData(void) {
 
-    int retvalue = 0;
-    unsigned long int port = 8084LU;
+    unsigned long port = 8084LU;
     struct sockaddr_in server_addr;
     server_addr.sin_port = htons(port);
     server_addr.sin_family = AF_INET;
@@ -301,54 +298,50 @@ void unhandledData(void) {
     pid_t p = fork();
     if (p == 0) {
         // Son.
-        sleep(3);
+        sleep(1);
         int client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created client.\n");
-        sleep(2);
-        retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Connected succesfully!\n");
         char x = 'X';
         write(client_fd, &x, 1);
         printf("Message sent by the client: %c!\n", x);
-        sleep(5);
         printf("Client exiting...\n");
-        sleep(3);
         exit(EXIT_SUCCESS);
     }else{
         // Father.
         int socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created server.\n");
-        retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Binding complete.\n");
-        retvalue = listen(socket_server_fd, SOMAXCONN);
+        listen(socket_server_fd, SOMAXCONN);
         printf("Listening...\n");
-        sleep(4);
         socklen_t l = (socklen_t) sizeof(server_addr);
         int socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(server_addr)), &l);
         printf("Client accepted by the server.\n");
         while (1) {
             // Reading a char.
             char x = '-';
-            retvalue = read(socket_client_fd, &x, 1);
+            int retvalue = read(socket_client_fd, &x, 1);
             printf("Readed by the server (code: %d): %c.\n", retvalue, x);
             if (retvalue <= 0) {
-                printf("Errno code: %d.\n", (int)errno);
-                perror("Errno: ");
+                printf("Errno code: %d.\n", (int) errno);
+                perror("Errno message");
                 fflush(stdout);
                 break;
             }
             // Reply back, this reply will go to client buffer,
             // but the client will close the socket without reading it.
             char n = 'N';
-            retvalue = write(socket_client_fd, &n, 1);
-            fflush(stdout);
+            write(socket_client_fd, &n, 1);
             sleep(1);
         }
-        printf("Server exiting...\n");
+        printf("Server exiting, BEFORE CLOSING FD...\n");
         close(socket_client_fd);
         close(socket_server_fd);
         fflush(stdout);
         waitpid(p, NULL, 0);
+        printf("Waited OK.\n");
     }
 
     return;
@@ -357,8 +350,7 @@ void unhandledData(void) {
 
 void noData(void) {
 
-    int retvalue = 0;
-    unsigned long int port = 8085LU;
+    unsigned long port = 8085LU;
     struct sockaddr_in server_addr;
     server_addr.sin_port = htons(port);
     server_addr.sin_family = AF_INET;
@@ -367,60 +359,68 @@ void noData(void) {
 
     pid_t p = fork();
     if (p == 0) {
+
+        // SIGPIPE signal handler.
+        struct sigaction sigp; 
+        sigp.sa_flags = 0;
+        sigp.sa_handler = sigPIPEHandler;   
+        sigaction(SIGPIPE, &sigp, NULL);
+
         // Son.
-        sleep(3);
+        sleep(1);
         int client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created client.\n");
-        sleep(2);
-        retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Connected succesfully!\n");
         char x = 'X';
         write(client_fd, &x, 1);
         printf("Message sent by the client: %c!\n", x);
 
-        sleep(10);
-        retvalue = write(client_fd, &x, 1);
+        printf("Waiting 5 seconds, to permit the server to quit.\n");
+        sleep(5);
+        int retvalue = write(client_fd, &x, 1);
         printf("This should be OK... %d\n", retvalue);
+        printf("Waiting others 5 seconds NECESSARY otherwise SIGPIPE will NOT be throw.\n");
         sleep(5);
-        printf("This should trigger EPIPE...\n");
+        printf("This should trigger EPIPE. The handler is registered for all the son processes (like this one), so it will be executed and the process won't die.\n");
         retvalue = write(client_fd, &x, 1);
-        perror("PIPE ");
-        printf("ERRNO VALUE: %d. CODE: %d.\n", errno, retvalue);
-        sleep(5);
+        printf("****************************\n");
+        perror("PIPE PERROR MESSAGE");
+        printf("ERRNO VALUE: %d. CODE: %d.\n", (int) errno, retvalue);
+        printf("****************************\n");
         printf("Client exiting...\n");
         exit(EXIT_SUCCESS);
     }else{
         // Father.
         int socket_server_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
         printf("Socket created server.\n");
-        retvalue = bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+        bind(socket_server_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
         printf("Binding complete.\n");
-        retvalue = listen(socket_server_fd, SOMAXCONN);
+        listen(socket_server_fd, SOMAXCONN);
         printf("Listening...\n");
-        sleep(4);
         socklen_t l = (socklen_t) sizeof(server_addr);
         int socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(server_addr)), &l);
         printf("Client accepted by the server.\n");
         while (1) {
             // Reading a char.
             char x = '-';
-            retvalue = read(socket_client_fd, &x, 1);
+            int retvalue = read(socket_client_fd, &x, 1);
             printf("Readed by the server (code: %d): %c.\n", retvalue, x);
             if (retvalue <= 0) {
-                printf("Errno code: %d.\n", (int)errno);
-                perror("Errno: ");
+                printf("Errno code: %d.\n", (int) errno);
+                perror("Errno message ");
                 fflush(stdout);
                 break;
             } 
             break;
-            fflush(stdout);
             sleep(1);
         }
-        printf("Server exiting...\n");
+        printf("Server exiting, BEFORE CLOSING FD...\n");
         close(socket_client_fd);
-        //close(socket_server_fd);
+        close(socket_server_fd);
         fflush(stdout);
         waitpid(p, NULL, 0);
+        printf("Waited OK.\n");
     }
 
     return;
@@ -428,24 +428,9 @@ void noData(void) {
 }
 
 
-void sigPIPEHandler(int signum) {
-
-    char str[] = "SIGPIPE HANDLER\n";
-    write(STDOUT_FILENO, str, strlen(str));
-
-}
-
-
 int main(void) {
 
-    struct sigaction sigp; 
-    sigp.sa_flags = 0;
-    sigp.sa_handler = sigPIPEHandler;   
-    int retvalue = sigaction(SIGPIPE, &sigp, NULL);
-
     // errno == ETIMEDOUT == 60 and retvalue == 0
-    system("clear");
-    clear();
     clientForcedDisconnection();
     clear();    
     clientCorrectDisconnection();
@@ -459,7 +444,6 @@ int main(void) {
     clear();
     // errno == EPIPE == 32 and retvalue == -1
     noData();
-    clear();
 
     return 0;
     

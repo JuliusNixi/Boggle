@@ -203,12 +203,11 @@ void inputHandler(void) {
 
             // Reading from STDIN the user input.
             retvalue = read(STDIN_FILENO, input, BUFFER_SIZE);
-            // Terminating the line.
-            input[retvalue] = '\0';
  
             if (retvalue > 0) {
 
-
+                    // Terminating the line.
+                    input[retvalue] = '\0';
 
                     // Inserting the new input in the strings list.
                     // Creating the new element.

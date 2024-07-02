@@ -4,13 +4,13 @@
 // Some tests on the strtok().
 // Used to tokenise strings.
 
-// WARNING: It's destroy the string on which it is working.
+// WARNING: It's destroy the string on which it's working.
 
 int main(void){
 
     char str[] = ",hello,mum,";
 
-    // First call with the str pointer, then with NULL.
+    // First call MUST BE with the str pointer, then with NULL.
     char* s = strtok(str, ",");
     printf("X 0: %s\n", s);
 
@@ -28,7 +28,7 @@ int main(void){
 
     printf("INITIAL STR: %s\n", str);
 
-    // The function substitute the token with '\0'.
+    // The function substitute the next founded token with '\0'.
 
     return 0;
 

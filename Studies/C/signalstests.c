@@ -51,19 +51,18 @@
 
      IMPORTANT:
      At the end, I chose a different implementation for the project
-     with a dedicated thread and the sigwait(). SEE multithreadedsignalstests.c !
+     with a dedicated thread and the sigwait(). SEE "./multithreadedsignalstests.c"!
 
 */
 
 
-#include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <stdlib.h>
 #include <signal.h>
 
 // volatile sig_atomic_t x;
-int x; // Seems to work also with int, but is not safe, reccomended the above one
+int x; 
+// Seems to work also with int, but is not safe, reccomended the above one
 // to mantain signal-async-safety.
 
 // SIGALRM handler.
@@ -76,7 +75,7 @@ void timerHandler(int signum) {
         printf("SIGALRM: %d.\n", x++);
         if (x == 30){
             printf("END SIGALRM IN ADVANCE.\n");
-             return;
+            return;
         }
     }
 
@@ -84,7 +83,6 @@ void timerHandler(int signum) {
         sleep(1);
         printf("SIGALRM 2: %d.\n", x++);
     }
-    
    
     printf("END SIGALRM.\n");
 
@@ -119,24 +117,25 @@ void sigintHandler(int signum) {
 int main(void) {
 
     x = 0;
-    struct sigaction sigint; // SIGINT signal handler.
-    struct sigaction sigactiontimer; // SIGALRM signal handler.
+
+    struct sigaction sigint;
+    struct sigaction sigactiontimer;
 
     // Registering SIGINT signal handler.
     sigint.sa_handler = sigintHandler;
-    int retvalue = sigaction(SIGINT, &sigint, NULL);
+    sigaction(SIGINT, &sigint, NULL);
     // Registering SIGALRM signal handler.
     sigactiontimer.sa_handler = timerHandler;
-    retvalue = sigaction(SIGALRM, &sigactiontimer, NULL);
+    sigaction(SIGALRM, &sigactiontimer, NULL);
 
     while (1){
         printf("BACK/START TO MAIN 1.\n");
         alarm(1);
-        // SLEEP 1 INTERRUPTED FROM SIGNAL SIGALRM, AT THE RETURN IT WILL FAIL! 
-        sleep(2000);
+        // SLEEP 1 INTERRUPTED FROM SIGNAL SIGALRM, AT THE RETURN IT WILL FAIL (STOP SLEEPING)! 
+        sleep(120);
         /////////////////////////////
         printf("BACK TO MAIN 2.\n");
-        sleep(2000);
+        sleep(120);
     }
     
 
@@ -204,3 +203,4 @@ BACK TO MAIN 2.
 
 
 */
+

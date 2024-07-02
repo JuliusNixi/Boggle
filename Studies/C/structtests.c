@@ -1,15 +1,21 @@
 #include <stdio.h>
 
-// A test on structs.
+// A test on innested structs.
 
 // Sub struct.
 struct sub {
+
+    // Value.
     int v;
+
 };
 
 // Main struct.
 struct m{
+
+    // Sub struct.
     struct sub wp;
+
 };
 
 

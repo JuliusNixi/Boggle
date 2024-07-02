@@ -96,6 +96,20 @@ Specifically:
       the other missing part of the message).
 #########################################################################################################
 
+WHY USING GOTO THAT CAUSES SPAGHETTI CODE?!?!
+Because this function (in all its read()) could be interrupted theoretically infinite times
+by the signalsThread() thread, receiving from it the SIGUSR1 to signal the end of the game.
+I don't know when I will be interrupted, it may even be while reading part of the message,
+I have a need to remember where I was left off. This could have been done with a data structure
+and recursively calling the function, but it would have been a waste of stack (which in critical
+cases could even generate stackoverflow). Instead, in this specific case the goto is perfect,
+when returning from the SIGUSR1 handler i can simply go back to restart the read() of the interested
+message's part. Also we are talking about small jumps of a few lines backward in the same function,
+so nothing too dangerous.
+
+Some interesting notes on GOTO:
+https://softwareengineering.stackexchange.com/questions/334417/what-kind-of-bugs-do-goto-statements-lead-to-are-there-any-historically-signi
+
 */
 struct Message* receiveMessage(int fdfrom, char* resultcode) {
 

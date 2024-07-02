@@ -3,8 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 
+// This file contains a simply test to chose a random char from a string.
+
 int main(void) {
 
+    // Setting random seed.
     srand(42);
 
     char teststring[] = "ABCDE";

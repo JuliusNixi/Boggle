@@ -6,13 +6,16 @@ void f(int x) {
 
     int y = x - 1;
 
-    // Brackets block are necessary!
+    // Brackets block are necessary, otherwise strange compiling error!
+    // x should be incremented and y should remain -1.
     label: {
 
         printf("%d %d\n", x, y);
         x++;
+
     }
-        goto label;
+    
+    goto label;
 
 
 }

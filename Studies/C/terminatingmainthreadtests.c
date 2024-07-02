@@ -15,9 +15,13 @@ void* f(void* args){
 
 }
 
+// We can test two different exit methods for the main thread.
+// Set this to 0 or 1 to see the differences.
+char exitmethod1or2 = 1; 
+
 int main(void) {
 
-
+    // Creating the other thread.
     pthread_t t;
     pthread_create(&t, NULL, f, NULL);
 
@@ -30,10 +34,9 @@ int main(void) {
     } 
 
     printf("MAIN EXITING...\n");
-    fflush(stdout);
 
-    return 0;
-
+    if (exitmethod1or2 == 0) return 0;
+    else pthread_exit(NULL);
 
 }
 

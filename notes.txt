@@ -15,7 +15,7 @@ Chiarezza e completezza della relazione
 
 Aggiungere filosofia di suddivisione dei vari files nella relazione, sezione struttura progetto.
 
-Aggiornare il warinng nella relazione della working directory.
+Aggiornare il warning nella relazione della working directory.
 
 CHIEDERE AL DOCENTE, IL TRIE NON CONVIENE PERCHE' OGNI CARATTERE 1 BYTE E OGNI CHAR* O STRUCT* (CON SOLO 1 CHAR E 1 STRUCT* NEXT) HA SIZEOF DI 8.
 
