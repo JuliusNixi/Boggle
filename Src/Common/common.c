@@ -595,15 +595,9 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
     if (totalstrlength == 0LU ||
      nspaces > totalstrlength || 
      (voidstringornot != 0 && voidstringornot != 1) ||
-     (voidstringornot == 1 && bannertext != NULL)){
+     bannertext == NULL){
         // Error
     }
-    
-    // When voidstringornot is 1, to not have to differentiate the code too unnecessarily,
-    // I will use an empty string as bannertext and i will replace its characters
-    // (of the empty string) at the end with bannersymbol.
-    char emptystring[] = "EMPTY";
-    if (voidstringornot) bannertext = emptystring;
 
     // Searching for bannersymbol in bannertext.
     char* s = bannertext;
@@ -649,7 +643,7 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
     
     
     // Null-terminate the string.
-    result[index] = '\0';
+    result[totalsize] = '\0';
 
     // bannertext characters replacement in case of voidstringornot.
     if (voidstringornot) {

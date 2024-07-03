@@ -480,7 +480,8 @@ void* signalsThread(void* args) {
                 /////////////////////////   GAME OVER   /////////////////////////
 
                 // TODO Prints all in a block, interleaved prints problem.
-                char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
+                // Banner of closing previous "NEW GAME STARTED".
+                char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
                 fprintf(stdout, "%s\n", banner);
                 free(banner);
 
@@ -524,44 +525,12 @@ void* signalsThread(void* args) {
 
                     // Creating end game message to send it to the clients.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 0);
-                    uli l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
-                    char msgendgame[l];
-                    strcpy(msgendgame, banner);
-                    msgendgame[l] = '\0';
-                    msgendgame[l - 2] = '\n';
+                    char finalmsg[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
+                    strcpy(finalmsg, banner);
+                    finalmsg[strlen(banner)] = '\n';
+                    finalmsg[strlen(banner) + 1] = '\0';
                     free(banner);
-                    banner = NULL;
-                    
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
-                    l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
-                    char msgendgameend[l];
-                    strcpy(msgendgameend, banner);
-                    msgendgameend[l] = '\0';
-                    msgendgameend[l - 2] = '\n';
-                    free(banner);
-                    banner = NULL;
 
-                    l = strlen(msgendgame) + strlen(msgendgameend) + 1; // +1 for '\0'.
-                    char finalmsg[l];
-                    uli counter = 0LU;
-                    while(1) {
-                        if (msgendgame[counter] == '\0') {
-                            break;
-                        }
-                        finalmsg[counter] =  msgendgame[counter];
-                        counter++;
-                    }
-                    uli counter2 = 0LU;
-                    while(1) {
-                        if (msgendgameend[counter2] == '\0') {
-                            finalmsg[counter] = '\0';
-                            break;
-                        }
-                        finalmsg[counter] = msgendgameend[counter2];
-                        counter++;
-                        counter2++;
-                    }
-                    
                     sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
 
                     current = current->next;
@@ -949,7 +918,8 @@ void* signalsThread(void* args) {
                         // Error
                 }
 
-                banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
+                // Banner of closing previous "END GAME STARTED".
+                banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 1);
                 fprintf(stdout, "%s\n", banner);
                 free(banner);
 
@@ -974,23 +944,42 @@ void* signalsThread(void* args) {
                 while (1) {
                     if (current == NULL) break;
 
+                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
+                    char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
+                    strcpy(fsm, banner);
+                    fsm[strlen(banner)] = '\n';
+                    fsm[strlen(banner) + 1] = '\0';
+                    free(banner);
+                    sendMessage(current->socket_client_fd, MSG_OK, fsm);
+
                     // Inform clients of the start of a new game and
                     // sending the new game matrix.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
-                    uli l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
-                    char msgstartgame[l];
-                    strcpy(msgstartgame, banner);
-                    msgstartgame[l] = '\0';
-                    msgstartgame[l - 1] = '\n';
+                    uli l = strlen(banner); 
+                    // Cannot use strcpy() because the string will be terminated with '\n' not '\0'.
+                    // Substitute '\0' with '\n'.
+                    banner[l] = '\n';
+                    char msgstartgame[l + 1]; // for the '\n'.
+                    char* s = banner;
+                    uli counter = 0LU;
+                    while(1) {
+                        if (s[0] == '\n'){
+                            msgstartgame[counter++] = s[0];
+                            break;
+                        } 
+                        msgstartgame[counter++] = s[0];
+                        s++;
+                    }
                     free(banner);
                     banner = NULL;
+                    uli savedcounter = counter;
 
                     // Sending matrix only to registered players.
                     char* str = NULL;
                     char* matstr  = serializeMatrixStr();
                     char premessage[] = "New matrix:\n";
-                    char matstrandpre[strlen(matstr) + strlen(premessage) + 1];
-                    uli counter = 0LU;
+                    char matstrandpre[strlen(matstr) + strlen(premessage)];
+                    counter = 0LU;
                     while(1) {
                         if (premessage[counter] == '\0') break;
                         matstrandpre[counter] = premessage[counter];
@@ -999,33 +988,32 @@ void* signalsThread(void* args) {
                     uli counter2 = 0LU;
                     while(1) {
                         if (matstr[counter2] == '\0'){
-                            matstrandpre[counter] = matstr[counter2];
                             break;
                         }
-                        matstrandpre[counter] = matstr[counter2];
-                        counter++;
-                        counter2++;
+                        matstrandpre[counter++] = matstr[counter2++];
                     }
                     if (current->name != NULL)
                         str = matstrandpre;
                     else
                         str = NULL;
                     
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, NULL, BANNER_SYMBOL, 1);
-                    l = strlen(banner) + 2; // +1 for '\n' and +1 for '\0'.
-                    char msgstartgameend[l];
+                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
+                    l = strlen(banner); // +1 for '\n' and +1 for '\0'.
+                    char msgstartgameend[l + 1 + 1];
                     strcpy(msgstartgameend, banner);
-                    msgstartgameend[l] = '\0';
-                    msgstartgameend[l - 1] = '\n';
+                    msgstartgameend[l] = '\n';
+                    msgstartgameend[l + 1] = '\0';
                     free(banner);
                     banner = NULL;
 
-                    l = strlen(msgstartgame) + strlen(msgstartgameend) + 1; // +1 for '\0'.
+                    // Appending new current game matrix to the message if the user is registered.
+                    l = savedcounter + strlen(msgstartgameend) + 1; // +1 for '\0'.
                     if (str != NULL) l += strlen(str);
                     char finalmsg[l];
                     counter = 0LU;
                     while(1) {
-                        if (msgstartgame[counter] == '\0') {
+                        if (msgstartgame[counter] == '\n') {
+                            finalmsg[counter++] = '\n';
                             break;
                         }
                         finalmsg[counter] = msgstartgame[counter];
@@ -1034,17 +1022,19 @@ void* signalsThread(void* args) {
                     counter2 = 0LU;
                     while(1) {
                         if (str == NULL) break;
-                        if (str[counter2] == '\0') {
+                        if (str[counter2] == '\n') {
+                            finalmsg[counter++] = str[counter2++];
                             break;
                         }
                         finalmsg[counter] = str[counter2];
                         counter++;
                         counter2++;
                     }
+
                     counter2 = 0LU;
                     while(1) {
                         if (msgstartgameend[counter2] == '\0') {
-                            finalmsg[counter] = '\0';
+                            finalmsg[counter++] = '\0';
                             break;
                         }
                         finalmsg[counter] = msgstartgameend[counter2];
