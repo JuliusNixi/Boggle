@@ -18,7 +18,7 @@ ntests = 15 # Number of tests. It's multiplied by the nactions, be moderate so.
 clients = []
 actions = ["help\n", "matrix\n", "end\n", "register_user", "p", "invalidcommand\n"] # Actions that clients will try to send to the server.
 
-ALPHABET = "abdcdefghijklmnopqrstuvxyz" # Alphabet used to generate a random matrix and allowed chars for a client name (regitration).
+ALPHABET = "abcdefghijklmnopqrstuvwxyz" # Alphabet used to generate a random matrix and allowed chars for a client name (regitration).
 junkchar = "_" # A char not in the ALPHABET.
 
 usernamelength = 4 # Name length of all names that the clients will try to register.

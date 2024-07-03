@@ -330,6 +330,8 @@ void inputHandler(void) {
                             fprintf(stdout, "Bye, bye, see you soon! Thanks for playing.\n");
                             sendMessage(client_fd, MSG_ESCI, NULL);
                             commandfound = 1;
+
+                            exit(EXIT_SUCCESS);
                             // TODO Exit.
                         }
                         if (strcmp("help", inputfinal) == 0 || strcmp("aiuto", inputfinal) == 0) {
@@ -349,7 +351,7 @@ void inputHandler(void) {
                             char* secondword = strtok(NULL, " ");
                             if (secondword != NULL) {
                                 toLowerOrUpperString(secondword, 'U');
-                                if ((strcmp("register_user", firstword) == 0 || strcmp("registra_utente", inputfinal) == 0)) {
+                                if (strcmp("register_user", firstword) == 0 || strcmp("registra_utente", inputfinal) == 0 || strcmp("rg", inputfinal) == 0) {
                                     sendMessage(client_fd, MSG_REGISTRA_UTENTE, secondword);
                                     commandfound = 1;
                                 }

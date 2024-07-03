@@ -22,7 +22,7 @@ char matrix[NROWS][NCOL];  // Matrix game core, each position is a char.
 
 #define VOID_CHAR '-' // Special char that will be used to indicate an undefined state.
 
-#define ALPHABET "abdcdefghijklmnopqrstuvxyz" // Alphabet used to generate a random matrix and allowed chars for a client name (regitration).
+#define ALPHABET "abcdefghijklmnopqrstuvwxyz" // Alphabet used to generate a random matrix and allowed chars for a client name (regitration).
 //------------------------------------------------------------------------------------
 
 // The player/client infos will be stored in a heap linked list, with the below structure.

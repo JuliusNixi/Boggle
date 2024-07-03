@@ -522,7 +522,7 @@ void* signalsThread(void* args) {
                     if (retvalue != 0) {
                         // Error
                     }
-
+/*
                     // Creating end game message to send it to the clients.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 0);
                     char finalmsg[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
@@ -532,7 +532,7 @@ void* signalsThread(void* args) {
                     free(banner);
 
                     sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
-
+*/
                     current = current->next;
 
                 }
@@ -943,7 +943,7 @@ void* signalsThread(void* args) {
                 current = head;
                 while (1) {
                     if (current == NULL) break;
-
+/*
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
                     char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
                     strcpy(fsm, banner);
@@ -1043,7 +1043,7 @@ void* signalsThread(void* args) {
                     }
 
                     sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
-
+*/
                     current = current->next;
                 }
                 // Releasing clients locks.
