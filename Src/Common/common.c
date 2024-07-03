@@ -556,14 +556,17 @@ void destroyMessage(struct Message** m) {
 
     if (m == NULL || *m == NULL) {
         // Error
+        printf("NULL destroMessage()!\n");
     }
 
     // Releasing allocated memory and destroying the vars content.
-    (*m)->type = (char)0;
-    (*m)->length = 0U;
-    if ((*m)->data != NULL) free((*m)->data);
-    (*m)->data = NULL;
-    free((*m));
+    struct Message* mc = *m;
+    mc->type = (char) 0;
+    mc->length = 0U;
+    if (mc->data != NULL) free(mc->data);
+    mc->data = NULL;
+    free(mc);
+    
     *m = NULL;
 
 }

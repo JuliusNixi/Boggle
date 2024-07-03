@@ -470,6 +470,9 @@ void* signalsThread(void* args) {
         switch (sig){
             case SIGINT:{ 
                 // TODO SIGINT.
+
+                fprintf(stdout, "CTRL + C intercepted!\n");
+                exit(EXIT_SUCCESS);
                 break;
             }case SIGALRM:{
                 // This will manage the SIGALRM signal triggered by the timer when the game is over.
@@ -1164,18 +1167,20 @@ char* serializeMatrixStr(void) {
 /*
     
     Below i calculate the string's length.
-    There are 3 addends enclosed in the parenthesis below.
+
+    There are 4 addends enclosed in the parenthesis below.
     The first is the length of the only data contained in the matrix 
     multiplied by 2 because every position could be Qu.
     The second addend is the number of spaces betwen letters.
     The third rapresent the '\n' at the end of each line.
+    The fourth rapresent the '\0'.
 
     Is used to serialize the game matrix var into a string.
-    Useful for sending or printing the game matrix.
+    Useful for sending or printing the game matrix quickly.
     
 */
     // Matrix serialized string length.
-    const uli MAT_STR_LEN = (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS);
+    const uli MAT_STR_LEN = (NCOL * NROWS * 2) + ((NCOL - 1) * NROWS) + (NROWS) + (1);
 
     // Allocating the string on the heap.
     char* matrixstring = (char*) malloc(sizeof(char) * MAT_STR_LEN);
@@ -1192,57 +1197,40 @@ char* serializeMatrixStr(void) {
     // Insert string terminator.
     matrixstring[MAT_STR_LEN] = '\0';
 
-    // Inserting '\n' at the end of each row.
-    uli r = 0LU;
-    counter = 0LU;
-    while (counter < MAT_STR_LEN) {
-        // I use the module to understand when end of row in string is reached.
-        if (r != 0LU && r % ((NCOL * 2) + (NCOL - 1)) == 0) {
-            matrixstring[counter] = '\n';
-            r = 0LU;
-            counter++;
-            continue;
-        }
-        counter++;
-        r++;
-    }
-
-    // Inserting letters.
-    counter = 0LU;
-    uli letters = 0LU;
-    // Iterator initialized.
+    // Initializing iterator.
     getMatrixNextIndexes(NULL);
-    int matrixnextindexes[2];
-    while (counter < MAT_STR_LEN) {
-        // End of line reached.
-        if (matrixstring[counter] == '\n') {
-            letters = 0LU;
-            counter++;
-            continue;
-        }
-        // Inserting next matrix letter in the string.
-        if (letters % 3 == 0 && counter + 1 != MAT_STR_LEN) {
-            getMatrixNextIndexes(matrixnextindexes);
-            matrixstring[counter] = matrix[matrixnextindexes[0]][matrixnextindexes[1]];
-            if (matrixstring[counter] == 'Q') {
-                matrixstring[++counter] = 'u';
-                ++letters;
-            }
-        }
-        letters++;
-        counter++;
-    }
+    int matrixnextindexes[2] = {0, 0};
 
-    // Inserting spaces.
     counter = 0LU;
-    while (counter < MAT_STR_LEN) {
-        if (matrixstring[counter] == VOID_CHAR && counter + 1 != MAT_STR_LEN)
-            matrixstring[counter] = ' ';
-        counter++;
-    }
+    while (1) {
+        if (matrixnextindexes[0] == -1) break;
 
-    // Insert string terminator.
-    matrixstring[MAT_STR_LEN] = '\0';
+        getMatrixNextIndexes(matrixnextindexes);
+
+        // Inserting in the string a game matrix char.
+        char c = matrix[matrixnextindexes[0]][matrixnextindexes[1]];
+        matrixstring[counter] = c;
+        // 'Qu' correction or space.
+        counter++;
+        if (c == 'Q') {
+            matrixstring[counter] = 'u';
+        }else{
+            matrixstring[counter] = ' ';
+        }
+
+        // Inserting in the string a space (normal case) or a '\n' (end of line case).
+        int j = matrixnextindexes[1];
+        counter++;
+        if (j == NCOL - 1) {
+            // End line reached.
+            matrixstring[counter] = '\n';
+        }else{
+            matrixstring[counter] = ' ';
+        }
+
+        counter++;
+
+    }
 
     return matrixstring;
 
@@ -1683,7 +1671,7 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     // Copying the new username in heap memory.
     strcpy(str, name);
     // Terminating string.
-    str[strlen(str)] = '\0';
+    str[strlen(name)] = '\0';
 
     // Linking to the ClientNode relative field.
     user->name = str;
@@ -1992,6 +1980,7 @@ void* clientHandler(void* voidclient) {
             // To remember that the message is still in process and the received content is valid.
             received = client->registerafter;
             client->registerafter = NULL;
+
             returncode = 4;
         }
         // **********     MARK 1     **********
@@ -2036,7 +2025,28 @@ void* clientHandler(void* voidclient) {
                 // Error
             }
             disconnectClient(&client, 1);
+            // Now this thread should be died.
         }
+
+        if (returncode == 2) {
+            // Error
+            retvalue = pthread_mutex_unlock(&(client->handlerequest));
+            if (retvalue != 0) {
+                // Error
+            }
+            printf("Critical error.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        // Nothing to do, normally interrupted by a signal.
+        if (returncode == 1)
+        ;
+
+        // Nothing to do, interrupted but readed 0.
+        if (returncode == 3)
+        ;
+
+        // Here returncode == 4.
 
         // If a player no sends requests an entire game and an entire pause,
         // in the next new game will still have client->actionstoexecute > 0 (if no resetted)!
@@ -2066,8 +2076,10 @@ void* clientHandler(void* voidclient) {
                 // greater speed (due to a greater thread utilization).
 
                 if (received != NULL) {
-                    processReceivedRequest(received, client);
-                    destroyMessage(&received);
+//printf("\n\n  PRE  %p    %p  %p      %lu   \n\n", (void*)received, (void*)(&received), (void*)(client->registerafter),(uli)client->thread);
+                    processReceivedRequest(&received, client);
+                    if (received != NULL) destroyMessage(&received);
+//printf("\n\n  POST  %p    %p  %p     %lu   \n\n", (void*)received, (void*)(&received), (void*)(client->registerafter),(uli)client->thread);
                 }else{
                     // Received NULL, no messages to process, go ahead to client->actionstoexecute == 1.
                     ;
@@ -2095,12 +2107,12 @@ void* clientHandler(void* voidclient) {
         }
 
         // Processing the received client's request.
-        processReceivedRequest(received, client);
+        processReceivedRequest(&received, client);
 
         usleep(100);
         // This NULL check is mandatory because the message may have already been destroyed
         // with the previous code.
-        if (received != NULL && client->registerafter == NULL) destroyMessage(&received);
+        if (received != NULL) destroyMessage(&received);
         retvalue = pthread_mutex_unlock(&(client->handlerequest));
         if (retvalue != 0) {
             // Error
@@ -2381,7 +2393,9 @@ disconnect_restart: {
             }
             return;
         }
+
         nclientsconnected--;
+
         retvalue = pthread_mutex_unlock(&pausemutex);
         if (retvalue != 0) {
             // Error
@@ -2457,16 +2471,18 @@ void updateClients(void) {
     if (words == NULL || words_valid == NULL) {
         // Error
     }
-
+    
     // Going through the list.
     struct ClientNode* current = head;
     while (1) {
         if (current == NULL) break;
+
         // Resetting points.
         current->points = 0LU;
         // IMPORTANT: Copying the new "words_valid" (of the new matrix).
         if (current->name != NULL)
             for (uli i = 0LU; i < words_len; i++) (current->words_validated)[i] = words_valid[i];
+        
         current = current->next;
     }
 
@@ -2486,7 +2502,9 @@ char* serializeStrClient(struct ClientNode* c) {
     }
 
     // Preparing the string format.
-    char st[] = "Name: %s - IP: %s - Port: %lu - Points %lu - Thread ID: %lu.\n";
+    // TODO Remove if without this works (IP).
+    //char st[] = "Name: %s - IP: %s - Port: %lu - Points %lu - Thread ID: %lu.\n";
+    char st[] = "Name: %s - Port: %lu - Points %lu - Thread ID: %lu.\n";
 
     // Calculating name length.
     uli namelen;
@@ -2504,12 +2522,13 @@ char* serializeStrClient(struct ClientNode* c) {
     free(portstr);
 
     // Getting IP.
-    char buff[INET_ADDRSTRLEN] = {0}; 
+    // TODO Remove if without this works.
+    /*char buff[INET_ADDRSTRLEN] = {0}; 
     const char* s = inet_ntop(AF_INET, &(c->client_addr.sin_addr), buff, c->client_address_len);
     if (s == NULL){
         // Error
     }
-    uli iplength = strlen(s);
+    uli iplength = strlen(s);*/
 
     // Calculating points length (as string).
     char* pointsstr = itoa(c->points);
@@ -2525,14 +2544,17 @@ char* serializeStrClient(struct ClientNode* c) {
 
     // Allocating the needed heap memory to store the string.
     // +1 for '\0'.
-    uli totallength =  strlen(st) + namelen + iplength + portlen + pointslen + threadidstrlen + 1;
+    // TODO Remove if without this works (IPLENGTH).
+    uli totallength =  strlen(st) + namelen /*+ iplength*/ + portlen + pointslen + threadidstrlen + 1;
     char* rs = (char*) malloc((totallength) * sizeof(char));
     if (rs == NULL) {
         // Error
     }
 
     // Filling the string with data.
-    sprintf(rs, st, name, buff, port, c->points, c->threadstarted ? (uli) c->thread : 0LU);
+    // TODO Remove if without this works (BUFF).
+    //sprintf(rs, st, name, buff, port, c->points, c->threadstarted ? (uli) c->thread : 0LU);
+    sprintf(rs, st, name, port, c->points, c->threadstarted ? (uli) c->thread : 0LU);
 
     return rs;
 
@@ -2710,10 +2732,15 @@ void gameEndQueue(struct ClientNode* e) {
 // ANCHOR processReceivedRequest()
 // This function is called by the clientHandler() function, so by a client's thread.
 // It simply processes a received message, so a client's request.
-// It takes as input a pointer to the message to process.
+// It takes as input (BY REFERENCE FROM clientHandler()) a pointer to the message to process.
 // It takes as input also a pointer to the client who sent it.
 // IT ASSUMES that needed mutexes are ALREADY LOCKED BY THE CALLER!
-void processReceivedRequest(struct Message* received, struct ClientNode* client) {
+void processReceivedRequest(struct Message** receivedfromclienthandler, struct ClientNode* client) {
+
+        if (receivedfromclienthandler == NULL) {
+            // Error
+        }
+        struct Message* received = *receivedfromclienthandler;
 
         // This is mandatory because a normal NULL could be received.
         if (received == NULL) return;
@@ -2744,6 +2771,7 @@ void processReceivedRequest(struct Message* received, struct ClientNode* client)
                 if (!pauseon) {
                     // Sending current game matrix.
                     char* mat = serializeMatrixStr();
+// TODO Un errore era qua.
                     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
                     free(mat);
                     fprintf(stdout, "Matrix gets request from %s satisfied.\n", client->name);
@@ -2796,6 +2824,10 @@ void processReceivedRequest(struct Message* received, struct ClientNode* client)
                 }
                 // Interrupted by end game.
                 if (r == -2){
+                    // IMPORTANT: Wihout this received is freed, but also copied in registerafter,
+                    // then registerafter is copied in received and received freed AGAIN!
+                    // Because of this bug I went crazy!
+                    *receivedfromclienthandler = NULL;
                     break;
                 } 
 
@@ -2808,16 +2840,12 @@ void processReceivedRequest(struct Message* received, struct ClientNode* client)
 
                 if (r > 1) {
                     // The name contains at least one invalid char.
-                    uli alphalen = strlen(ALPHABET);
-                    char alpha[alphalen + 1]; // +1 for '\0'.
-                    strcpy(alpha, ALPHABET);
-                    alpha[alphalen] = '\0';
 
                     char fixed[] = "The proposed name contains %c, that's not in the alphabet.\nThe alphabet of admitted characters is:\n%s\n";
-                    uli totallength = strlen(fixed) + strlen(alpha) + 2; // +1 for the 'c' char. +1 for the '\0'.
+                    uli totallength = strlen(fixed) + strlen(ALPHABET) + 2; // +1 for the 'c' char. +1 for the '\0'.
                     char resstr[totallength];
 
-                    sprintf(resstr, fixed, (char) r, alpha);
+                    sprintf(resstr, fixed, (char) r, ALPHABET);
                     resstr[totallength] = '\0';
                     sendMessage(client->socket_client_fd, MSG_ERR, resstr);
                     fprintf(stdout, "A user tried to register the proposed name: %s. It contains the: %c character, that's invalid againist the alphabet %s.\n", received->data, (char) r, ALPHABET);
@@ -2826,23 +2854,27 @@ void processReceivedRequest(struct Message* received, struct ClientNode* client)
 
                 // Here r must be -4, r == -4.
                 // Registered succesfully.
-                uli namelen = strlen(client->name);
-                char name[namelen + 1]; // +1 for the '\0'.
-                strcpy(name, client->name);
-                name[namelen] = '\0';
+
                 char fixed[] = "Registered correctly with name: %s. Your ID: %lu.\n";
+
                 char* id = itoa((uli) client->thread);
-                uli total = strlen(name) + strlen(fixed) + strlen(id) + 1; // +1 for the '\0'.
+
+                uli total = strlen(client->name) + strlen(fixed) + strlen(id) + 1; // +1 for the '\0'.
+
                 char resstr[total];
-                sprintf(resstr, fixed, name, (uli) client->thread);
+                sprintf(resstr, fixed, client->name, (uli) client->thread);
+
                 resstr[total] = '\0';
+
                 sendMessage(client->socket_client_fd, MSG_OK, resstr);
                 fprintf(stdout, "User registered succesfully, request from name %s satisfied with thread (ID): %lu.\n", client->name, (uli) client->thread);
+               
                 free(id);
 
                 // pauseon == 0 means the game is ongoing, must send the current game matrix.
                 if (!pauseon) {
                     // Sending current game matrix.
+                    // TODO Possible problem? Forse l'altro errore era qua.
                     char* mat = serializeMatrixStr();
                     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
                     free(mat);
@@ -2960,6 +2992,8 @@ void processReceivedRequest(struct Message* received, struct ClientNode* client)
             } 
 
         } // Switch end.
+
+        return;
 
 }
 

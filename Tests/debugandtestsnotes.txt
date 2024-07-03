@@ -67,3 +67,14 @@ I debugged with gdb on the laboratory 2 shared machine.
 That's because on macOS there's not gdb. 
 There is lldb, but some of the previous commands are different.
 
+On lldb to handle a signal:
+proc handle -p true -s false -n false SIGUSR1   Where p stands for "PASS" to the process. s Stands for "STOP" the debugger. n Stands for "NOTIFY".
+
+On lldb to see the list of the functions called, you can use:
+backtrace
+
+On lldb to select a frame, you can use:
+frame select n  With n the number of the frame obtained by the previous command.
+
+
+

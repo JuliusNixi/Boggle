@@ -107,7 +107,7 @@ void acceptClient(void);
 void disconnectClient(struct ClientNode**, char);
 char* serializeStrClient(struct ClientNode*);
 char* itoa(uli);
-void processReceivedRequest(struct Message*, struct ClientNode*);
+void processReceivedRequest(struct Message**, struct ClientNode*);
 void gameEndQueue(struct ClientNode*);
 char* csvNamePoints(struct Message*, char);
 void* clientHandler(void*);

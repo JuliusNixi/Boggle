@@ -694,6 +694,9 @@ void* signalsThread(void* args) {
         switch (sig){
             case SIGINT: { 
                 // TODO SIGINT.
+
+                fprintf(stdout, "CTRL + C intercepted!\n");
+                exit(EXIT_SUCCESS);
                 break;
             }case SIGPIPE: {
                 // Nothing, already handled by the single threads.

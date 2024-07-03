@@ -8,6 +8,9 @@ List of things to work on. Very few things because I forget very often to update
 - [ ] Handle all errors.
 - [ ] Rewrite, check, update the report.
 - [ ] Execute again Valgrind on server AND client. Fill the obtained output in the .txt file.
+- [ ] Test nclientconnected MAX and WORD_LEN.
+- [ ] Re-isnert command "end" in python tests.
+
 
 ## Done ✓
 
