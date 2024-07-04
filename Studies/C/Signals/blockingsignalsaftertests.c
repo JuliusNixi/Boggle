@@ -26,7 +26,7 @@ void* f(void* args) {
     pthread_sigmask(SIG_BLOCK, &signal_mask, NULL);
 
     while (1) {
-        printf("Thread noise again. SIGUSR1 should now not disturbe anymore.\n");
+        printf("Thread noise again... SIGUSR1 should now not disturbe anymore.\n");
         sleep(1);
     }
 
@@ -64,7 +64,7 @@ void sigusr1Handler(int signum) {
 
 int main(void) {
 
-    // Creating the mask.
+    // Creating the signals mask.
     sigemptyset(&signal_mask);
     sigaddset(&signal_mask, SIGALRM);
 

@@ -24,7 +24,6 @@ int main(int argc, char** argv) {
     gameduration = 0LU;
     usematrixfile = 0;
     matpath = NULL;
-    threadsignalreceivedglobal = NULL;
 
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();

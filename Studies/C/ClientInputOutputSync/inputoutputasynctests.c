@@ -1,13 +1,13 @@
-// This file contains all the tests needed to develop the async client.
+// This file contains all the tests needed to develop the async project's client.
 // Async, in this case, means that the client waits for the user's input in a ThreadA.
 // A ThreadB stays listening to capture responses from the server
-// and places them in a list. 
+// and places them in a messages list. 
 // Periodically, the ThreadA interrupts the read() of the user input and checks if there 
 // are any server responses in the list to be printed.
 // In this latter case, it prints the server's responses and then come back
-// to waits for user's input.
+// to waits for user's input after clearing the STDIN buffer.
 // If there's no responses received from the server, the read() user's input come back to where
-// it was left and the user doesn't notice anything.
+// it was left and the user doesn't notice anything, the STDIN buffer content persists.
 
 // CLARIFICATIONS: This client implementation is not 100% asynchronous in the true meaning
 // of the word, the server's responses are received from the server, and inserted into the list

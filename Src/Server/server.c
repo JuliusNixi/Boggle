@@ -40,6 +40,10 @@ uli clientid = 0LU;  // A temporary client's ID used to identify a client before
 
 #define VALID_WORDS_TESTS_FILE_PATH "./Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary. For more info see "../../Tests/Python/pythontests.py".
 
+pthread_mutex_t prioritymutex = PTHREAD_MUTEX_INITIALIZER; // This mutex is used to take advantage of a priority for the main (acceptClient()) thread and signalsThread() thread, which conduct more important tasks than the individual user threads clientHandler() and therefore must be entitled to a priority.
+char prioritythreadwaiting = 0; // Used with the mutex above for the same purpose.
+
+volatile sig_atomic_t* threadsignalreceivedglobal; // This is used by the clientHandler() thread, inside the SIGUSR1 signal handler, to write his client's receivedsignal without being able/needing to access the struct.
 pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads ad the end of game to fill the queue.
 struct Queue* headq = NULL; // Pointer to the queue head.
 struct Queue* tailq = NULL; // Pointer to the queue tail.
@@ -508,11 +512,21 @@ void* signalsThread(void* args) {
                 
                 // Enabling pause and notifying the threads handlers of the end of game, to stop read()
                 // and start working on queue.
+                retvalue = pthread_mutex_lock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                prioritythreadwaiting = 1;
                 retvalue = pthread_mutex_lock(&pausemutex);
                 if (retvalue != 0) {
                     // Error
                 }
                 retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                prioritythreadwaiting = 0;
+                retvalue = pthread_mutex_unlock(&prioritymutex);
                 if (retvalue != 0) {
                     // Error
                 }
@@ -630,12 +644,22 @@ void* signalsThread(void* args) {
                 // Checking if threads completed their jobs on queue.
                 while (1) {
                     char toexit = 0;
+                    retvalue = pthread_mutex_lock(&prioritymutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    prioritythreadwaiting = 1;
                     retvalue = pthread_mutex_lock(&queuemutex);
                     if (retvalue != 0) {
                         // Error
                     }
                     // nclientsconnected remember to use it only after acquiring the listmutex!
                     retvalue = pthread_mutex_lock(&listmutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    prioritythreadwaiting = 0;
+                    retvalue = pthread_mutex_unlock(&prioritymutex);
                     if (retvalue != 0) {
                         // Error
                     }
@@ -657,7 +681,7 @@ void* signalsThread(void* args) {
                         // Error
                     }
                     if (toexit) break;
-                    // To avoid instant re-acquiring.
+                    else sleep(1);
                 }
                 fprintf(stdout, "Queue has been succesfully filled by all the clients threads.\n");
 
@@ -676,7 +700,11 @@ void* signalsThread(void* args) {
                 // Important to lock listmutex since nclientsconnected is used inside the scorer thread.
                 
                 // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
-
+                retvalue = pthread_mutex_lock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                prioritythreadwaiting = 1;
                 retvalue = pthread_mutex_lock(&queuemutex);
                 if (retvalue != 0) {
                     // Error
@@ -685,7 +713,11 @@ void* signalsThread(void* args) {
                 if (retvalue != 0) {
                     // Error
                 }
-                
+                prioritythreadwaiting = 0;
+                retvalue = pthread_mutex_unlock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
                 current = head;
                 while (1) {
                     if (current == NULL) break;
@@ -777,7 +809,17 @@ void* signalsThread(void* args) {
                 fprintf(stdout, "Clients released and notified, now they should communicate to their clients the CSV scoreboard.\n");
                 while(1) {
                     char toexit = 0;
+                    retvalue = pthread_mutex_lock(&prioritymutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    prioritythreadwaiting = 1;
                     retvalue = pthread_mutex_lock(&listmutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    prioritythreadwaiting = 0;
+                    retvalue = pthread_mutex_unlock(&prioritymutex);
                     if (retvalue != 0) {
                         // Error
                     }
@@ -815,6 +857,7 @@ void* signalsThread(void* args) {
                         // Error
                     }
                     if (toexit) break;
+                    else sleep(1);
                 }
                 // Releasing scoreboardstr.
                 if (scoreboardstr != NULL) free(scoreboardstr);
@@ -844,9 +887,19 @@ void* signalsThread(void* args) {
                 // So locking this mutex now doesn't make sense, because no other thread
                 // right now should be working on the shared queue, however it was done
                 // for clarity.
+                retvalue = pthread_mutex_lock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                prioritythreadwaiting = 1;
                 retvalue = pthread_mutex_lock(&queuemutex);
                 if (retvalue != 0) {
                         // Error
+                }
+                prioritythreadwaiting = 0;
+                retvalue = pthread_mutex_unlock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
                 }
                 // Freeing heap allocated memory.
                 struct Queue* begin = tailq;
@@ -905,6 +958,11 @@ void* signalsThread(void* args) {
                 //////////////////  STARTING A NEW GAME  //////////////////
 
                 // Disabling pause and starting a new game.
+                retvalue = pthread_mutex_lock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                prioritythreadwaiting = 1;
                 retvalue = pthread_mutex_lock(&pausemutex);
                 if (retvalue != 0) {
                         // Error
@@ -913,7 +971,11 @@ void* signalsThread(void* args) {
                 if (retvalue != 0) {
                         // Error
                 }
-
+                prioritythreadwaiting = 0;
+                retvalue = pthread_mutex_unlock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
                 // Banner of closing previous "END GAME STARTED".
                 banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 1);
                 fprintf(stdout, "%s\n", banner);
@@ -1549,6 +1611,10 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     }
 
     int retvalue;
+    retvalue = pthread_mutex_lock(&prioritymutex);
+    if (retvalue != 0) {
+        // Error
+    }
     retvalue = pthread_mutex_trylock(&pausemutex);
     if (retvalue != 0) {
         if (retvalue == EBUSY) {
@@ -1569,14 +1635,26 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
             // IN THE CALLER!
             // Pre-releasing the mutex to fix the deadlock.
             // Interrupted by end game.
+            retvalue = pthread_mutex_unlock(&prioritymutex);
+            if (retvalue != 0) {
+                // Error
+            }
             return -2;
 
         }else{
             // Error
+            retvalue = pthread_mutex_unlock(&prioritymutex);
+            if (retvalue != 0) {
+                // Error
+            }
             return -1;
         }
     }
 
+    retvalue = pthread_mutex_unlock(&prioritymutex);
+    if (retvalue != 0) {
+        // Error
+    }
     // TryLock success, owning pausemutex.
 
     // listmutex CANNOT BE acquired by the signalsThread() thanks to pausemutex, acquiring listmutex,
@@ -1806,7 +1884,17 @@ void acceptClient(void) {
     // Adding the client to the list and updating global vars head and tail useful
     // to manage the list.
     // Lock the mutex.
+    retvalue = pthread_mutex_lock(&prioritymutex);
+    if (retvalue != 0) {
+        // Error
+    }
+    prioritythreadwaiting = 1;
     retvalue = pthread_mutex_lock(&listmutex);
+    if (retvalue != 0) {
+        // Error
+    }
+    prioritythreadwaiting = 0;
+    retvalue = pthread_mutex_unlock(&prioritymutex);
     if (retvalue != 0) {
         // Error
     }
@@ -1995,19 +2083,34 @@ void* clientHandler(void* voidclient) {
 
         // Acquiring the lock.
         while (1) {
+            retvalue = pthread_mutex_lock(&prioritymutex);
+            if (retvalue != 0) {
+                // Error
+            }
             retvalue = pthread_mutex_trylock(&(client->handlerequest));
             if (retvalue != 0) {
                 if (retvalue == EBUSY) {
                     client->waiting = 1;
+                    retvalue = pthread_mutex_unlock(&prioritymutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
                     continue;
                 }else{
                     // Error
+                    retvalue = pthread_mutex_unlock(&prioritymutex);
+                    if (retvalue != 0) {
+                        // Error
+                    }
                 }
             }
             // Lock acquired.
             break;
         }
-
+        retvalue = pthread_mutex_unlock(&prioritymutex);
+        if (retvalue != 0) {
+            // Error
+        }
         // Processing the request.
 
         // Probably disconnect.
@@ -2068,6 +2171,7 @@ void* clientHandler(void* voidclient) {
                 // greater speed (due to a greater thread utilization).
 
                 if (received != NULL) {
+                    // TODO Remove trash.
 //printf("\n\n  PRE  %p    %p  %p      %lu   \n\n", (void*)received, (void*)(&received), (void*)(client->registerafter),(uli)client->thread);
                     processReceivedRequest(&received, client);
                     if (received != NULL) destroyMessage(&received);
@@ -2301,18 +2405,34 @@ void disconnectClient(struct ClientNode** clienttodestroy, char terminatethread)
 
 disconnect_restart: {
     client->waiting = 1;
+    retvalue = pthread_mutex_lock(&prioritymutex);
+    if (retvalue != 0) {
+        // Error
+    }
     retvalue = pthread_mutex_trylock(&pausemutex);
     if (retvalue != 0) {
         if (retvalue == EBUSY) {
             // PAUSE IS ON!          
-            // To avoiding to re-acquiring immediately.
+            retvalue = pthread_mutex_unlock(&prioritymutex);
+            if (retvalue != 0) {
+                // Error
+            }
             goto disconnect_restart;
         }else{
             // Error
+            retvalue = pthread_mutex_unlock(&prioritymutex);
+            if (retvalue != 0) {
+                // Error
+            }
         }
     }
 }
         // pausemutex trylock succeded.
+
+        retvalue = pthread_mutex_unlock(&prioritymutex);
+        if (retvalue != 0) {
+            // Error
+        }
 
         // OWNING pause MUTEX.
         
@@ -2675,12 +2795,19 @@ void gameEndQueue(struct ClientNode* e) {
     new->client = e;
     new->message = m;
 
-    // A simply mutex used only to sync with others threads in the queue.
-    int retvalue = pthread_mutex_lock(&queuemutex);
+    int retvalue = pthread_mutex_lock(&prioritymutex);
     if (retvalue != 0) {
         // Error
     }
-
+    // A simply mutex used only to sync with others threads in the queue.
+    retvalue = pthread_mutex_lock(&queuemutex);
+    if (retvalue != 0) {
+        // Error
+    }
+    retvalue = pthread_mutex_unlock(&prioritymutex);
+    if (retvalue != 0) {
+        // Error
+    }
     struct Queue* tmp = NULL;
     // Example of a queue because sometimes I confuse head and tail... xD
     //           Tail -> NULL <- Head

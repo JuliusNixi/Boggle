@@ -59,8 +59,6 @@ struct ClientNode {
 
 }; 
 
-volatile sig_atomic_t* threadsignalreceivedglobal; // This is used by the clientHandler() thread, inside the SIGUSR1 signal handler, to write his client's receivedsignal without being able/needing to access the struct.
-
 // Queue used only as required by the project's text to handle the end game.
 /*
         NOTES
@@ -90,6 +88,7 @@ struct Queue { // Queue struct.
     struct Message* message;  // Pointer to a message (type struct Message). It's type will be MSG_PUNTI_FINALI. The data field will contain a string in this format "playername,playerpoints".
     struct Queue* next; // Pointer to the next element of the Queue.
 };
+
 
 // Functions signatures server used in server.c and bloggle_server.c.
 // Implementation and infos in the server.c file.

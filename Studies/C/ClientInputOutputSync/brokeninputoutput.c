@@ -1,9 +1,10 @@
-// This file illustrates a client I/O management problem,
+// This file illustrates a project's client I/O management problem,
 // to see the problem solution i found, look at "./inputoutputasynctests.c".
 
 // To see the problem write something in the prompt, without pressing ENTER, after
 // a bit, when the timer will ring, "NOISE" will be printed. Now press ENTER, the content
-// of the STDIN buffer persists after the interruption, this is bad.
+// of the STDIN buffer (your previously inserted characters) persists after the interruption,
+// this is bad.
 
 #include <stdio.h>
 #include <unistd.h>
