@@ -53,6 +53,7 @@ def end(processalive):
 print("Remember to start this script with current folder as the project's root '/'.")
 print(f"You should open the server on IP: {sys.argv[1]} and port: {sys.argv[2]}.")
 print("So the command used should be something like: 'python3 ./Tests/Python/pythontests.py localhost 8080'.")
+print(f"Clients: {nclients}. Actions: {nactions}. Tests {ntests}.")
 input("When you're ready, press enter to start the tests...")
 
 print("Starting clients...")

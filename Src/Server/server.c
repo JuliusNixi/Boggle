@@ -562,11 +562,9 @@ void* signalsThread(void* args) {
                     retvalue = pthread_kill(current->thread, SIGUSR1); 
                     if (retvalue != 0) {
                         // Error
-                        usleep(100);
                     } 
                     // Continuing only when the signal has been received by the client.
                     if (current->receivedsignal && current->waiting) current = current->next;
-                    else usleep(100);
                 }
                 // Now all clients threads (in clientHandler()) are suspended
                 // on their mutexes (eventually read() are stopped),
@@ -660,7 +658,6 @@ void* signalsThread(void* args) {
                     }
                     if (toexit) break;
                     // To avoid instant re-acquiring.
-                    usleep(100);
                 }
                 fprintf(stdout, "Queue has been succesfully filled by all the clients threads.\n");
 
@@ -728,10 +725,8 @@ void* signalsThread(void* args) {
                     retvalue = pthread_kill(current->thread, SIGUSR1); 
                     if (retvalue != 0) {
                         // Error
-                        usleep(100);
                     }
                     if (current->receivedsignal && current->waiting == 1) current = current->next;
-                    else usleep(100);
                 }
 
                 // Now all clientHandler() thread are suspended on its mutex.
@@ -820,8 +815,6 @@ void* signalsThread(void* args) {
                         // Error
                     }
                     if (toexit) break;
-                    // To avoid instant re-acquiring.
-                    usleep(100);
                 }
                 // Releasing scoreboardstr.
                 if (scoreboardstr != NULL) free(scoreboardstr);
@@ -2005,7 +1998,6 @@ void* clientHandler(void* voidclient) {
             retvalue = pthread_mutex_trylock(&(client->handlerequest));
             if (retvalue != 0) {
                 if (retvalue == EBUSY) {
-                    usleep(100);
                     client->waiting = 1;
                     continue;
                 }else{
@@ -2109,7 +2101,6 @@ void* clientHandler(void* voidclient) {
         // Processing the received client's request.
         processReceivedRequest(&received, client);
 
-        usleep(100);
         // This NULL check is mandatory because the message may have already been destroyed
         // with the previous code.
         if (received != NULL) destroyMessage(&received);
@@ -2315,7 +2306,6 @@ disconnect_restart: {
         if (retvalue == EBUSY) {
             // PAUSE IS ON!          
             // To avoiding to re-acquiring immediately.
-            usleep(100);
             goto disconnect_restart;
         }else{
             // Error

@@ -253,7 +253,6 @@ int main(int argc, char** argv) {
         }
         if (toexit) break;
         // To avoid instant reacquiring.
-        else usleep(100);
     }
 
     // Printing end banner.
