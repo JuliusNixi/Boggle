@@ -1,19 +1,19 @@
 # TODO
 
-List of things to work on. Very few things because I forget very often to update this file.
+List of things to work on. Very few because I forget very often to update this file.
 
 ## To do
 
 - [ ] Restore times like games duration, pause duration, changed to perform tests.
 - [ ] Handle all errors.
-- [ ] Execute again Valgrind on server AND client. Fill the obtained output in the .txt file.
-- [ ] Test nclientconnected MAX and WORD_LEN.
+- [ ] Execute again Valgrind on server and client. Fill the obtained output in the .txt files.
+- [ ] Test max clients connected and WORD_LEN limit.
 - [ ] Re-isnert command "end" in Python tests.
 
 ## Done ✓
 
 - [x] Review project structure.
-- [x] Check again directives: slides PowerPoint, PDF document and Google Docs FAQ, updating code and report accordingly. 
+- [x] Read and check again directives: slides PowerPoint, PDF document and Google Docs FAQ, updating code and report accordingly paying attention that all requests are met in code and report. 
 - [x] common.h.
 - [x] common.c.
 - [x] boggle_client.c.
@@ -22,13 +22,13 @@ List of things to work on. Very few things because I forget very often to update
 - [x] server.h.
 - [x] server.c.
 - [x] boggle_server.c.
-- [x] Rewrite, check, Tests/C/tests.c
-- [x] Rewrite, check, Tests/Python/pythontests.py.
-- [x] Rewrite root Makefile.
-- [x] Remove/delete Src/ Makefile.
-- [x] Rewrite root README.md.
-- [x] Rewrite, check, all .c in Studies/C/ files.
-- [x] Write GOTO explaination in sendMessage() and receiveMessage().
-- [x] Rewrite, check, update the report.
+- [x] Check Tests/C/tests.c.
+- [x] Check Tests/Python/pythontests.py.
+- [x] Correct root Makefile.
+- [x] Remove/delete Src/ Makefile and migrate to the root's Makefile.
+- [x] Check root README.md.
+- [x] Check all .c in Studies/C/ files.
+- [x] Write GOTO (used why) explaination in sendMessage() and receiveMessage().
+- [x] Check and update the report.
 
 

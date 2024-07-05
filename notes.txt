@@ -15,6 +15,3 @@ CHIEDERE AL DOCENTE, IL TRIE NON CONVIENE PERCHE' OGNI CARATTERE 1 BYTE E OGNI C
 Aggiornare relazione con:
 Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la terminazione deve comportarsi come se la partita si fosse chiusa normalmente, oppure è sufficiente chiudere il socket creato dal server ed ovviamente i file descriptor con cui comunica ai client.
 A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
-
-Ho finito per tentare con una nota libreria chiamata ncurses. Questa permette di gestire il terminale nel dettaglio, ma era inapropiata. Risolveva il problema, ma generava una complessit\'a insostenibile per le semplici stampe che dovevo fare. 
-

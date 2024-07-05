@@ -18,6 +18,9 @@ Tutta la sincronizzazione \'e stata volutamente fatta solamente tramite mutex, d
  A tutte le informazioni che possono essere espresse solamente con numeri interi positivi \'e stato assegnato il tipo "unsigned long int" abbreviato con il "typedef" ad "uli". Per le variabili booleane (o a carattere discreto) \'e stato utilizzato il tipo "char" poich\'e occupa solo un byte.
  \\
  Perch\'e nel server le "read()" nella funzione "receiveMessage()", chiamata dai "clientHandler()" threads, viene interrotta tramite l'invio (da parte del "signalsThread()" thread) del segnale SIGUSR1, mentre nel client la "read()" dello STDIN viene interrotta autonomamente grazie alla libreria "fcntl"? Semplicemente perch\'e non sapevo si potesse fare con questa libreria quando ho sviluppato il server, che ho sviluppato per prima, quando successivamente, sviluppando il client l'ho scoperto, sono rimasto deluso da tutta l'inutile complessit\'a che ho dovuto gestire nel server, ma questo funziona ugualmente e mostra pi\'u attinenza agli argomenti trattati nel corso, quindi l'ho felicemente lasciato cos\'i.
+ \\
+ Durante lo sviluppo del client, per tentare di risolvere il problema spiegato sulla sincronizzazione input/output e buffer STDIN, sono finito per sperimentare con una nota libreria chiamata "ncurses". Questa permette di gestire il terminale nel dettaglio, ma era inapropiata al mio use case. Risolveva il problema, ma generava una complessit\'a in tutto il resto insostenibile per le semplici stampe che dovevo fare. Questo mi ha insegnato che anche fare delle "presumibilmente semplici" interfacce grafiche testuali non \'e sempre cos\'i scontato come credessi.
+
  
 \iffalse
 \begin{figure}[H]
