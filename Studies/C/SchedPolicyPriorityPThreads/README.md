@@ -3,7 +3,7 @@ All these tests files have been made for serious project's reason/problem.
 
 In testing the project, it became apparent that, as the number of players/clients connected increased, the server became slower and slower in handling play/pause phases, in accepting new connections and in responding to players' requests, until the game became unplayable and the server would freeze for ages.
 
-I realized that as the number of threads increased, it was always more likely that a clientHandler() (player management) thread would be scheduled than the main (acceptClient() which accepts new connections) and signalsThread() (game phase handler) threads which are the ones critical to the proper functioning of the entire project. 
+I realized that as the number of threads increased, it was always more likely that a clientHandler() (player management) thread would be scheduled than the main (acceptClient() which accepts new connections) and signalsThread() (game phase handler) (and also its others support threads scorer() e "gamePauseAndNewGame()") threads which are the ones critical to the proper functioning of the entire project. 
 
 This for the way the project was structured was critical.
 
