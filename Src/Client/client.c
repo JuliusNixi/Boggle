@@ -330,9 +330,15 @@ void inputHandler(void) {
                             fprintf(stdout, "Bye, bye, see you soon! Thanks for playing.\n");
                             sendMessage(client_fd, MSG_ESCI, NULL);
                             commandfound = 1;
-
+                            retvalue = pthread_cancel(responsesthread);
+                            if (retvalue != 0) {
+                                // Error
+                            }
+                            retvalue = close(client_fd);
+                            if (retvalue == -1) {
+                                // Error
+                            }
                             exit(EXIT_SUCCESS);
-                            // TODO Exit.
                         }
                         if (strcmp("help", inputfinal) == 0 || strcmp("aiuto", inputfinal) == 0) {
                             fprintf(stdout, HELP_MSG);
@@ -341,7 +347,7 @@ void inputHandler(void) {
                         if (strcmp("matrix", inputfinal) == 0 || strcmp("matrice", inputfinal) == 0) {
                             sendMessage(client_fd, MSG_MATRICE, NULL);
                             commandfound = 1;
-                            // TODO Control sendMessage() return also in the server.
+                            // TODO Control sendMessage() returns also in the server.
                         }
                         // Might be a command with at least two words.
                         // Tokenizing using a space (' ') the user's input.
@@ -491,7 +497,7 @@ void inputHandler(void) {
                                 fprintf(stdout, "Word claimed succesfully, nice guess! You got %lu points.\n", points);
                             break;
                         }case MSG_PUNTI_FINALI: {
-                            // TODO Block print. In this case we could have interleaved prints.
+                            // TODO Block prints. In this case we could have interleaved prints.
                             fprintf(stdout, "The game is over, this is the scoreboard:\n");
                             char* tmp = received->data;
                             while (1) {
@@ -507,12 +513,12 @@ void inputHandler(void) {
                             }
                             break;
                         }case MSG_ESCI : {
-                            // TODO Server disconnection alert.
+                            // TODO Server disconnection.
                             break;
                         }case MSG_REGISTRA_UTENTE:
                         case MSG_PAROLA: {
                             // Error
-                            // TODO Functions used only by server.
+                            // TODO Messages handled only by server.
                             break;
                         }default: {
                             // Error
@@ -694,7 +700,6 @@ void* signalsThread(void* args) {
         switch (sig){
             case SIGINT: { 
                 // TODO SIGINT.
-
                 fprintf(stdout, "CTRL + C intercepted!\n");
                 exit(EXIT_SUCCESS);
                 break;

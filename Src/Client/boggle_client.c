@@ -138,7 +138,8 @@ reconnecting:
     // Start input management.
     inputHandler();
 
-    // TODO Close socket.
+    // This never executed, but for clarity.
+    exit(EXIT_SUCCESS);
 
     return 0;
     

@@ -79,7 +79,7 @@ void* scorer(void* args) { // This thread is required by the assignment details 
      
     qsort(array, nclientsqueuedone, sizeof(struct Queue*), sortPlayersByPointsMessage);
 
-    // TODO Printing blocks prints, no interleaving.
+    // TODO Block prints. In this case we could have interleaved prints.
     // Some prints.
     fprintf(stdout, "\n\t\tFINAL SCOREBOARD\n");
     for (uli i = 0LU; i < nclientsqueuedone; i++) {
@@ -121,7 +121,7 @@ void* scorer(void* args) { // This thread is required by the assignment details 
         // Continuing, i will send anyway the scoreboard.
     }
 
-    // TODO Printing blocks prints, no interleaving.
+    // TODO Block prints. In this case we could have interleaved prints.
     // More winners with the same amount of maximum points "p".
     if (p != 0LU && counter != 1LU) {
         fprintf(stdout, "The winners with %lu points are:\n", p);
@@ -476,7 +476,6 @@ void* signalsThread(void* args) {
         switch (sig){
             case SIGINT:{ 
                 // TODO SIGINT.
-
                 fprintf(stdout, "CTRL + C intercepted!\n");
                 exit(EXIT_SUCCESS);
                 break;
@@ -498,7 +497,7 @@ void* signalsThread(void* args) {
 
                 /////////////////////////   GAME OVER   /////////////////////////
 
-                // TODO Prints all in a block, interleaved prints problem.
+                // TODO Block prints. In this case we could have interleaved prints.
                 // Banner of closing previous "NEW GAME STARTED".
                 char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
                 fprintf(stdout, "%s\n", banner);
@@ -1324,7 +1323,7 @@ void validateDictionary(void) {
 
     // Printing results.
     char found = 0;
-    // TODO Printing all data in blocks, fix the interleaving prints.
+    // TODO Block prints. In this case we could have interleaved prints.
     fprintf(stdout, "Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
     
     
@@ -1616,7 +1615,7 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
 // This function starts a new game.
 void startGame(void) {
 
-    // TODO Mutex lock, multiple prints.
+    // TODO Block prints. In this case we could have interleaved prints.
     char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
     fprintf(stdout, "\n%s\n", banner);
     free(banner);
@@ -1856,7 +1855,7 @@ void* clientHandler(void* voidclient) {
 
     client->threadstarted = 1;
 
-    // TODO Block prints interleaved.
+    // TODO Block prints. In this case we could have interleaved prints.
     fprintf(stdout, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) client->thread);
     // Printing the connected client's infos.
     char* strclient = serializeStrClient(client);
@@ -1997,11 +1996,8 @@ void* clientHandler(void* voidclient) {
                 // greater speed (due to a greater thread utilization).
 
                 if (received != NULL) {
-                    // TODO Remove trash.
-//printf("\n\n  PRE  %p    %p  %p      %lu   \n\n", (void*)received, (void*)(&received), (void*)(client->registerafter),(uli)client->thread);
                     processReceivedRequest(&received, client);
                     if (received != NULL) destroyMessage(&received);
-//printf("\n\n  POST  %p    %p  %p     %lu   \n\n", (void*)received, (void*)(&received), (void*)(client->registerafter),(uli)client->thread);
                 }else{
                     // Received NULL, no messages to process, go ahead to client->actionstoexecute == 1.
                     ;
@@ -2438,8 +2434,6 @@ char* serializeStrClient(struct ClientNode* c) {
     }
 
     // Preparing the string format.
-    // TODO Remove if without this works (IP).
-    //char st[] = "Name: %s - IP: %s - Port: %lu - Points %lu - Thread ID: %lu.\n";
     char st[] = "Name: %s - Port: %lu - Points %lu - Thread ID: %lu.\n";
 
     // Calculating name length.
@@ -2457,15 +2451,6 @@ char* serializeStrClient(struct ClientNode* c) {
     uli portlen = strlen(portstr);
     free(portstr);
 
-    // Getting IP.
-    // TODO Remove if without this works.
-    /*char buff[INET_ADDRSTRLEN] = {0}; 
-    const char* s = inet_ntop(AF_INET, &(c->client_addr.sin_addr), buff, c->client_address_len);
-    if (s == NULL){
-        // Error
-    }
-    uli iplength = strlen(s);*/
-
     // Calculating points length (as string).
     char* pointsstr = itoa(c->points);
     uli pointslen = strlen(pointsstr);
@@ -2480,16 +2465,13 @@ char* serializeStrClient(struct ClientNode* c) {
 
     // Allocating the needed heap memory to store the string.
     // +1 for '\0'.
-    // TODO Remove if without this works (IPLENGTH).
-    uli totallength =  strlen(st) + namelen /*+ iplength*/ + portlen + pointslen + threadidstrlen + 1;
+    uli totallength =  strlen(st) + namelen + portlen + pointslen + threadidstrlen + 1;
     char* rs = (char*) malloc((totallength) * sizeof(char));
     if (rs == NULL) {
         // Error
     }
 
     // Filling the string with data.
-    // TODO Remove if without this works (BUFF).
-    //sprintf(rs, st, name, buff, port, c->points, c->threadstarted ? (uli) c->thread : 0LU);
     sprintf(rs, st, name, port, c->points, c->threadstarted ? (uli) c->thread : 0LU);
 
     return rs;
@@ -2714,7 +2696,6 @@ void processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 if (!pauseon) {
                     // Sending current game matrix.
                     char* mat = serializeMatrixStr();
-// TODO Un errore era qua.
                     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
                     free(mat);
                     fprintf(stdout, "Matrix gets request from %s satisfied.\n", client->name);
@@ -2817,7 +2798,6 @@ void processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 // pauseon == 0 means the game is ongoing, must send the current game matrix.
                 if (!pauseon) {
                     // Sending current game matrix.
-                    // TODO Possible problem? Forse l'altro errore era qua.
                     char* mat = serializeMatrixStr();
                     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
                     free(mat);
@@ -3147,12 +3127,10 @@ void* gamePauseAndNewGame(void* args) {
 
 /*
 
-// TODO Review this.
-
 ##########################              EXAMPLE             ##########################
 
 Let's assume that loadDictionary("/path/to/file.txt") has been called, now we will
-have "char** words" var, filled with all the words present in the dictionary
+have "char** words" global var, filled with all the words present in the dictionary
 file "/path/to/file.txt" (assuming a word for line terminated by \n or by \r\n).
 
 Being the content of /path/to/file.txt:
@@ -3161,11 +3139,10 @@ dog\n
 mum
 
 Let's see the content of "char** words" after loadDictionary(...).
-Let's assume a byte-addressable architecture, arrays are stored contiguously, sizeof(char) = 1 byte.
 Allocated on heap.
-char** words -> words[0] (char*) [starting h with = 0x16d22726c] -> "hello\0"
-             -> words[1] (char*) [starting d with = 0x16d227272 (the previous + 6 bytes)] -> "dog\0"
-             -> words[2] (char*) [starting m with = 0x16d227276 (the previous + 4 bytes)] -> "mum\0"
+char** words -> words[0] (char*) -> "hello\0"
+             -> words[1] (char*) -> "dog\0"
+             -> words[2] (char*) -> "mum\0"
 
 Being the current game matrix the following:
 h e D F
@@ -3180,16 +3157,17 @@ Also, let's assume there is not the constraint on the word length.
 
 Now let's call validateDictionary(); At the end we will have "char** words_valid" global var
 filled with:
-char** words_valid -> words_valid[0] (char*) [0x16d22726c same pointer of words[0]] -> "hello\0"
-                  -> words_valid[1] (char*) [0x16d227275 same pointer of words[1] + 3 bytes] -> "\0"
-                  -> words_valid[2] (char*) [0x16d227276 same pointer of words[2]] -> "mum\0"
+char** words_valid -> words_valid[0] (char*) -> "hello\0"
+                   -> words_valid[1] (char*) -> "\0"
+                   -> words_valid[2] (char*) -> "mum\0"
 
 The word "dog" is not present because it is in the dictionary file, and so in the "char** words",
 but NOT in the current game matrix. Instead "hello\0" and "mum\0" are present because were
 founded BOTH in the dictionary file (char** words) and the current game matrix (look at
 the lowercase letters above).
 
-The "dog\0" word was not deleted, we simply updated the copied pointer, incrementing it.
+The "dog\0" word was not deleted from memory (freed), we simply updated the copied pointer,
+incrementing it.
 
 Note that we are operating by exploiting the power of pointers, with their arithmetic,
 without having two copies of the strings in memory, but only two arrays with their pointers (char*).
@@ -3198,32 +3176,45 @@ without having two copies of the strings in memory, but only two arrays with the
 
 /*
 
- ########   SOME INFORMATIONS ON SYNCHRONIZATION BETWEEN THREADS AND SIGNAL MANAGEMENT  ########
+ ########   SOME INFORMATIONS ON SYNCHRONIZATION BETWEEN THREADS AND SIGNALS MANAGEMENT  ########
     
-sigwait() handles all SIGINT and SIGALRM signals running in a dedicated thread
-called signalsThread(), started in the main after blocking them.
-If more signals arrive, the first one to arrive is put in pending, the others lost.
-Therefore, I cannot be interrupted by a new signal (of these) while handling the previous one.
-When a game is over, the alarm() (setted on start of new game) trigger an SIGALRM signal caugth by signalsThread().
-So, the signalsThread() waits all threads to complete the current response in processing, then
-it acquires their mutex (each clientHandler() has its own mutex that release after completing the client response).
-Then, we use pthread_kill() to inform each clientHandler() thread that the game is over
-with a SIGUSR1 signal.
-In this way, all threads (both those blocked on the read and those blocked immediately afterwards
-waiting for the mutex that allows them to continue processing the received request)
-are "suspended" on their own mutex.
-Specifically, threads locked on reads are interrupted and the read will fail returning EINTR in errno.
-In the case of a partial received request (e.g. read interrupted on receiving the
-unsigned int length of the data field, but it has already read the message type)
-we inform the client of that, we ignore this request, and we clear all received socket
-stream (of the interested client) to avoid subsequent misaligned readings of the message fields.
-Now we can enable safety the pause (pauseon global var), because we will be sure that
-no thread can perform unsafe multithreaded actions.
-Then we release all clientHandler() mutexes (for each client, its own).
-Now all the clients will acquire their locks and will detect the end of game, so they
-will fill the end-game queue, which the thread scorer will subsequently take care of as
-required by the project text. Finally now all the threads can receive and response to all
-the clients requests considering the variable “pauseon” the fact that the game is paused.
+sigwait() handles all SIGINT, SIGALRM and SIGPIPE signals in the project running in a dedicated 
+thread called signalsThread(), started in the main after blocking them for others threads
+as sigwait() requires.
+If a signal arrive, the sigwait() reads that signal from the signals
+mask and sets to 0 (clearing) the corresponding bit and the code continues.
+If during this another signal arrive, it is put in pending using pending signals mask.
+This means the corresponding bit of the signals mask is set to one (previously 0).
+If another signal of the same type arrive during the handling of a signal and for wich the 
+corresponding bit of the signals mask has been already setted to 1, this new signal is lost,
+because the bit of signals mask is already 1 and it's simply overwritten.
+So the signals aren't enqueued.
+Therefore, I cannot be interrupted by a new signal while handling the previous one with sigwait().
+When a game is over, the alarm() trigger a SIGALRM signal caugth by signalsThread() thread.
+So, the signalsThread() thread waits all clientHandler() threads to complete the current
+request in processing, then it acquires their mutexes (each struct ClientNode in clients list
+has its own mutex (handlerequest) that release after completing the client's request).
+Then, we use a pthread_kill() call to inform each clientHandler() thread that the game is over
+with a SIGUSR1 signal (not handled by signalsThread() thread, but handled by each clientHandler() thread).
+In this way, all threads  blocked on the read() in receiveMessage() are "suspended" on
+their own mutexes (handlerequest).
+Specifically, threads locked on read() are interrupted and the read() will fail returning EINTR
+in errno, and the receiveMessage() (read() caller) function will return a corresponding code
+to the clientHandler() thread caller.
+Now we now that all the read() are stopped and the execution of each
+clientHandler() thread is waiting for the signalsThread() thread to release each handlerequest
+mutex.
+Now we can enable safety the pause ("pauseon" global var) trought the signalsHandler() thread,
+because we will be sure that no others threads can perform unsafe multithreaded actions.
+Then we release all clientHandler() mutexes (for each client, its own handlerequest).
+Now each client will acquire its own lock and will detect the end of game, so it
+will fill the end-game queue, which the thread scorer() will subsequently take care of as
+required by the project text (started by the signalsThread() thread), by creating the CSV
+final scoreboard. Afterwards each clientHandler() thread will send this scoreboard to its
+handled client.
+Finally all the clientHandler() threads can come back to response to all
+the clients' requests considering the global var “pauseon”, that now is enabled (true),
+the fact that the game is paused.
 
 */
 
