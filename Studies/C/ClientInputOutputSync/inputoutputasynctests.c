@@ -56,6 +56,7 @@ That allows you to manage the terminal in detail, but it was like using bazooka 
 Solving the problem but generated many others unnecessary complications.
 
 I finally found and adapted a method used in this below code.
+https://stackoverflow.com/questions/4327942/non-buffering-stdin-reading
 
 To summarize, I interrupt the read() very often.
 If there are server's responses I print them, clean up the STDIN with a NON-BLOCKING getchar()

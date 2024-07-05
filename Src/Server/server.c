@@ -43,6 +43,8 @@ uli clientid = 0LU;  // A temporary client's ID used to identify a client before
 pthread_mutex_t prioritymutex = PTHREAD_MUTEX_INITIALIZER; // This mutex is used to take advantage of a priority for the main (acceptClient()) thread and signalsThread() thread, which conduct more important tasks than the individual user threads clientHandler() and therefore must be entitled to a priority.
 char prioritythreadwaiting = 0; // Used with the mutex above for the same purpose.
 
+pthread_t gamepauseandnewgamethread; // This thread will execute the game pause and after will start a new game.
+
 volatile sig_atomic_t* threadsignalreceivedglobal; // This is used by the clientHandler() thread, inside the SIGUSR1 signal handler, to write his client's receivedsignal without being able/needing to access the struct.
 pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads ad the end of game to fill the queue.
 struct Queue* headq = NULL; // Pointer to the queue head.
@@ -483,6 +485,16 @@ void* signalsThread(void* args) {
 
                 // ANCHOR Game Core.
                 // This is the CORE of the server.
+
+                /////////////////////////   SECURE CHECK   /////////////////////////
+
+                // In this case the sync between threads to access to this var is not needed.
+                if (pauseon) {
+                    // Error
+                    // Another pause is live. 
+                    // Another unexpected SIGALRM received.
+                    // Possible game/pause overlap.
+                }
 
                 /////////////////////////   GAME OVER   /////////////////////////
 
@@ -929,199 +941,13 @@ void* signalsThread(void* args) {
 
 
 
-
-
-                //////////////////  EXECUTING PAUSE  //////////////////
-
-                fprintf(stdout, "Pause sleeping started.\n");
-                // Executing pause.
-                fprintf(stdout, "Sleeping zzz...\n");
-
-                // Getting new starting pause timestamp in POSIX time.
-                pausetime = (uli) time(NULL);
-
-                // Executing the pause.
-                // PAUSE_DURATION in minutes, but sleep takes seconds.
-                //sleep(PAUSE_DURATION * 60);
-                sleep(tempteststimeseconds);
-                fprintf(stdout, "Pause sleeping finished.\n");
-
-
-
-
-
-
-
-
-
-
-                //////////////////  STARTING A NEW GAME  //////////////////
-
-                // Disabling pause and starting a new game.
-                retvalue = pthread_mutex_lock(&prioritymutex);
+                // Starting pause/new game thread.
+                retvalue = pthread_create(&gamepauseandnewgamethread, NULL, gamePauseAndNewGame, NULL);
                 if (retvalue != 0) {
                     // Error
                 }
-                prioritythreadwaiting = 1;
-                retvalue = pthread_mutex_lock(&pausemutex);
-                if (retvalue != 0) {
-                        // Error
-                }
-                retvalue = pthread_mutex_lock(&listmutex);
-                if (retvalue != 0) {
-                        // Error
-                }
-                prioritythreadwaiting = 0;
-                retvalue = pthread_mutex_unlock(&prioritymutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                // Banner of closing previous "END GAME STARTED".
-                banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 1);
-                fprintf(stdout, "%s\n", banner);
-                free(banner);
 
-                // Locking threads to avoid unsafe multithreading situations.
-                current = head;
-                while (1) {
-                    if (current == NULL) break;
-                    retvalue = pthread_mutex_lock(&(current->handlerequest));
-                    if (retvalue != 0) {
-                        // Error
-                    }
-                    current = current->next;
-                }
-                // Disabling pause.
-                pauseon = 0;
-                // Starting a new game.
-                startGame();
-                // Preparing clients for a new game.
-                // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
-                updateClients();
-                current = head;
-                while (1) {
-                    if (current == NULL) break;
-/*
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
-                    char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
-                    strcpy(fsm, banner);
-                    fsm[strlen(banner)] = '\n';
-                    fsm[strlen(banner) + 1] = '\0';
-                    free(banner);
-                    sendMessage(current->socket_client_fd, MSG_OK, fsm);
-
-                    // Inform clients of the start of a new game and
-                    // sending the new game matrix.
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
-                    uli l = strlen(banner); 
-                    // Cannot use strcpy() because the string will be terminated with '\n' not '\0'.
-                    // Substitute '\0' with '\n'.
-                    banner[l] = '\n';
-                    char msgstartgame[l + 1]; // for the '\n'.
-                    char* s = banner;
-                    uli counter = 0LU;
-                    while(1) {
-                        if (s[0] == '\n'){
-                            msgstartgame[counter++] = s[0];
-                            break;
-                        } 
-                        msgstartgame[counter++] = s[0];
-                        s++;
-                    }
-                    free(banner);
-                    banner = NULL;
-                    uli savedcounter = counter;
-
-                    // Sending matrix only to registered players.
-                    char* str = NULL;
-                    char* matstr  = serializeMatrixStr();
-                    char premessage[] = "New matrix:\n";
-                    char matstrandpre[strlen(matstr) + strlen(premessage)];
-                    counter = 0LU;
-                    while(1) {
-                        if (premessage[counter] == '\0') break;
-                        matstrandpre[counter] = premessage[counter];
-                        counter++;
-                    }
-                    uli counter2 = 0LU;
-                    while(1) {
-                        if (matstr[counter2] == '\0'){
-                            break;
-                        }
-                        matstrandpre[counter++] = matstr[counter2++];
-                    }
-                    if (current->name != NULL)
-                        str = matstrandpre;
-                    else
-                        str = NULL;
-                    
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
-                    l = strlen(banner); // +1 for '\n' and +1 for '\0'.
-                    char msgstartgameend[l + 1 + 1];
-                    strcpy(msgstartgameend, banner);
-                    msgstartgameend[l] = '\n';
-                    msgstartgameend[l + 1] = '\0';
-                    free(banner);
-                    banner = NULL;
-
-                    // Appending new current game matrix to the message if the user is registered.
-                    l = savedcounter + strlen(msgstartgameend) + 1; // +1 for '\0'.
-                    if (str != NULL) l += strlen(str);
-                    char finalmsg[l];
-                    counter = 0LU;
-                    while(1) {
-                        if (msgstartgame[counter] == '\n') {
-                            finalmsg[counter++] = '\n';
-                            break;
-                        }
-                        finalmsg[counter] = msgstartgame[counter];
-                        counter++;
-                    }
-                    counter2 = 0LU;
-                    while(1) {
-                        if (str == NULL) break;
-                        if (str[counter2] == '\n') {
-                            finalmsg[counter++] = str[counter2++];
-                            break;
-                        }
-                        finalmsg[counter] = str[counter2];
-                        counter++;
-                        counter2++;
-                    }
-
-                    counter2 = 0LU;
-                    while(1) {
-                        if (msgstartgameend[counter2] == '\0') {
-                            finalmsg[counter++] = '\0';
-                            break;
-                        }
-                        finalmsg[counter] = msgstartgameend[counter2];
-                        counter++;
-                        counter2++;
-                    }
-
-                    sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
-*/
-                    current = current->next;
-                }
-                // Releasing clients locks.
-                current = head;
-                while (1) {
-                    if (current == NULL) break;
-                    retvalue = pthread_mutex_unlock(&(current->handlerequest));
-                    if (retvalue != 0) {
-                        // Error
-                    }
-                    current = current->next;
-                }
-                retvalue = pthread_mutex_unlock(&listmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                retvalue = pthread_mutex_unlock(&pausemutex);
-                if (retvalue != 0) {
-                    // Error
-                }
+                // Back to handling signals.
 
                 break;
             }case SIGPIPE : {
@@ -3114,8 +2940,214 @@ void processReceivedRequest(struct Message** receivedfromclienthandler, struct C
 
 }
 
+// ANCHOR gamePauseAndNewGame()
+// TODO Explaination.
+void* gamePauseAndNewGame(void* args) {
+
+                int retvalue;
+                char* banner;
+                struct ClientNode* current;
+
+                //////////////////  EXECUTING PAUSE  //////////////////
+
+                fprintf(stdout, "Pause sleeping started.\n");
+                // Executing pause.
+                fprintf(stdout, "Sleeping zzz...\n");
+
+                // Getting new starting pause timestamp in POSIX time.
+                pausetime = (uli) time(NULL);
+
+                // Executing the pause.
+                // PAUSE_DURATION in minutes, but sleep takes seconds.
+                //sleep(PAUSE_DURATION * 60);
+                sleep(tempteststimeseconds);
+                fprintf(stdout, "Pause sleeping finished.\n");
+
+
+
+
+
+
+
+
+
+
+                //////////////////  STARTING A NEW GAME  //////////////////
+
+                // Disabling pause and starting a new game.
+                retvalue = pthread_mutex_lock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                prioritythreadwaiting = 1;
+                retvalue = pthread_mutex_lock(&pausemutex);
+                if (retvalue != 0) {
+                        // Error
+                }
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                        // Error
+                }
+                prioritythreadwaiting = 0;
+                retvalue = pthread_mutex_unlock(&prioritymutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                // Banner of closing previous "END GAME STARTED".
+                banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 1);
+                fprintf(stdout, "%s\n", banner);
+                free(banner);
+
+                // Locking threads to avoid unsafe multithreading situations.
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
+                    retvalue = pthread_mutex_lock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    current = current->next;
+                }
+                // Disabling pause.
+                pauseon = 0;
+                // Starting a new game.
+                startGame();
+                // Preparing clients for a new game.
+                // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
+                updateClients();
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
+/*
+                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
+                    char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
+                    strcpy(fsm, banner);
+                    fsm[strlen(banner)] = '\n';
+                    fsm[strlen(banner) + 1] = '\0';
+                    free(banner);
+                    sendMessage(current->socket_client_fd, MSG_OK, fsm);
+
+                    // Inform clients of the start of a new game and
+                    // sending the new game matrix.
+                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
+                    uli l = strlen(banner); 
+                    // Cannot use strcpy() because the string will be terminated with '\n' not '\0'.
+                    // Substitute '\0' with '\n'.
+                    banner[l] = '\n';
+                    char msgstartgame[l + 1]; // for the '\n'.
+                    char* s = banner;
+                    uli counter = 0LU;
+                    while(1) {
+                        if (s[0] == '\n'){
+                            msgstartgame[counter++] = s[0];
+                            break;
+                        } 
+                        msgstartgame[counter++] = s[0];
+                        s++;
+                    }
+                    free(banner);
+                    banner = NULL;
+                    uli savedcounter = counter;
+
+                    // Sending matrix only to registered players.
+                    char* str = NULL;
+                    char* matstr  = serializeMatrixStr();
+                    char premessage[] = "New matrix:\n";
+                    char matstrandpre[strlen(matstr) + strlen(premessage)];
+                    counter = 0LU;
+                    while(1) {
+                        if (premessage[counter] == '\0') break;
+                        matstrandpre[counter] = premessage[counter];
+                        counter++;
+                    }
+                    uli counter2 = 0LU;
+                    while(1) {
+                        if (matstr[counter2] == '\0'){
+                            break;
+                        }
+                        matstrandpre[counter++] = matstr[counter2++];
+                    }
+                    if (current->name != NULL)
+                        str = matstrandpre;
+                    else
+                        str = NULL;
+                    
+                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
+                    l = strlen(banner); // +1 for '\n' and +1 for '\0'.
+                    char msgstartgameend[l + 1 + 1];
+                    strcpy(msgstartgameend, banner);
+                    msgstartgameend[l] = '\n';
+                    msgstartgameend[l + 1] = '\0';
+                    free(banner);
+                    banner = NULL;
+
+                    // Appending new current game matrix to the message if the user is registered.
+                    l = savedcounter + strlen(msgstartgameend) + 1; // +1 for '\0'.
+                    if (str != NULL) l += strlen(str);
+                    char finalmsg[l];
+                    counter = 0LU;
+                    while(1) {
+                        if (msgstartgame[counter] == '\n') {
+                            finalmsg[counter++] = '\n';
+                            break;
+                        }
+                        finalmsg[counter] = msgstartgame[counter];
+                        counter++;
+                    }
+                    counter2 = 0LU;
+                    while(1) {
+                        if (str == NULL) break;
+                        if (str[counter2] == '\n') {
+                            finalmsg[counter++] = str[counter2++];
+                            break;
+                        }
+                        finalmsg[counter] = str[counter2];
+                        counter++;
+                        counter2++;
+                    }
+
+                    counter2 = 0LU;
+                    while(1) {
+                        if (msgstartgameend[counter2] == '\0') {
+                            finalmsg[counter++] = '\0';
+                            break;
+                        }
+                        finalmsg[counter] = msgstartgameend[counter2];
+                        counter++;
+                        counter2++;
+                    }
+
+                    sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
+*/
+                    current = current->next;
+                }
+                // Releasing clients locks.
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
+                    retvalue = pthread_mutex_unlock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    current = current->next;
+                }
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_mutex_unlock(&pausemutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+
+                return NULL;
+
+}
+
 
 /*
+
+// TODO Review this.
 
 ##########################              EXAMPLE             ##########################
 

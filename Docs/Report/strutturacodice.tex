@@ -1,33 +1,31 @@
 \chapter{Struttura codice}
 
-Il codice si trova tutto nella carte Src\ (soruces).
-\\
-Le dipendenze sono le seguenti:
+Il codice si trova tutto nella cartella "./Src/" (soruces). Suddiviso in tre sottocartelle "./Server", "./Client" e "./Common". Le dipendenze sono le seguenti:
 \\
 \\
-boggle\_server (paroliere\_srv) eseguibile dipende da boggle\_server.c, server.c, common.c..
+"boggle\_server" ("paroliere\_srv") eseguibile dipende da "boggle\_server.c", "server.c", "common.c".
 \\
-boggle\_client (paroliere\_cl) eseguibile dipende da boggle\_client.c client.c common.c..
-\\
-\\
-boggle\_server.c, server.c dipendono da server.h..
-\\
-boggle\_client.c, client.c dipendono da client.h..
+"boggle\_client" ("paroliere\_cl") eseguibile dipende da "boggle\_client.c", "client.c", "common.c".
 \\
 \\
-server.h, client.h dipendono da common.h..
+"boggle\_server.c", "server.c" dipendono da "server.h".
+\\
+"boggle\_client.c", "client.c" dipendono da "client.h".
 \\
 \\
-common.c dipende da common.h..
+"server.h", "client.h" dipendono da "common.h".
 \\
 \\
-Si noti che common.h e common.c includono dichiarazioni ed implementazioni comuni a server e client.
+"common.c" dipende da "common.h".
 \\
 \\
-A seguire un diagramma delle dipendenze per il server. Quello del client \'e analogo.
+Si noti che "common.h" e "common.c" includono librerie, dichiarazioni ed implementazioni comuni a server e client. "boggle\_server.c" e "boggle\_client.c" contengono solamente i setup e lo scheletro del loro funzionamento. L'effettiva complessa e sostanziale implementazione \'e demandata rispettivamente ai "server.c" e "client.c" files. "server.h" contiene le dichiarazioni di funzioni e le strutture dati condivise tra "boggle\_server.c" e "server.c". Similmente per il client.
+\\
+\\
+A seguire un diagramma (o grafo) delle dipendenze per il server. Quello del client \'e analogo.
 
 
-% Grafico dipendenze file.
+% Grafo dipendenze file.
 \usetikzlibrary{shapes,arrows,positioning}
 
 % Setup.
@@ -61,7 +59,7 @@ A seguire un diagramma delle dipendenze per il server. Quello del client \'e ana
 \draw[arrow] (common_c) -- (common_h);
 
 \end{tikzpicture}
-% Fine grafico dipendenze file.
+% Fine grafo dipendenze file.
 
 
 

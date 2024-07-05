@@ -1,6 +1,3 @@
-Ammettere comandi anche italiani, relazione.
-Ammettere parametri anche italiani, relazione.
-
 Verrà valutato:
 Compilazione e creazione degli eseguibili, correttezza del Makefile
 Funzionamento di una sessione di test tra client e server, basata sulle prime due righe del file matrici.txt
@@ -13,24 +10,11 @@ Chiarezza dei commenti, struttura interna del progetto
 Gestione degli errori 
 Chiarezza e completezza della relazione
 
-Aggiungere filosofia di suddivisione dei vari files nella relazione, sezione struttura progetto.
-
-Aggiornare il warning nella relazione della working directory.
-
 CHIEDERE AL DOCENTE, IL TRIE NON CONVIENE PERCHE' OGNI CARATTERE 1 BYTE E OGNI CHAR* O STRUCT* (CON SOLO 1 CHAR E 1 STRUCT* NEXT) HA SIZEOF DI 8.
 
 Aggiornare relazione con:
-Q28: Il messaggio MSG_PUNTI_FINALI viene impacchettato ed inviato in formato CSV. Il client lo riceve. Basta stamparlo così come è oppure sistemarlo? Inoltre, sempre su questa linea volevo sapere se bisogna fare un sorting.
-A28: La decisione è vostra. Fate quello che ritienete più opportuno e motivatelo nella relazione.
-
-Q22: nella sezione 2.3 della traccia, dedicata al Client, sotto il punto di numero 2, quando si dice "l’invocazione di qualsiasi altro comando, ad eccezione di fine, determina un messaggio di errore." il messaggio di errore inteso è MSG_ERR oppure possiamo evitare di mandare richieste al server, e restituire un messaggio di errore dal lato client?
-A22: Scegli la strategia che ritieni piu opportuna, motivando la scelta nella relazione.
-
 Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la terminazione deve comportarsi come se la partita si fosse chiusa normalmente, oppure è sufficiente chiudere il socket creato dal server ed ovviamente i file descriptor con cui comunica ai client.
 A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
 
-Q29: Viene detto questo nelle specifiche: "..dopo che il vincitore è stato nominato, comunicano ai rispettivi client il risultato finale". In che senso viene decretato un vincitore, devo inviare al client il nome del vincitore o, di nuovo, basta il messaggio in CSV con il nome del vincitore come primo? Anche perché viene detto di usare un messaggio ("La comunicazione ai client del risultato finale avviene tramite il messaggio MSG_PUNTI_FINALI”).
-A29: Trovate un modo ragionevole, implementatelo e descrivetelo nella relazione.
-
-Aggiungere a relazione l'utilizzo di ULI per le size e char per le variabili booleane.
+Ho finito per tentare con una nota libreria chiamata ncurses. Questa permette di gestire il terminale nel dettaglio, ma era inapropiata. Risolveva il problema, ma generava una complessit\'a insostenibile per le semplici stampe che dovevo fare. 
 

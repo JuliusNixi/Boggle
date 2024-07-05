@@ -11,7 +11,7 @@ char* matpath; // String path rapresenting the path of the matrix file (specifie
 
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
-// These variables may not be used in the server.c file, but they are used in some tests in the Tests\C\tests.c file.
+// These variables may not be used in the "server.c" file, but they are used in some tests in the "./Tests/C/tests.c" file.
 
 // Numbers of columns and rows of the game matrix (default 4x4).
 #define NROWS 4 // Matrix number of rows.
@@ -120,6 +120,7 @@ void endGame(int);
 void* scorer(void*);
 int sortPlayersByPointsMessage(const void*, const void*);
 void createScoreboard(struct Queue**, uli);
+void* gamePauseAndNewGame(void*);
 
 // Defined, commented and implemented all in common.h and common.c.
 // int parseIP(char*, struct sockaddr_in*); -> common.h

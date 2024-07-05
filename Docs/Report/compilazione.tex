@@ -1,27 +1,24 @@
 \chapter{Compilazione ed esecuzione}
 
-Il codice pu\'o essere compilato sia nella root del progetto, sia nella cartella Src/.
+Il codice pu\'o essere compilato dalla root del progetto.
 \\
 \\
-In entrambi i casi valgono i seguenti comandi:
-\\
-- make = Compila tutto: client, server and tests.
-\\
-- make execs = Compila ed esegue il server, con gli argomenti di default (si veda il Makefile in Src/).
-\\
-- make execc = Compila ed esegue il client, con gli argomenti di default (si veda il Makefile in Src/).
-\\
-- make clean = Rimuove tutti i file oggetto, eseguibili, file di logs dei tests e termina tutti gli eventuali processi in esecuzione di server e client.
-\\
-- make tests = Compila il server e compila ed esegue il file C tests.
-\\
+Valgono i seguenti targets main:
+
+\begin{itemize}
+\item make = Compila tutto: client e server.
+\item make execs = Compila ed esegue il server, con gli argomenti di default (si veda il Makefile).
+\item make execc = Compila ed esegue il client, con gli argomenti di default (si veda il Makefile).
+\item make clean = Rimuove tutti i files oggetto, eseguibili, files di logs dei tests Python e termina forzatamente tutti gli eventuali processi in esecuzione di server e client.
+\end{itemize}
+\leavevmode 
+Ovviamente oltre a questi nel Makefile \'e scritto tutto l'albero delle dipendenze.
 \\
 L'utilizzo degli eseguibili si pu\'o svolgere facendo riferimento al seguente formato:
 \\
-Server Usage: boggle\_server server\_ip server\_port [--matrices matrices\_filepath] [--duration game\_duration\_in\_minutes] [--seed rnd\_seed] [--dic dictionary\_filepath].
+Server Usage: paroliere\_srv server\_ip server\_port [--matrices matrices\_filepath] [--duration game\_duration\_in\_minutes] [--seed rnd\_seed] [--dic dictionary\_filepath].
 \\
-Client Usage: boggle\_client server\_ip server\_port.
+Client Usage: paroliere\_cl server\_ip server\_port.
 \\
 \\
-\textbf{ATTENZIONE:} L'utilizzo di alcuni percorsi assoluti hard-coded (ad esempio il percorso del file dizionario di default quando non specificato da CLI) assume che la \textbf{WORKING DIRECTORY} sia  \textbf{BIN} causa la presenza nel percorso di "../". Utilizzando make nella root non si incorre mai in problemi perch\'e si occupa lui di cambiare directory quando esegue, ma se si avvia i binari manualmente bisogna tenere conto di questo. TL;DR: Fare sempre un cd in Bin/ prima di eseguire.
-
+\textbf{ATTENZIONE:} L'utilizzo di alcuni percorsi assoluti hard-coded (ad esempio il percorso del file dizionario di default quando non specificato da CLI) assume che la \textbf{WORKING DIRECTORY} sia la \textbf{ROOT} del progetto. Stessa cosa per lo script "./Tests/Python/pythontests.py".

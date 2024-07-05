@@ -6,11 +6,9 @@ List of things to work on. Very few things because I forget very often to update
 
 - [ ] Restore times like games duration, pause duration, changed to perform tests.
 - [ ] Handle all errors.
-- [ ] Rewrite, check, update the report.
 - [ ] Execute again Valgrind on server AND client. Fill the obtained output in the .txt file.
 - [ ] Test nclientconnected MAX and WORD_LEN.
-- [ ] Re-isnert command "end" in python tests.
-
+- [ ] Re-isnert command "end" in Python tests.
 
 ## Done ✓
 
@@ -31,5 +29,6 @@ List of things to work on. Very few things because I forget very often to update
 - [x] Rewrite root README.md.
 - [x] Rewrite, check, all .c in Studies/C/ files.
 - [x] Write GOTO explaination in sendMessage() and receiveMessage().
+- [x] Rewrite, check, update the report.
 
 

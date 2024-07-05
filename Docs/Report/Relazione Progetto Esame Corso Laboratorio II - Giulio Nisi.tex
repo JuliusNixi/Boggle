@@ -1,6 +1,7 @@
 % Sviluppato con Texifier per macOS.
 % Se si utilizza il suo generatore automatico LaTeX TexpadTeX prestare attenzione perchè alcuni pacchetti non funzionano correttamente, ad esempio hyperref.
 % Una volta generato, se su Texifier, se si sta usando il generatore automatico LaTeX TexpadTeX, premere un tasto nel codice per generare l'indice, che altrimenti talvolta non appare automaticamente anche senza errori.
+% Per evitare tutte queste seccature si può utilizzare il generatore manuale LaTeX pdfLaTeX, sempre supportato da Texifier.
 
 % Carattere dimensione 12.
 \documentclass[12pt]{report}
@@ -22,13 +23,7 @@
 \usepackage[italian]{babel}
 % Codifica UTF-8. 
 \usepackage[utf8]{inputenc}
-
-
-
-
-
-
-% Matematica (matrici).
+% Matematica.
 \usepackage{amsmath} 
 % Links.
 \usepackage{hyperref}
@@ -46,9 +41,6 @@
 \usepackage{graphicx} 
 % Posizionamento delle immagini.
 \usepackage{float} 
-
-
-
 
 % Stili pagina per il frontespizio e numerazione pagine.
 \usepackage{scrlayer-scrpage} 
@@ -99,15 +91,19 @@
 % Indice e numerazione pagine.
 \tableofcontents
 \thispagestyle{empty}
-\clearpage
-\setcounter{page}{1} 
+\newpage
+\addtocontents{toc}{\protect\thispagestyle{empty}}
+\setcounter{page}{1}
+% Fine indice.
 
 % Inizio contenuto documento.
+
 % Note.
-% Per nasconderlo dalla numerazionie nell'indice.
+% Per nasconderlo dalla numerazione nell'indice.
 \addcontentsline{toc}{chapter}{Note} 
 % File note.
 \input{note.tex}
+% Fine note.
 
 \input{strutturedatiedalgoritmi.tex}
 
@@ -120,6 +116,8 @@
 \input{compilazione.tex}
 
 \input{miscellanea.tex} 
+
+% Fine contenuto documento.
 
 \end{document}
 
