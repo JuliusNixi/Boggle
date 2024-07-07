@@ -1,7 +1,6 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <signal.h>
-#include <pthread.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -9,8 +8,20 @@
 // errno is thread-local; setting it in one thread does not affect its value in any other thread.
 #include <errno.h>
 #include <string.h>
-
+// _GNU_SOURCE needed to use pthread_setname_np() on Linux.
+#define _GNU_SOURCE
+#include <pthread.h>
+#if defined(__APPLE__)
+    // On macOS pthread_setname_np() implementation is "void pthread_setname_np(const char *name);"
+    #define pthread_setname_np(THREAD_ID, THREAD_NAME) pthread_setname_np(THREAD_NAME)
+#elif defined(__linux__)
+    // On Linux pthread_setname_np() implementation is "int pthread_setname_np(pthread_t thread, const char *name);"
+    #define pthread_setname_np(THREAD_ID, THREAD_NAME) pthread_setname_np(THREAD_ID, THREAD_NAME)
+#endif
+// I will write in all the code the Linux's implementation, and with the above code, if compiling
+// on macOS the second arg will be discarded without throwing errors.
 // Banner settings used in client and server banner.
+// pthread_setname_np() is used to easily understand the various thread types during debugging.
 #define BANNER_LENGTH 80LU
 #define BANNER_SYMBOL '#'
 #define BANNER_NSPACES 4LU
@@ -48,6 +59,8 @@ struct Message { // Struct of the message that will be used in the communication
 };
 
 typedef unsigned long int uli; // Shortcut used often.
+
+pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will not be others prints interleaved from other threads.
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 void* signalsThread(void*);

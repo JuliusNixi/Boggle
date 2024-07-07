@@ -13,6 +13,7 @@ int main(int argc, char** argv) {
     fprintf(stdout, "\n\n##################\n#     SERVER     #\n##################\n\n");
     fprintf(stdout, "%s\n", banner);
     free(banner);
+    banner = NULL;
 
     // Initializing local vars.
     int retvalue = 0; // To check system calls result (succes or failure).
@@ -34,8 +35,13 @@ int main(int argc, char** argv) {
     if (retvalue != 0) {
         // Error
     }
+    retvalue = pthread_mutex_init(&printmutex, NULL);
+    if (retvalue != 0) {
+        // Error
+    }
 
     fprintf(stdout, "I'm the main thread (ID): %lu.\n", (uli) mainthread);
+    pthread_setname_np(mainthread, "MainThread");
 
     // Creating a mask, that will block the SIGINT, SIGALRM and SIGPIPE signals for all 
     // threads except the dedicated thread signalsThread().
@@ -63,6 +69,7 @@ int main(int argc, char** argv) {
     if (retvalue == -1) {
         // Error
     }           
+    siginterrupt(SIGUSR1, 1);
     fprintf(stdout, "SIGUSR1 signal handler registered correctly.\n");
 
     // Any newly created threads INHERIT the signal mask with SIGALRM, SIGINT, SIGPIPE signals blocked. 
@@ -258,6 +265,7 @@ int main(int argc, char** argv) {
     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
     fprintf(stdout, "%s\n", banner);
     free(banner);
+    banner = NULL;
 
     // Starting the first game.
     startGame();

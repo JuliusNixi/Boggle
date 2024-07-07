@@ -17,7 +17,7 @@ An entire restructuring of the project would perhaps have solved the problem, bu
 
 The first idea I came up with was to try to increase the scheduling priority of the acceptClient() and signalsThread() threads. In the files in this folder you will see this attempt, which although successful, did not solve the problem, because even by setting the priority of the clientHander() threads to the lowest possible, they continued to acquire mutexes at the expense of signalsThread() and acceptClient() threads. 
 
-In the end I thought that the solution could be much simpler and painless, just add an additional priority mutex and that solution can be found in the "./prioritypthreadssolution.c" file. This SOLVED the problem!
+
 
 
 

@@ -106,14 +106,14 @@ void acceptClient(void);
 void disconnectClient(struct ClientNode**, char);
 char* serializeStrClient(struct ClientNode*);
 char* itoa(uli);
-void processReceivedRequest(struct Message**, struct ClientNode*);
+char processReceivedRequest(struct Message**, struct ClientNode*);
 void gameEndQueue(struct ClientNode*);
 char* csvNamePoints(struct Message*, char);
 void* clientHandler(void*);
 int registerUser(char*, struct ClientNode*, struct Message*);
 // I used unsigned long because i read on internet that is a recommended type
 // for handling POSIX time.
-uli timeCalculator(uli, char);
+uli timeCalculator(uli, char, char*);
 int submitWord(struct ClientNode*, char*);
 int validateWord(char*);
 void endGame(int);

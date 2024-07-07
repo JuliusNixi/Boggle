@@ -16,5 +16,8 @@ Aggiornare relazione con:
 Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la terminazione deve comportarsi come se la partita si fosse chiusa normalmente, oppure è sufficiente chiudere il socket creato dal server ed ovviamente i file descriptor con cui comunica ai client.
 A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
 
-Add report: server security and prints synch.
+Server code, synch with mutexes.
+Add to report: Server Security AND prints synch with mutexes.
+Server code, remove comments to sendMessage() client banner and test if it works.
+Converts Python tests to C.
 

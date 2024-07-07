@@ -190,7 +190,7 @@ readtype:
         // https://stackoverflow.com/questions/3922958/void-arithmetic
         // https://stackoverflow.com/questions/2215445/are-there-machines-where-sizeofchar-1-or-at-least-char-bit-8
         tmp = (char*) writingpointer;
-        tmp += (sizeof(char) * retvalue);
+        tmp += (retvalue);
         writingpointer = (void*) tmp;
         goto readtype;
     }
@@ -228,7 +228,7 @@ readlength:
     if (retvalue < sizeof(readed->length)) {
         toread = sizeof(readed->length) - retvalue;
         tmp = (char*) writingpointer;
-        tmp += (sizeof(char) * retvalue);
+        tmp += (retvalue);
         writingpointer = (void*) tmp;
         goto readlength;
     }
@@ -275,7 +275,7 @@ readdata:
         if (retvalue < (sizeof(char) * readed->length)) {
             toread = (sizeof(char) * readed->length) - retvalue;
             tmp = (char*) writingpointer;
-            tmp += (sizeof(char) * retvalue);
+            tmp += (retvalue);
             writingpointer = (void*) tmp;
             goto readdata;
         }
@@ -313,7 +313,7 @@ readdatanull:
         if (retvalue < sizeof(char*)) {
             toread = (sizeof(char*)) - retvalue;
             tmp = (char*) writingpointer;
-            tmp += (sizeof(char*) * retvalue);
+            tmp += (retvalue);
             writingpointer = (void*) tmp;
             goto readdatanull;
         }              
@@ -378,12 +378,12 @@ char sendMessage(int fdto, char type, char* data) {
     // Calculating data length.
     tosend.length = 0U;
     if (data != NULL)
-        tosend.length = (unsigned) (sizeof(char) * (strlen(data) + 1)); // +1 for '\0'.
+        tosend.length = (unsigned) ((strlen(data) + 1)); // +1 for '\0'.
 
     // Preparing data content.
     char* s;
     if (data == NULL)
-        s = 0;
+        s = NULL;
     else{
         s = (char*) malloc(sizeof(char) * tosend.length);
         if (s == NULL) {
@@ -402,12 +402,12 @@ sendtype:
     retvalue = write(fdto, writingpointer, towrite);
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
-        if (s) free(s);
+        free(s);
         return 0;    
     }
     if (retvalue == 0 && errno == ETIMEDOUT) {
         // Probably a disconnection happened.
-        if (s) free(s);
+        free(s);
         return 0; 
     }
     if (retvalue == -1) {
@@ -415,7 +415,7 @@ sendtype:
         if (errno == EINTR) goto sendtype;
         // Error
         // Another unmanageable error.
-        if (s) free(s);
+        free(s);
         return 2;
     }
     if (retvalue == 0) {
@@ -425,7 +425,7 @@ sendtype:
     if (retvalue < sizeof(tosend.type)) {
         towrite = sizeof(tosend.type) - retvalue;
         tmp = (char*) writingpointer;
-        tmp += (sizeof(char) * retvalue);
+        tmp += (retvalue);
         writingpointer = (void*) tmp;
         goto sendtype;
     }
@@ -438,12 +438,12 @@ sendlength:
     retvalue = write(fdto, writingpointer, towrite);
     if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
         // Probably a disconnection happened.
-        if (s) free(s);
+        free(s);
         return 0; 
     }
     if (retvalue == 0 && errno == ETIMEDOUT) {
         // Probably a disconnection happened.
-        if (s) free(s);
+        free(s);
         return 0; 
     }
     if (retvalue == -1) {
@@ -451,7 +451,7 @@ sendlength:
         if (errno == EINTR) goto sendlength;
         // Error
         // Another unmanageable error.
-        if (s) free(s);
+        free(s);
         return 2;
     }
     if (retvalue == 0) {
@@ -461,7 +461,7 @@ sendlength:
     if (retvalue < sizeof(tosend.length)) {
         towrite = sizeof(tosend.length) - retvalue;
         tmp = (char*) writingpointer;
-        tmp += (sizeof(char) * retvalue);
+        tmp += (retvalue);
         writingpointer = (void*) tmp;
         goto sendlength;
     }
@@ -475,12 +475,12 @@ senddata: {
         retvalue = write(fdto, writingpointer, towrite);
         if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
             // Probably a disconnection happened.
-            if (s) free(s);
+            free(s);
             return 0;   
         }
         if (retvalue == 0 && errno == ETIMEDOUT) {
             // Probably a disconnection happened.
-            if (s) free(s);
+            free(s);
             return 0;  
         }
         if (retvalue == -1) {
@@ -488,17 +488,17 @@ senddata: {
             if (errno == EINTR) goto senddata;
             // Error
             // Another unmanageable error.
-            if (s) free(s);
+            free(s);
             return 2;
         }
         if (retvalue == 0) {
             // 0 bytes read.
             goto senddata;   
         }
-        if (retvalue < tosend.length * sizeof(char)) {
+        if (retvalue < (tosend.length * sizeof(char))) {
             towrite = (sizeof(char) * tosend.length) - retvalue;
             tmp = (char*) writingpointer;
-            tmp += (sizeof(char) * retvalue);
+            tmp += (retvalue);
             writingpointer = (void*) tmp;
             goto senddata;
         }
@@ -512,12 +512,12 @@ senddatanull: {
         retvalue = write(fdto, writingpointer, towrite);
         if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
             // Probably a disconnection happened.
-            if (s) free(s);
+            free(s);
             return 0;   
         }
         if (retvalue == 0 && errno == ETIMEDOUT) {
             // Probably a disconnection happened.
-            if (s) free(s);
+            free(s);
             return 0;  
         }
         if (retvalue == -1) {
@@ -525,7 +525,7 @@ senddatanull: {
             if (errno == EINTR) goto senddatanull;
             // Error
             // Another unmanageable error.
-            if (s) free(s);
+            free(s);
             return 2;
         }
         if (retvalue == 0) {
@@ -535,7 +535,7 @@ senddatanull: {
         if (retvalue < sizeof(char*)) {
             towrite = (sizeof(char*)) - retvalue;
             tmp = (char*) writingpointer;
-            tmp += (sizeof(char) * retvalue);
+            tmp += (retvalue);
             writingpointer = (void*) tmp;
             goto senddata;
         }
@@ -543,7 +543,7 @@ senddatanull: {
     }
 
     // Message sent.
-    if (s) free(s);
+    free(s);
     return 1;
 
 }
@@ -556,16 +556,17 @@ void destroyMessage(struct Message** m) {
 
     if (m == NULL || *m == NULL) {
         // Error
-        printf("NULL destroMessage()!\n");
+        printf("NULL destroyMessage()!\n");
     }
 
     // Releasing allocated memory and destroying the vars content.
     struct Message* mc = *m;
     mc->type = (char) 0;
     mc->length = 0U;
-    if (mc->data != NULL) free(mc->data);
+    free(mc->data);
     mc->data = NULL;
     free(mc);
+    mc = NULL;
     
     *m = NULL;
 

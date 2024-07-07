@@ -41,9 +41,11 @@ void destroyStringList(void) {
     struct StringNode* current = heads;
     while (1) {
         if (current == NULL) break;
-        memset(current->s, '\0', BUFFER_SIZE + 1);
+        uli counter = 0LU;
+        while (counter <= BUFFER_SIZE + 1) current->s[counter++] = '\0';
         struct StringNode* tmp = current->n;
         free(current);
+        current = NULL;
         current = tmp;
     }
     heads = NULL;
@@ -108,13 +110,14 @@ void setBlockingGetChar(void) {
 char clearInput(void) {
 
     // Resetting temporary input buffer.
-    memset(input, '\0', BUFFER_SIZE);
+    uli counter = 0LU;
+    while (counter <= BUFFER_SIZE + 1) input[counter++] = '\0';
 
     // Destroying the strings list.
     destroyStringList();
 
     // Clearing char* finalinput.
-    if (inputfinal != NULL) free(inputfinal);
+    free(inputfinal);
     inputfinal = NULL;
 
     // Clearing STDIN buffer.
@@ -280,7 +283,7 @@ void inputHandler(void) {
                         // the input, without wasting space.
 
                         // Removing (if present) the current char* inputfinal.
-                        if (inputfinal != NULL) free(inputfinal);
+                        free(inputfinal);
                         inputfinal = NULL;
 
                         // Counting the total numbers of characters of all the strings in the list.
@@ -484,7 +487,11 @@ void inputHandler(void) {
                             fprintf(stdout, "%s", received->data);
                             break;
                         }case MSG_TEMPO_ATTESA: {
-                            fprintf(stdout, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
+                            int t = atoi(received->data);
+                            if (t != -1)
+                                fprintf(stdout, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
+                            else
+                                fprintf(stdout, "The game is in pause. We are late, the next game should start as soon as possible!\n");
                             break;
                         }case MSG_TEMPO_PARTITA: {
                             fprintf(stdout, "The game is ongoing. Seconds left to the end of the game: %lu.\n", strtoul(received->data, NULL, 10));
@@ -497,7 +504,10 @@ void inputHandler(void) {
                                 fprintf(stdout, "Word claimed succesfully, nice guess! You got %lu points.\n", points);
                             break;
                         }case MSG_PUNTI_FINALI: {
-                            // TODO Block prints. In this case we could have interleaved prints.
+                            retvalue = pthread_mutex_lock(&printmutex);
+                            if (retvalue != 0) {
+                                // Error
+                            }                            
                             fprintf(stdout, "The game is over, this is the scoreboard:\n");
                             char* tmp = received->data;
                             while (1) {
@@ -511,14 +521,18 @@ void inputHandler(void) {
                                 fprintf(stdout, "Points: %s.\n", tmp);
                                 if (tmp == NULL) break;
                             }
+                            retvalue = pthread_mutex_unlock(&printmutex);
+                            if (retvalue != 0) {
+                                // Error
+                            }
                             break;
                         }case MSG_ESCI : {
-                            // TODO Server disconnection.
+                            // TODO Server disconnected you. Print the data message.
                             break;
                         }case MSG_REGISTRA_UTENTE:
                         case MSG_PAROLA: {
                             // Error
-                            // TODO Messages handled only by server.
+                            // Messages handled only by server.
                             break;
                         }default: {
                             // Error
@@ -530,6 +544,7 @@ void inputHandler(void) {
                     tmp = current->next;
                     destroyMessage(&(current->m));
                     free(current);
+                    current = NULL;
                     current = tmp;
                 } // End while.
                 head = NULL;
@@ -590,6 +605,7 @@ void* responsesHandler(void* args) {
         // Error
     }
     setupfinished++;
+    pthread_setname_np(responsesthread, "ResponsesThread");
     retvalue = pthread_mutex_unlock(&setupmutex);
     if (retvalue != 0) {
         // Error
@@ -679,6 +695,7 @@ void* signalsThread(void* args) {
         // Error
     }
     setupfinished++;
+    pthread_setname_np(signalsthread, "SignalsThread");
     retvalue = pthread_mutex_unlock(&setupmutex);
     if (retvalue != 0) {
         // Error
@@ -707,7 +724,8 @@ void* signalsThread(void* args) {
                 // Nothing, already handled by the single threads.
                 break;
             }default: {
-                // TODO Unexpected signal.
+                // Error
+                // Unexpected signal.
                 break;
             }
         }

@@ -27,8 +27,13 @@ int main(int argc, char** argv) {
     if (retvalue != 0) {
         // Error
     }
+    retvalue = pthread_mutex_init(&printmutex, NULL);
+    if (retvalue != 0) {
+        // Error
+    }
 
     fprintf(stdout, "I'm the main thread (ID): %lu.\n", (uli) mainthread);
+    pthread_setname_np(mainthread, "MainThread");
 
     // Creating a mask, that will block the SIGINT and SIGPIPE signals for all 
     // threads except the dedicated thread signalsThread().

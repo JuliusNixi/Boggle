@@ -76,5 +76,6 @@ backtrace
 On lldb to select a frame, you can use:
 frame select n  With n the number of the frame obtained by the previous command.
 
-
+On lldb to stop the process and return on lldb (for example in case of deadlock), from another shell, out of lldb:
+pkill -TRAP paroliere_srv  
 
