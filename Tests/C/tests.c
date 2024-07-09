@@ -16,7 +16,7 @@ void printManualMatrix(void) {
 int main(void) {
 
     // Setting the rand seed.
-    srand(42);
+    srand(RAND_SEED);
 
     // Number of tests.
     int tests = 5;

@@ -6,9 +6,9 @@ List of things to work on. Very few because I forget very often to update this f
 
 - [ ] Restore times like games duration, pause duration, changed to perform tests.
 - [ ] Handle all errors.
-- [ ] Execute again Valgrind on server and client. Fill the obtained output in the .txt files.
+- [ ] Execute again Valgrind on server, client and C tests. Fill the obtained output in the .txt files.
 - [ ] Test max clients connected and WORD_LEN limit.
-- [ ] Re-insert command "end" in Python tests.
+- [ ] Re-insert command "end" in C tests.
 
 ## Done ✓
 
@@ -23,7 +23,6 @@ List of things to work on. Very few because I forget very often to update this f
 - [x] server.c.
 - [x] boggle_server.c.
 - [x] Check Tests/C/tests.c.
-- [x] Check Tests/Python/pythontests.py.
 - [x] Correct root Makefile.
 - [x] Remove/delete Src/ Makefile and migrate to the root's Makefile.
 - [x] Check root README.md.

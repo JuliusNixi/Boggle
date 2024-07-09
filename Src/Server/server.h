@@ -9,22 +9,6 @@ uli gameduration; // Game duration, for each match, in minutes.
 char usematrixfile;  // 1 if a path has been specified by the user trought CLI args, 0 otherwise.
 char* matpath; // String path rapresenting the path of the matrix file (specified by CLI arg). It's not allocated, it just point (after the initialization) to the right argv.
 
-//------------------------------------------------------------------------------------
-/*              REMEMBER                */
-// These variables may not be used in the "server.c" file, but they are used in some tests in the "./Tests/C/tests.c" file.
-
-// Numbers of columns and rows of the game matrix (default 4x4).
-#define NROWS 4 // Matrix number of rows.
-#define NCOL 4 // Matrix number of columns.
-
-// Game matrix.
-char matrix[NROWS][NCOL];  // Matrix game core, each position is a char.
-
-#define VOID_CHAR '-' // Special char that will be used to indicate an undefined state.
-
-#define ALPHABET "abcdefghijklmnopqrstuvwxyz" // Alphabet used to generate a random matrix and allowed chars for a client name (regitration).
-//------------------------------------------------------------------------------------
-
 // The player/client infos will be stored in a heap linked list, with the below structure.
 // Defined here (and not in server.c) because is used in functions signatures below.
 struct ClientNode {
@@ -105,7 +89,6 @@ void updateClients(void);
 void acceptClient(void);
 void disconnectClient(struct ClientNode**, char);
 char* serializeStrClient(struct ClientNode*);
-char* itoa(uli);
 char processReceivedRequest(struct Message**, struct ClientNode*);
 void gameEndQueue(struct ClientNode*);
 char* csvNamePoints(struct Message*, char);

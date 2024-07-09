@@ -663,3 +663,32 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
 
 }
 
+// ANCHOR itoa()
+// This function is the "inverse" of atoi().
+// It takes a number n (unsigned long int, alias uli) and returns a pointer to an heap
+// allocated string containing the chars corresponding to the digits of the number received.
+// It's' used to convert values in strings.
+char* itoa(uli n) {
+
+    // Below i calculate the number of digits of the received n as input.
+    // In this way i can allocate a string of the correct length without wasting space.
+    // Based on StackOverflow, but tested and seems to work.
+
+    uli ndigits = n <= 9 ? 1LU : floor (log10 ( (n))) + 1LU;
+
+    // Allocating heap space for the new string of length calculated above.
+    char* strint = (char*) malloc(sizeof(char) * ++ndigits); // +1 for '\0'.
+    if (strint == NULL) {
+        // Error
+    }
+
+    // Inserting in the string the number received as input.
+    sprintf(strint, "%lu", n);
+
+    // Terminating string.
+    strint[ndigits] = '\0';
+    
+    return strint;
+
+}
+

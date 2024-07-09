@@ -1,5 +1,0 @@
-rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt
-
-proc handle -p true -s false -n false SIGUSR1
-
-

@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
         seedpresent = 1;
         fprintf(stdout, "Using INSERTED seed %lu.\n", seed);
     }else {
-        seed = 42LU;
+        seed = RAND_SEED;
         fprintf(stdout, "Using DEFAULT seed %lu.\n", seed);
     }
 

@@ -5,7 +5,6 @@
 // The development of the input/output of this client was problematic, see the "./Studies/C/ClientInputOutputSync/inputoutputasynctests.c" file.
 
 // Current file vars and libs.
-#include <fcntl.h>
 #include <termios.h>
 
 #define PROMPT_STR "[PROMPT BOGGLE]--> " // Prompt string.

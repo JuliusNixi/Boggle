@@ -3,10 +3,6 @@
 #include "server.h"
 
 // Current file vars and libs.
-#include <math.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
 struct ClientNode* head = NULL; // Pointer to the clients list head.
 struct ClientNode* tail = NULL; // Pointer to the clients list tail.
 pthread_mutex_t listmutex = PTHREAD_MUTEX_INITIALIZER; // Mutex that will used from threads to synchronize interactions with the list of clients.
@@ -38,8 +34,6 @@ uli nclientsconnected = 0LU; // This rapresent the number of connected clients t
 #define NO_NAME "unregistered" // This will be the default name assigned to unregistered players.
 
 uli clientid = 0LU;  // A temporary client's ID used to identify a client before its thread starting.
-
-#define VALID_WORDS_TESTS_FILE_PATH "./Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary. For more info see "../../Tests/Python/pythontests.py".
 
 pthread_t gamepauseandnewgamethread; // This thread will execute the game pause and after will start a new game.
 
@@ -189,10 +183,7 @@ char* csvNamePoints(struct Message* m, char nameorpoints) {
 
     // Copying message "data" field in a temporary string to use strtok().
     char* s = m->data;
-    char* backup = (char*) malloc(sizeof(char) * (strlen(s) + 1));
-    if (backup == NULL) {
-        // Error
-    }
+    char backup[strlen(s) + 1];
     strcpy(backup, s);
     // Terminating string.
     backup[strlen(s)] = '\0';
@@ -231,9 +222,6 @@ char* csvNamePoints(struct Message* m, char nameorpoints) {
         name = NULL;
         ret = points;
     }
-
-    free(backup);
-    backup = NULL;
 
     return ret;
 
@@ -1827,35 +1815,6 @@ void acceptClient(void) {
         // Error
     }
     
-}
-
-// ANCHOR itoa()
-// This function is the "inverse" of atoi().
-// It takes a number n (unsigned long int, alias uli) and returns a pointer to an heap
-// allocated string containing the chars corresponding to the digits of the number received.
-// It's' used to convert values in strings.
-char* itoa(uli n) {
-
-    // Below i calculate the number of digits of the received n as input.
-    // In this way i can allocate a string of the correct length without wasting space.
-    // Based on StackOverflow, but tested and seems to work.
-
-    uli ndigits = n <= 9 ? 1LU : floor (log10 ( (n))) + 1LU;
-
-    // Allocating heap space for the new string of length calculated above.
-    char* strint = (char*) malloc(sizeof(char) * ++ndigits); // +1 for '\0'.
-    if (strint == NULL) {
-        // Error
-    }
-
-    // Inserting in the string the number received as input.
-    sprintf(strint, "%lu", n);
-
-    // Terminating string.
-    strint[ndigits] = '\0';
-    
-    return strint;
-
 }
 
 // ANCHOR timeCalculator()

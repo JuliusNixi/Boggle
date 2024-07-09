@@ -34,7 +34,7 @@ int main(void) {
 
     char teststring[] = "TEST STRING!\n";
 
-    srand(42);
+    srand(RAND_SEED);
 
     while (1){
         // Sleeping random seconds.

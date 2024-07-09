@@ -4,47 +4,66 @@
 #include <sched.h>
 #include <unistd.h>
 
-#define N 100
-
 // Run as root on Linux.
 // Otherwise we obtain the following error: "Failed to create pthread: Success".
 
-// This tests file is the continuation of the "./changepthreadschedprioritytests.c".
-// We create many "normal" threads and one "special" thread.
-// The "special" thread will have the maximum scheduling priority.
-// All the "normal" threads will have the minimum scheduling priority.
-// Then all the threads will try to get a mutex, print a message and release it.
-// The purpose is to see what result we will obtain, hoping an important difference from the
-// result obtained in the "./defaultpthreadsschedprioritytests.c".
-// Hopefully it will be evident in the result how the "special" thread acquires the mutex
-// many more times than the "normal" threads despite the fact that the latter are many more.
+// This file contains tests to see if it's possible to change the scheduling policy and ESPECIALLY
+// the priority of a pthread. Specifically we will create one pthread with the highest priority 
+// (SpecialThread) and one with the lowest (LowerThread).
 
-// SPOILER: It doesn't work... :(
-// In the end, the solution adopted in the project is in "./prioritypthreadssolution.c".
-
-pthread_mutex_t m;
-pthread_t SpecialThread;
+// All these tests have been made for experiment with threads priorities.
+// But they were not used in the project.
 
 void* threadFunction(void* args) {
 
-    while(1) {
-        pthread_mutex_lock(&m);
+    int policy;
+    struct sched_param param;
 
-        printf("I'm %lu.", (unsigned long) pthread_self());
-        if (pthread_self() == SpecialThread) printf(" SPECIAL!\n");
-        else printf("\n");
-        fflush(stdout);
-
-        pthread_mutex_unlock(&m);
+    // Get the current pthread's scheduling policy.
+    if (pthread_getschedparam(pthread_self(), &policy, &param) != 0) {
+        perror("Failed to get pthread scheduling parameters");
+        return NULL;
     }
+
+    // Print the scheduling policy.
+    printf("Thread scheduling policy: ");
+    switch(policy) {
+        case SCHED_FIFO:
+            printf("SCHED_FIFO.\n");
+            break;
+        case SCHED_RR:
+            printf("SCHED_RR.\n");
+            break;
+        case SCHED_OTHER:
+            printf("SCHED_OTHER.\n");
+            break;
+        default:
+            printf("Unknown.\n");
+    }
+
+    // Print the pthread priority.
+    printf("Thread priority: %d.\n", param.sched_priority);
+    fflush(stdout);
 
     return NULL;
 
 }
 
+void myClear(void){
+
+    printf("PRESS ENTER TO PROCEED...\n");
+    char buffer[100];
+    read(STDIN_FILENO, buffer, 100);
+    system("clear");
+
+}
+
 int main() {
 
-    pthread_t LowerThreads[N];
+    system("clear");
+
+    pthread_t SpecialThread;
+    pthread_t LowerThread;
 
     pthread_attr_t SpecialThreadAttr;
     pthread_attr_t LowerThreadAttr;
@@ -54,8 +73,6 @@ int main() {
 
     int policy = SCHED_RR;
     int max_priority, min_priority;
-
-    pthread_mutex_init(&m, NULL);
 
     // Initialize pthread attributes.
     pthread_attr_init(&SpecialThreadAttr);
@@ -85,6 +102,8 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    printf("SCHED_RR priority range: from %d (min) to %d (max).\n", min_priority, max_priority);
+
     // Set pthread priority to max.
     SpecialThreadParam.sched_priority = max_priority;
     if (pthread_attr_setschedparam(&SpecialThreadAttr, &SpecialThreadParam) != 0) {
@@ -98,22 +117,29 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Creating and starting N pthreads.
-    for (unsigned int i = 0U; i < N; i++) {
-        if (pthread_create(&(LowerThreads[i]), &LowerThreadAttr, threadFunction, NULL) != 0) {
-            perror("Failed to create pthread");
-            exit(EXIT_FAILURE);
-        }
-    }
+    myClear();
 
-    // Create and start the "special" pthread.
+    // Create and start the pthread.
     if (pthread_create(&SpecialThread, &SpecialThreadAttr, threadFunction, NULL) != 0) {
         perror("Failed to create pthread");
         exit(EXIT_FAILURE);
     }
-    
-    // Waiting forever.
-    while(1) sleep(1);
+    // Wait for the pthread to finish.
+    pthread_join(SpecialThread, NULL);
+
+    myClear();
+
+    // Create and start the pthread.
+    if (pthread_create(&LowerThread, &LowerThreadAttr, threadFunction, NULL) != 0) {
+        perror("Failed to create pthread");
+        exit(EXIT_FAILURE);
+    }
+    // Wait for the pthread to finish.
+    pthread_join(LowerThread, NULL);
+
+    // Clean up.
+    pthread_attr_destroy(&SpecialThreadAttr);
+    pthread_attr_destroy(&LowerThreadAttr);
 
     return 0;
 

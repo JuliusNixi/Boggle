@@ -16,8 +16,22 @@ Aggiornare relazione con:
 Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la terminazione deve comportarsi come se la partita si fosse chiusa normalmente, oppure è sufficiente chiudere il socket creato dal server ed ovviamente i file descriptor con cui comunica ai client.
 A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
 
-Server code, synch with mutexes.
 Add to report: Server Security AND prints synch with mutexes.
 Server code, remove comments to sendMessage() client banner and test if it works.
-Converts Python tests to C.
+
+Check again all the report.
+Check again all src files.
+Check again all studies files.
+
+.//Docs/Report/compilazione.tex:12:\item make clean = Rimuove tutti i files oggetto, eseguibili, files di logs dei tests Python e termina forzatamente tutti gli eventuali processi in esecuzione di server e client.
+.//Docs/Report/compilazione.tex:24:\textbf{ATTENZIONE:} L'utilizzo di alcuni percorsi assoluti hard-coded (ad esempio il percorso del file dizionario di default quando non specificato da CLI) assume che la \textbf{WORKING DIRECTORY} sia la \textbf{ROOT} del progetto. Stessa cosa per lo script "./Tests/Python/pythontests.py".
+.//Docs/Report/strutturatests.tex:3:Inizialmente l'idea era di scrivere i tests in C in un file eseguibile separato. Ho intrapreso questa strada, testimone il fatto che nella cartella "./Tests/C/" ho lasciato il file "tests.c", il quale funziona, si pu\'o compilare ed eseguire. Tuttavia, con lo sviluppo mi sono reso conto che per come ho strutturato il progetto era disastroso. Avrei potuto testare poche singole funzioni ma non ad un livello soddisfacente nell'insieme. Causa il fatto di avere i codici divisi in pi\'u file ed di aver utilizzato per molte funzionalit\'a variabili globali condivise. Allora, ho guardato qualche framework di testing in C, ma non ho trovato nulla che facesse al caso mio. Cos\'i, messo alle strette, ho pensato di approcciare il problema in modo "particolare". Mi \'e venuto in mente che avrei potuto utilizzare la semplicit\'a e la potenza di Python, che conosco un poco, per fare i tests in modo esterno, ma simulando proprio il comportamento di utenti ed interazioni con il server anche su larga scala. Ha funzionato benissimo! Solamente \textbf{mi dispiace di esser dovuto andare a scomodare un linguaggio che esula dal corso}. Tuttavia, credo sia stato didatticamente utile perch\'e, seppur in un linguaggio diverso, ho dovuto maneggiare files, PIPES e segnali. In questo modo ho potuto eseguire moltissimi tests che sono stati vitali e mi hanno permesso di correggere innumerevoli bugs che con pochi clients (tstati manualmente) non si verificano, soprattutto sviste con la memoria. Per eseguire questi tests \'e sufficiente:
+.//Docs/Report/strutturatests.tex:7:  \item Dalla root del progetto eseguire "python3 ./Tests/Python/pythontests.py server\_ip porta\_server". 
+.//Docs/Report/strutturatests.tex:10:Ci sono alcuni parametri all'inizio del file che possono essere modificati se voluto. Il file crea tantissimi processi client e per ognuno di essi svolge un numero di azioni che possono essere esattamente tutte quelle che un vero utente potrebbe eseguire. Inviare comandi non validi, registrarsi, richiedere la matrice, sottomettere una parola, di quelle valide e non valide, uscire e persino disconnettersi forzatamente. Tutto viene svolto casualmente con un intensivo uso di random (ma comunque replicabile tramite seed). Tra ogni azione si aspetta un numero casuale di millisecondi per aumentare l'entropia. I comandi vengono sottomessi da Python, creando il processo del client  collegandosi tramite PIPE al suo STDIN. L'input inviato (comandi) e l'output ricevuto, ossia le risposte che il client ha ricevuto dal server, vengono salvati in dei file di logs in "./Tests/Python/Logs/".
+.//Docs/Report/strutturatests.tex:12:I tests dovrebbero funzionare con una recente (al 2024) versione di Python 3, con le librerie installate di default, senza richiedere alcuna risorsa esterna.
+
+rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt
+
+proc handle -p true -s false -n false SIGUSR1
+
 

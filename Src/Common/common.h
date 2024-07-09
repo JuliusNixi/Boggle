@@ -22,6 +22,10 @@
 // on macOS the second arg will be discarded without throwing errors.
 // Banner settings used in client and server banner.
 // pthread_setname_np() is used to easily understand the various thread types during debugging.
+#include <fcntl.h> // Used in server.c, client.c and tests.
+#include <sys/stat.h> // Used in server.c and tests.
+#include <math.h> // Used for itoa().
+
 #define BANNER_LENGTH 80LU
 #define BANNER_SYMBOL '#'
 #define BANNER_NSPACES 4LU
@@ -62,6 +66,26 @@ typedef unsigned long int uli; // Shortcut used often.
 
 pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will not be others prints interleaved from other threads.
 
+//------------------------------------------------------------------------------------
+/*              REMEMBER                */
+// These variables are used in some tests, that's why they have to be here even if they are not used by both server and client.
+
+// Numbers of columns and rows of the game matrix (default 4x4).
+#define NROWS 4 // Matrix number of rows.
+#define NCOL 4 // Matrix number of columns.
+
+// Game matrix.
+char matrix[NROWS][NCOL];  // Matrix game core, each position is a char.
+
+#define VOID_CHAR '-' // Special char that will be used to indicate an undefined state.
+
+#define ALPHABET "abcdefghijklmnopqrstuvwxyz" // Alphabet used to generate a random matrix and allowed chars for a client name (regitration).
+
+#define VALID_WORDS_TESTS_FILE_PATH "./Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary. For more info see "../../Tests/C/README.md".
+
+#define RAND_SEED 42U
+//------------------------------------------------------------------------------------
+
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 void* signalsThread(void*);
 
@@ -74,4 +98,5 @@ struct Message* receiveMessage(int, char*);
 char sendMessage(int, char, char*);
 void destroyMessage(struct Message**);
 char* bannerCreator(uli, uli, char*, char, char);
+char* itoa(uli);
 
