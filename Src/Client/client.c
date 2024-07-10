@@ -315,7 +315,7 @@ void inputHandler(void) {
                         }      
 
                         // Manually settings the string terminator.
-                        inputfinal[totalchars] = '\0';
+                        inputfinal[totalchars - 1] = '\0';
 
                         // Destroying the string list.
                         destroyStringList();
