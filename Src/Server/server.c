@@ -838,18 +838,19 @@ void* signalsThread(void* args) {
                 // Releasing scoreboardstr.
                 free(scoreboardstr);
                 scoreboardstr = NULL;
-                // Releasing pausemutex, so registerUser() and disconnectClient() if
-                // necessary could continue.
+                // Releasing also the listmutex is important to avoid to blocks the
+                // new user's socket connection acceptance during the game pause.
                 retvalue = pthread_mutex_unlock(&listmutex);
                 if (retvalue != 0) {
                         // Error
                 }
+                // Releasing pausemutex, so registerUser() and disconnectClient() if
+                // necessary could continue.
                 retvalue = pthread_mutex_unlock(&pausemutex);
                 if (retvalue != 0) {
                         // Error
                 }
-                // Releasing also the listmutex is important to avoid to blocks the
-                // new user's socket connection acceptance during the game pause.
+
 
 
 
