@@ -3,22 +3,25 @@
 Il codice pu\'o essere compilato dalla root del progetto.
 \\
 \\
-Valgono i seguenti targets main:
+Valgono i seguenti targets (phony):
 
 \begin{itemize}
-\item make = Compila tutto: client e server.
-\item make execs = Compila ed esegue il server, con gli argomenti di default (si veda il Makefile).
-\item make execc = Compila ed esegue il client, con gli argomenti di default (si veda il Makefile).
-\item make clean = Rimuove tutti i files oggetto, eseguibili, files di logs dei tests Python e termina forzatamente tutti gli eventuali processi in esecuzione di server e client.
+\item make = Compila tutto: client, server e C tests.
+\item make execs = Compila ed esegue il server, con gli argomenti di default (si veda il "./Makefile").
+\item make execc = Compila ed esegue il client, con gli argomenti di default (si veda il "./Makefile").
+\item make tests = Compila ed esegue i C tests, con gli argomenti di default (si veda il "./Makefile").
+\item make clean = Rimuove tutti i files oggetto, files eseguibili, files di logs dei C tests e termina forzatamente tutti gli eventuali processi in esecuzione di server, client e C tests.
 \end{itemize}
 \leavevmode 
-Ovviamente oltre a questi nel Makefile \'e scritto tutto l'albero delle dipendenze.
+Ovviamente oltre a questi nel "./Makefile" \'e scritto tutto l'albero delle dipendenze ed \'e quindi possibile invocare "make" con il target file desiderato.
 \\
 L'utilizzo degli eseguibili si pu\'o svolgere facendo riferimento al seguente formato:
 \\
-Server Usage: paroliere\_srv server\_ip server\_port [--matrices matrices\_filepath] [--duration game\_duration\_in\_minutes] [--seed rnd\_seed] [--dic dictionary\_filepath].
+Server Usage: ./paroliere\_srv server\_ip server\_port [--matrices matrices\_filepath] [--duration game\_duration\_in\_minutes] [--seed rnd\_seed] [--dic dictionary\_filepath].
 \\
-Client Usage: paroliere\_cl server\_ip server\_port.
+Client Usage: ./paroliere\_cl server\_ip server\_port.
+\\
+Tests Usage: ./paroliere\_tests server\_ip server\_port.
 \\
 \\
-\textbf{ATTENZIONE:} L'utilizzo di alcuni percorsi assoluti hard-coded (ad esempio il percorso del file dizionario di default quando non specificato da CLI) assume che la \textbf{WORKING DIRECTORY} sia la \textbf{ROOT} del progetto. Stessa cosa per lo script "./Tests/Python/pythontests.py".
+\textbf{ATTENZIONE:} L'utilizzo di alcuni percorsi assoluti hard-coded (ad esempio il percorso del file dizionario di default quando non specificato da CLI) assume che la \textbf{WORKING DIRECTORY} sia la \textbf{ROOT} del progetto. Quindi NON FARE MAI cose del tipo "cd Bin/" and "./qualcosa".

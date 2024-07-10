@@ -1,4 +1,4 @@
-// Shared/Common CLIENT & SERVER cross files vars and libs.
+// Shared/Common CLIENT, SERVER & TESTS cross files vars and libs.
 #include "../Common/common.h"
 
 // Common client only cross files used vars and libs.
@@ -21,6 +21,7 @@ void* responsesHandler(void*);
 // char sendMessage(int, char, char*); -> common.h
 // void destroyMessage(struct Message**); -> common.h
 // char* bannerCreator(uli, uli, char*, char, char); -> common.h
+// char* itoa(uli); -> common.h
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h

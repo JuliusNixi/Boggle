@@ -1,11 +1,13 @@
 \chapter{Struttura codice}
 
-Il codice si trova tutto nella cartella "./Src/" (soruces). Suddiviso in tre sottocartelle "./Server", "./Client" e "./Common". Le dipendenze sono le seguenti:
+Il codice si trova tutto nella cartella "./Src/" (soruces). Suddiviso in quattro sottocartelle "./Server/", "./Client/", "./Tests/" e "./Common/". Le dipendenze sono le seguenti:
 \\
 \\
-"boggle\_server" ("paroliere\_srv") eseguibile dipende da "boggle\_server.c", "server.c", "common.c".
+"./Bin/boggle\_server" ("./paroliere\_srv") eseguibile dipende da "./Src/Server/boggle\_server.c", "./Src/Server/server.c", "./Src/Common/common.c".
 \\
-"boggle\_client" ("paroliere\_cl") eseguibile dipende da "boggle\_client.c", "client.c", "common.c".
+"./Bin/boggle\_client" ("./paroliere\_cl") eseguibile dipende da "./Src/Client/boggle\_client.c", "./Src/Client/client.c", "./Src/Common/common.c".
+\\
+"./Bin/boggle\_tests" ("./paroliere\_tests") eseguibile dipende da "./Src/Tests/boggle\_tests.c" e "./Src/Common/common.c".
 \\
 \\
 "boggle\_server.c", "server.c" dipendono da "server.h".
@@ -19,7 +21,7 @@ Il codice si trova tutto nella cartella "./Src/" (soruces). Suddiviso in tre sot
 "common.c" dipende da "common.h".
 \\
 \\
-Si noti che "common.h" e "common.c" includono librerie, dichiarazioni ed implementazioni comuni a server e client. "boggle\_server.c" e "boggle\_client.c" contengono solamente i setup e lo scheletro del loro funzionamento. L'effettiva complessa e sostanziale implementazione \'e demandata rispettivamente ai "server.c" e "client.c" files. "server.h" contiene le dichiarazioni di funzioni e le strutture dati condivise tra "boggle\_server.c" e "server.c". Similmente per il client.
+Si noti che "common.h" e "common.c" includono librerie, dichiarazioni ed implementazioni comuni a server, client e C tests. "boggle\_server.c" e "boggle\_client.c" contengono solamente i setup e lo scheletro del loro funzionamento. L'effettiva complessa e sostanziale implementazione \'e demandata rispettivamente ai "server.c" e "client.c" files. "server.h" contiene le dichiarazioni di funzioni e le strutture dati condivise tra "boggle\_server.c" e "server.c". Similmente per il client.
 \\
 \\
 A seguire un diagramma (o grafo) delle dipendenze per il server. Quello del client \'e analogo.
@@ -61,7 +63,7 @@ A seguire un diagramma (o grafo) delle dipendenze per il server. Quello del clie
 \end{tikzpicture}
 % Fine grafo dipendenze file.
 \leavevmode
-I files eseguibili si trovano nella cartella "./Bin" e sono compilati qua, alla fine copiati da make nella root del progetto con alias "./paroliere\_srv" e "./paroliere\_cl".
+I files eseguibili (ed oggetto) si trovano nella cartella "./Bin" e sono compilati qua, alla fine copiati da make nella root del progetto con alias "./paroliere\_srv", "./paroliere\_cl" e "./paroliere\_tests".
 \\
 I files dizionario si trovano in "./Data/Dicts/".
 \\
@@ -69,7 +71,7 @@ I files matrici si trovano in "./Data/Matrices/".
 \\
  Tutto il materiale di tests and debug si trova in "./Tests/".
 \\
-Vi \'e una cartella "./Studies/". Contiene degli snippets di codice per fare prove e tests usati per assicurarsi del funzionamento di alcune meccaniche prima di implementarle nel progetto con il rischio di introdurre tediosi bugs.
+Vi \'e una cartella "./Studies/". Contiene degli snippets di codice per fare prove e tests usati per assicurarsi del funzionamento di alcune meccaniche prima di implementarle nel progetto per ridurre il rischio di introdurre tediosi bugs.
 
 
 
