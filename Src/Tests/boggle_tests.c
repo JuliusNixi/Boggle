@@ -2,9 +2,9 @@
 
 // Remember to compile with also "../../Src/Common/common.c".
 
-#define N_CLIENTS 2LU // Number of clients that will be spawned.
-#define N_ACTIONS 1LU // Number of actions for each client. Each action is the submission of a command.
-#define N_TESTS 1LU // Number of tests. It's multiplied by the nactions, be moderate so.
+#define N_CLIENTS 32LU // Number of clients that will be spawned.
+#define N_ACTIONS 12LU // Number of actions for each client. Each action is the submission of a command.
+#define N_TESTS 4LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
 char* actions[] = {"help\n", "matrix\n", "enddisabled\n", "register_user", "p", "invalidcommand\n"};
 #define ACTIONS_LENGTH 6LU
@@ -63,6 +63,7 @@ void end(char processalive) {
 
 }
 
+// ANCHOR client()
 pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
 
     int retvalue;
@@ -102,6 +103,13 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     if (retvalue == -1) {
         // Error
     }
+
+    // Redirect stderr to logs file.
+    retvalue = dup2(fdstdoutlogfile, STDERR_FILENO);
+    if (retvalue == -1) {
+        // Error
+    }
+
     retvalue = close(fdstdoutlogfile);
     if (retvalue == -1) {
         // Error
@@ -117,8 +125,7 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     execlp("./paroliere_cl", "./paroliere_cl", ip, portstrstatic, NULL);
 
     // Error
-
-    return 0;
+    return -1;
 
 }
 
@@ -176,6 +183,11 @@ int main(int argc, char** argv) {
             // Error
         }
         pid_t pid = client(fd, argv[1], port, pipesfdstdin[i]);
+        if (pid == -1) {
+            // Error
+            fprintf(stderr, "Error in executing client's process.\n");
+            exit(1);
+        }
         // Father.
         // Closing reading pipe.
         close(pipesfdstdin[i][0]);
@@ -425,9 +437,12 @@ int main(int argc, char** argv) {
                     finalaction[counter] = '\0';
                     action = finalaction;   
 
-                    for (uli z = 0LU; z < words_len; z++)
-                        free(words[i]);
+                    for (uli z = 0LU; z < words_len; z++) {
+                        free(words[z]);
+                        words[z] = NULL;
+                    }
                     free(words);
+                    words = NULL;
                 } // End p.
 
                 // Submitting action.
@@ -481,6 +496,7 @@ int main(int argc, char** argv) {
                 }
 
                 free(finalaction);
+                finalaction = NULL;
 
             } // End for clients.
 

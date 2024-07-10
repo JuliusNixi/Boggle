@@ -491,42 +491,6 @@ void* signalsThread(void* args) {
             case SIGINT:{ 
                 // TODO SIGINT.
                 fprintf(stdout, "\nCTRL + C intercepted!\n");
-                /*
-                retvalue = pthread_mutex_lock(&prioritymutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                retvalue = pthread_mutex_lock(&pausemutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                retvalue = pthread_mutex_lock(&listmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                struct ClientNode* current = head;
-                while (1) {
-                    if (current == NULL) break;
-                    sendMessage(current->socket_client_fd, MSG_ESCI, "Server closed... :(\n");
-                    struct ClientNode* tmp;
-                    tmp = current->next;
-                    pthread_t tmpt;
-                    if (current->threadstarted) tmpt = current->thread;
-                    disconnectClient(&current, 0);
-                    if (current->threadstarted) {
-                        retvalue = pthread_cancel(tmpt);
-                        if (retvalue != 0) {
-                            // Error
-                        }
-                    }
-                    
-                    current = tmp;
-                }
-                retvalue = pthread_mutex_unlock(&listmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                */
                 exit(EXIT_SUCCESS);
                 break;
             }case SIGALRM:{
@@ -661,11 +625,8 @@ void* signalsThread(void* args) {
                     }
                     current = current->next;
                 }
-                // Important to realease to not suspend during the pause the clients accepting.
-                retvalue = pthread_mutex_unlock(&listmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
+                // Important to NOT realease listmutex.
+                // Otherwise new clients might connect and get stuck in the receiveMessage().
 
 
 
@@ -681,6 +642,7 @@ void* signalsThread(void* args) {
                 fprintf(stdout, "Pause enabled. From now all the clients requests will be threated as in end game phase.\n");
 
                 // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
+                // STILL OWNING listmutex.
 
                 //////////////////////////////////////////////////////////////////////////////
                 // WARNING: NOW clientHandler() THREADS ARE RUNNING AGAIN AND CAN ACCESS TO //
@@ -715,11 +677,6 @@ void* signalsThread(void* args) {
                     if (retvalue != 0) {
                         // Error
                     }
-                    // nclientsconnected remember to use it only after acquiring the listmutex!
-                    retvalue = pthread_mutex_lock(&listmutex);
-                    if (retvalue != 0) {
-                        // Error
-                    }
                     uli filledqueueclients = 0LU;
                     current = head;
                     while(1) {
@@ -729,16 +686,12 @@ void* signalsThread(void* args) {
                     }
                     // All threads have succesfully filled the queue.
                     if (filledqueueclients == nclientsconnected) toexit = 1;
-                    retvalue = pthread_mutex_unlock(&listmutex);
-                    if (retvalue != 0) {
-                        // Error
-                    }
                     retvalue = pthread_mutex_unlock(&queuemutex);
                     if (retvalue != 0) {
                         // Error
                     }
                     if (toexit) break;
-                    else usleep(500);
+                    else usleep(250);
                 }
                 fprintf(stdout, "Queue has been succesfully filled by all the clients threads.\n");
 
@@ -757,11 +710,8 @@ void* signalsThread(void* args) {
                 // Important to lock listmutex since nclientsconnected is used inside the scorer thread.
                 
                 // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
+                // STILL OWNING listmutex.
                 retvalue = pthread_mutex_lock(&queuemutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                retvalue = pthread_mutex_lock(&listmutex);
                 if (retvalue != 0) {
                     // Error
                 }
@@ -830,10 +780,6 @@ void* signalsThread(void* args) {
                     }
                     current = current->next;
                 }
-                retvalue = pthread_mutex_unlock(&listmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
                 retvalue = pthread_mutex_unlock(&queuemutex);
                 if (retvalue != 0) {
                     // Error
@@ -857,10 +803,6 @@ void* signalsThread(void* args) {
                 fprintf(stdout, "Clients released and notified, now they should communicate to their clients the CSV scoreboard.\n");
                 while(1) {
                     char toexit = 0;
-                    retvalue = pthread_mutex_lock(&listmutex);
-                    if (retvalue != 0) {
-                        // Error
-                    }
                     current = head;
                     while (1) {
                         if (current == NULL) break;
@@ -890,18 +832,18 @@ void* signalsThread(void* args) {
                         }
                         current = current->next;
                     }
-                    retvalue = pthread_mutex_unlock(&listmutex);
-                    if (retvalue != 0) {
-                        // Error
-                    }
                     if (toexit) break;
-                    else usleep(500);
+                    else usleep(250);
                 }
                 // Releasing scoreboardstr.
                 free(scoreboardstr);
                 scoreboardstr = NULL;
                 // Releasing pausemutex, so registerUser() and disconnectClient() if
                 // necessary could continue.
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                        // Error
+                }
                 retvalue = pthread_mutex_unlock(&pausemutex);
                 if (retvalue != 0) {
                         // Error

@@ -43,12 +43,18 @@ int main(void) {
 
         // Redirect stdout to logs file.
         dup2(logfd, STDOUT_FILENO);
+        // Redirect stderr to logs file.
+        dup2(logfd, STDERR_FILENO);
         close(logfd);
 
         // Reading from stdin (now attached to pipe).
         fgets(buffer, BUFFER_SIZE, stdin);
         printf("The son process received: \"%s\".\n", buffer);
         fflush(stdout);
+
+        // Testing stderr.
+        fprintf(stderr, "Testing stderr...\n");
+        fflush(stderr);
 
         // Execute "ls" with the arg received from stdin.
         execlp("ls", "ls", buffer, NULL);
