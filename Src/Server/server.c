@@ -1369,6 +1369,10 @@ void validateDictionary(void) {
     // Printing some other stuff.
     if (found == 0) {
         fprintf(stdout, "No words of the current game matrix have been found in the dictionary file... :(\n");
+        retvalue = pthread_mutex_unlock(&printmutex);
+        if (retvalue != 0) {
+            // Error
+        }
         return;
     }
     fprintf(stdout, "The WORD_LEN value is: %lu.\n", WORD_LEN);
