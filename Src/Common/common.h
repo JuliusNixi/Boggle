@@ -1,12 +1,4 @@
-#include <ctype.h>
-#include <stdio.h>
-#include <signal.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdlib.h>
-// From man:
-// errno is thread-local; setting it in one thread does not affect its value in any other thread.
-#include <errno.h>
+// This part must be before the others imports, otherwise on Linux we get a strange compile error.
 // _GNU_SOURCE needed to use pthread_setname_np() on Linux.
 #define _GNU_SOURCE
 #include <pthread.h>
@@ -21,10 +13,19 @@
 // on macOS the second arg will be discarded without throwing errors.
 // Banner settings used in client and server banner.
 // pthread_setname_np() is used to easily understand the various thread types during debugging.
+// ---------------------------
+#include <ctype.h>
+#include <stdio.h>
+#include <signal.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <stdlib.h>
+// From man:
+// errno is thread-local; setting it in one thread does not affect its value in any other thread.
+#include <errno.h>
 #include <fcntl.h> // Used in server.c, client.c and tests.
 #include <sys/stat.h> // Used in server.c and tests.
 #include <math.h> // Used for itoa().
-// Must be after the previous imports, otherwise on Linux we get a strange compiler error.
 #include <string.h>
 
 #define BANNER_LENGTH 80LU
