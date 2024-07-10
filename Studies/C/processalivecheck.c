@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+// Needed for waitpid() on Linux.
+#include <sys/types.h>
+#include <sys/wait.h>
 
 int main(void) {
 

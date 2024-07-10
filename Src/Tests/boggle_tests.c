@@ -1,4 +1,7 @@
 #include "../../Src/Common/common.h"
+// Needed for waitpid() on Linux.
+#include <sys/types.h>
+#include <sys/wait.h>
 
 // Remember to compile with also "../../Src/Common/common.c".
 

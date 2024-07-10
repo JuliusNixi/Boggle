@@ -5,6 +5,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
+// Needed for waitpid() on Linux.
+#include <sys/types.h>
+#include <sys/wait.h>
 
 // This file contains some tests on the socket disconnection and related errors.
 // https://stackoverflow.com/questions/33053507/econnreset-in-send-linux-c
