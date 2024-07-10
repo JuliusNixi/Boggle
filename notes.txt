@@ -22,6 +22,8 @@ Check again all src files.
 Check again all studies files.
 Check again all Tests/C/ files.
 
+problema clearing queue 0 thread id in scoreboard
+
 rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt
 
 proc handle -p true -s false -n false SIGUSR1

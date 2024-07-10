@@ -2,9 +2,9 @@
 
 // Remember to compile with also "../../Src/Common/common.c".
 
-#define N_CLIENTS 32LU // Number of clients that will be spawned.
-#define N_ACTIONS 12LU // Number of actions for each client. Each action is the submission of a command.
-#define N_TESTS 4LU // Number of tests. It's multiplied by the nactions, be moderate so.
+#define N_CLIENTS 512LU // Number of clients that will be spawned.
+#define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
+#define N_TESTS 8LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
 char* actions[] = {"help\n", "matrix\n", "enddisabled\n", "register_user", "p", "invalidcommand\n"};
 #define ACTIONS_LENGTH 6LU

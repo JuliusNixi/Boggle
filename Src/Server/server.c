@@ -509,7 +509,8 @@ void* signalsThread(void* args) {
                     // Possible game/pause overlap.
                     fflush(stdout);
                     fprintf(stderr, "Overlapping!\n");
-                    fflush(stdout);
+                    fflush(stderr);
+                    exit(1);
                     break;
                 }
 
@@ -915,7 +916,7 @@ void* signalsThread(void* args) {
             }case SIGPIPE : {
                 // https://stackoverflow.com/questions/108183/how-to-prevent-sigpipes-or-handle-them-properly
                 // Nothing, already handled by the single threads.
-                ;
+                ; 
                 break;
             }default:
                 // Error
@@ -3107,6 +3108,7 @@ void* gamePauseAndNewGame(void* args) {
                     // Error
                 }
 
+                pthread_exit(NULL);
                 return NULL;
 
 }
