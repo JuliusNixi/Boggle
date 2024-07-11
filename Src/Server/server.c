@@ -1841,33 +1841,10 @@ void* clientHandler(void* voidclient) {
         // Error
     }
 
-    // TODO Fix and remove.
-    /*char* thrid = itoa((uli) client->thread);
-    char strf[] = "ClientHandlerID%luThread";
-    uli n = strlen(thrid) + strlen(strf) + 1;
-    char rstr[n];
-    sprintf(rstr, strf, (uli) client->thread);
-    rstr[n - 1] = '\0';
+    char* thrid = itoa((uli) client->thread);
+    pthread_setname_np(client->thread, thrid);
     free(thrid);
     thrid = NULL;
-    pthread_setname_np(client->thread, rstr);*/
-    #if defined(__APPLE__)
-        pthread_setname_np(client->thread, "POPOPOPOLARETTI");
-    #elif defined(__linux__)
-        char* thrid = itoa((uli) client->thread);
-        char strf[] = "ClientHandlerID%luThread";
-        char strfm[] = "ClientHandlerIDThread";
-        uli n = strlen(thrid) + strlen(strfm) + 1;
-        char rstr[n];
-        sprintf(rstr, strf, (uli) client->thread);
-        rstr[n - 1] = '\0';
-        free(thrid);
-        thrid = NULL;
-        int r = pthread_setname_np(client->thread, rstr);
-        fprintf(stdout, "\n\n  %d  \n\n", (int)r);
-    #endif
-    // Correggere tutte sprintf() in tutti i file (cercare parola con comando).
-    // Aggiungere breakpoint su gdb per debuggare.
 
     fprintf(stdout, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) client->thread);
     // Printing the connected client's infos.
@@ -2438,6 +2415,7 @@ char* serializeStrClient(struct ClientNode* c) {
 
     // Preparing the string format.
     char st[] = "Name: %s - Port: %lu - Points %lu - Thread ID: %lu.\n";
+    char stm[] = "Name:  - Port:  - Points  - Thread ID: .\n";
 
     // Calculating name length.
     uli namelen;
@@ -2471,8 +2449,8 @@ char* serializeStrClient(struct ClientNode* c) {
 
     // Allocating the needed heap memory to store the string.
     // +1 for '\0'.
-    uli totallength =  strlen(st) + namelen + portlen + pointslen + threadidstrlen + 1;
-    char* rs = (char*) malloc((totallength) * sizeof(char));
+    uli totallength =  strlen(stm) + namelen + portlen + pointslen + threadidstrlen + 1;
+    char* rs = (char*) malloc(totallength * sizeof(char));
     if (rs == NULL) {
         // Error
     }
@@ -2786,7 +2764,8 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                     // The name contains at least one invalid char.
 
                     char fixed[] = "The proposed name contains %c, that's not in the alphabet.\nThe alphabet of admitted characters is:\n%s\n";
-                    uli totallength = strlen(fixed) + strlen(ALPHABET) + 2; // +1 for the 'c' char. +1 for the '\0'.
+                    char fixedm[] = "The proposed name contains , that's not in the alphabet.\nThe alphabet of admitted characters is:\n\n";
+                    uli totallength = strlen(fixedm) + strlen(ALPHABET) + 2; // +1 for the 'c' char. +1 for the '\0'.
                     char resstr[totallength];
                     sprintf(resstr, fixed, (char) r, ALPHABET);
                     resstr[totallength - 1] = '\0';
@@ -2799,8 +2778,9 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 // Registered succesfully.
 
                 char fixed[] = "Registered correctly with name: %s. Your ID: %lu.\n";
+                char fixedm[] = "Registered correctly with name: . Your ID: .\n";
                 char* id = itoa((uli) client->thread);
-                uli total = strlen(client->name) + strlen(fixed) + strlen(id) + 1; // +1 for the '\0'.
+                uli total = strlen(client->name) + strlen(fixedm) + strlen(id) + 1; // +1 for the '\0'.
                 char resstr[total];
                 sprintf(resstr, fixed, client->name, (uli) client->thread);
                 resstr[total - 1] = '\0';

@@ -169,7 +169,8 @@ int main(int argc, char** argv) {
         char* istr = itoa(i);
         uli li = strlen(istr);
         char strpathout[] = "./Tests/C/Logs/stdout-log-%lu.txt";
-        uli l = strlen(strpathout);
+        char strpathoutm[] = "./Tests/C/Logs/stdout-log-.txt";
+        uli l = strlen(strpathoutm);
         uli n = l + li + 1;
         char rstrout[n];
         sprintf(rstrout, strpathout, i);
@@ -196,7 +197,8 @@ int main(int argc, char** argv) {
         close(pipesfdstdin[i][0]);
         pids[i] = pid;
         char strpathin[] = "./Tests/C/Logs/stdin-log-%lu.txt";
-        l = strlen(strpathin);
+        char strpathinm[] = "./Tests/C/Logs/stdin-log-.txt";
+        l = strlen(strpathinm);
         n = l + li + 1;
         char rstrin[n];
         sprintf(rstrin, strpathin, i);
@@ -243,7 +245,8 @@ int main(int argc, char** argv) {
                 free(istr);
                 istr = NULL;
                 char strpathin[] = "./Tests/C/Logs/stdin-log-%lu.txt";
-                uli l = strlen(strpathin);
+                char strpathinm[] = "./Tests/C/Logs/stdin-log-.txt";
+                uli l = strlen(strpathinm);
                 uli n = l + li + 1;
                 char rstrin[n];
                 sprintf(rstrin, strpathin, i);
