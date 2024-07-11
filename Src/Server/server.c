@@ -3070,7 +3070,7 @@ void* gamePauseAndNewGame(void* args) {
         counter2 = 0LU;
         while(1) {
             if (str == NULL) break;
-            if (str[counter2] == '\n') {
+            if (str[counter2] == '\n' && str[counter2 - 1] != ':') {
                 finalmsg[counter++] = str[counter2++];
                 break;
             }

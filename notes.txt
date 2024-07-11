@@ -17,14 +17,15 @@ Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la termi
 A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
 
 Server code, remove comments to sendMessage(), check returncode.
-Client banner send and test if it works.
-make tests spam prompt and client's output on linux.
 
 Check again all src files.
 Check again all studies files.
 Check again all Tests/C/ files.
 
 problema clearing queue 0 thread id in scoreboard
+Client banner send and test if it works.
+problema client double free dopo aver ripristinato i banner.
+make tests spam prompt and client's output on linux.
 
 rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt
 
