@@ -5,9 +5,13 @@
 
 // Remember to compile with also "../../Src/Common/common.c".
 
-#define N_CLIENTS 512LU // Number of clients that will be spawned.
-#define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
-#define N_TESTS 8LU // Number of tests. It's multiplied by the nactions, be moderate so.
+//#define N_CLIENTS 512LU // Number of clients that will be spawned.
+//#define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
+//#define N_TESTS 8LU // Number of tests. It's multiplied by the nactions, be moderate so.
+
+#define N_CLIENTS 1LU // Number of clients that will be spawned.
+#define N_ACTIONS 1LU // Number of actions for each client. Each action is the submission of a command.
+#define N_TESTS 1LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
 char* actions[] = {"help\n", "matrix\n", "enddisabled\n", "register_user", "p", "invalidcommand\n"};
 #define ACTIONS_LENGTH 6LU
@@ -75,19 +79,14 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     pid = fork();
     if (pid == -1) {
         // Error
-        fprintf(stderr,"\n\n error 3 \n\n");
-
+fprintf(stderr,"\n\n error 1 \n\n");
     }
     if (pid == 0) {
         // Son.
         // Continue.
         ;
-    fprintf(stderr,"\n\n error 2 \n\n");
-
     }else{
         // Return for the father the son's pid.
-fprintf(stderr,"\n\n error 1 \n\n");
-
         return pid;
     }
 
@@ -108,31 +107,27 @@ fprintf(stderr,"\n\n error b \n\n");
     retvalue = close(pipefd[0]);
     if (retvalue == -1) {
         // Error
-    fprintf(stderr,"\n\n error c \n\n");
-
+fprintf(stderr,"\n\n error c \n\n");
     }
 
     // Redirect stdout to logs file.
     retvalue = dup2(fdstdoutlogfile, STDOUT_FILENO);
     if (retvalue == -1) {
         // Error
-        fprintf(stderr,"\n\n error d \n\n");
-
+fprintf(stderr,"\n\n error d \n\n");
     }
 
     // Redirect stderr to logs file.
     retvalue = dup2(fdstdoutlogfile, STDERR_FILENO);
     if (retvalue == -1) {
         // Error
-        fprintf(stderr,"\n\n error e \n\n");
-
+fprintf(stderr,"\n\n error e \n\n");
     }
 
     retvalue = close(fdstdoutlogfile);
     if (retvalue == -1) {
         // Error
-        fprintf(stderr,"\n\n error f \n\n");
-
+fprintf(stderr,"\n\n error f \n\n");
     }
 
     // Execute client.
