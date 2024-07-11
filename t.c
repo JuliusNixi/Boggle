@@ -16,10 +16,8 @@ int client_fd;
 
 void* clientDisconnecter(void* args) {
 
-    pthread_exit(NULL);
-
     fprintf(stdout, "I'm the clientDisconnecter() thread!\n");
-    sleep(8);
+    sleep(3);
     fprintf(stdout, "Sleep finished.\n");
     char resultcode = sendMessage(socket_client_fd, MSG_OK, "Test!\n");
     fprintf(stdout, "sendMessage() resultcode: %d.\n", (int) resultcode);
