@@ -2336,11 +2336,13 @@ disconnect_restart: {
         client->filledqueue = 0;
 
         // Closing socket.
-        retvalue = close(client->socket_client_fd);
-        if (retvalue == -1){
-            // Error
+        if (client->socket_client_fd != -1) {
+            retvalue = close(client->socket_client_fd);
+            if (retvalue == -1){
+                // Error
+            }
+            client->socket_client_fd = -1;
         }
-        client->socket_client_fd = -1;
 
         uli tmpt = client->threadstarted == 0 ? 0LU : (uli) client->thread;
 
@@ -3127,7 +3129,16 @@ void* gamePauseAndNewGame(void* args) {
 // IT ASSUMES that needed mutexes are ALREADY LOCKED BY THE CALLER!
 void clientDisconnecterChecker(struct ClientNode* client) {
 
-    char resultcode = sendMessage(client->socket_client_fd, MSG_OK, "Test!\n");
+    char resultcode = sendMessage(client->socket_client_fd, MSG_PING_ONLINE, "Ping, pong!\n");
+    // Disconnection.
+    if (resultcode == 0) {
+        int retvalue = close(client->socket_client_fd);
+        if (retvalue == -1) {
+            // Error
+        }
+        client->socket_client_fd = -1;
+        return;
+    }
     if (resultcode != 1) {
         // Error
     }

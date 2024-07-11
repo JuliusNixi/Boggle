@@ -18,11 +18,14 @@ void* clientDisconnecterChecker(void* args) {
 
     int retvalue;
     fprintf(stdout, "I'm the clientDisconnecter() thread!\n");
+
     sleep(3);
     fprintf(stdout, "Sleep finished.\n");
+
     char resultcode = sendMessage(socket_client_fd, MSG_OK, "Test!\n");
     fprintf(stdout, "sendMessage() resultcode: %d.\n", (int) resultcode);
 
+    // Disconnection.
     if (resultcode == 0) {
         retvalue = close(socket_client_fd);
         if (retvalue == -1) {
@@ -90,7 +93,7 @@ int main(void) {
         }
         fprintf(stdout, "Connected succesfully!\n");
 
-        char type = 'R';
+        char type = MSG_REGISTRA_UTENTE;
         retvalue = write(client_fd, &type, 1);
         if (retvalue == -1) {
             // Error
@@ -99,8 +102,8 @@ int main(void) {
         }else{
             // Error
         }
+        
         fprintf(stdout, "Son exiting.\n");
-
         exit(1);
 
     }else{
