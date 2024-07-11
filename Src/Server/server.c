@@ -1855,8 +1855,9 @@ void* clientHandler(void* voidclient) {
         pthread_setname_np(client->thread, "POPOPOPOLARETTI");
     #elif defined(__linux__)
         char* thrid = itoa((uli) client->thread);
-        char strf[] = "ClientHandlerID%luThread"; // 24
-        uli n = strlen(thrid) + strlen(strf) + 1;
+        char strf[] = "ClientHandlerID%luThread";
+        char strfm[] = "ClientHandlerIDThread";
+        uli n = strlen(thrid) + strlen(strfm) + 1;
         char rstr[n];
         sprintf(rstr, strf, (uli) client->thread);
         rstr[n - 1] = '\0';
