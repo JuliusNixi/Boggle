@@ -49,9 +49,7 @@ Also useful:
 info args
 
 To see the open processes (also the PID):
-ps
-or on the LABII machine:
-ps -u
+ps u
 
 To suspend the process and return on gdb (for example in case of deadlock), from another shell, out of gdb:
 kill -TRAP PID      With PID the process' ID, obtained by the previous commands.
