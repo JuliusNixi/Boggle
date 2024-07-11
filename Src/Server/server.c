@@ -1866,6 +1866,7 @@ void* clientHandler(void* voidclient) {
         fprintf(stdout, "\n\n  %d  \n\n", (int)r);
     #endif
     // Correggere tutte sprintf() in tutti i file (cercare parola con comando).
+    // Aggiungere breakpoint su gdb per debuggare.
 
     fprintf(stdout, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) client->thread);
     // Printing the connected client's infos.

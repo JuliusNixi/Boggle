@@ -65,6 +65,8 @@ ROOTDIR = ./
 SRCDIR = ./Src/
 # Tests dir.
 TESTSDIR = ./Tests/
+# For the LABII machine.
+LABIIDIR = /home/local/ADUNIPI/g.nisi/Boggle/
 
 # Bin files.
 EXES = $(BINDIR)$(NS)
@@ -124,6 +126,10 @@ clean: clear
 	-pkill -SIGKILL -f $(RNS)
 	-pkill -SIGKILL -f $(RNC)
 	-pkill -SIGKILL -f $(RNT)
+# For the LABII machine.
+	-pkill -SIGKILL -f $(LABIIDIR)$(RNS)
+	-pkill -SIGKILL -f $(LABIIDIR)$(RNC)
+	-pkill -SIGKILL -f $(LABIIDIR)$(RNT)
 
 
 # Some useful default args for testing.
