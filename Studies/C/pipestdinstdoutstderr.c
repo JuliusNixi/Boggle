@@ -3,6 +3,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+// Needed for waitpid() on Linux.
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define BUFFER_SIZE 256
 

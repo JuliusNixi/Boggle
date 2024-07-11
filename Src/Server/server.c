@@ -566,7 +566,7 @@ void* signalsThread(void* args) {
                     if (retvalue != 0) {
                         // Error
                     }                  
-/*
+
                     // Creating end game message to send it to the clients.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 0);
                     char finalmsg[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
@@ -575,9 +575,8 @@ void* signalsThread(void* args) {
                     finalmsg[strlen(banner) + 1] = '\0';
                     free(banner);
                     banner = NULL;
-
                     sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
-*/
+
                     current = current->next;
 
                 }
@@ -2987,7 +2986,7 @@ void* gamePauseAndNewGame(void* args) {
     current = head;
     while (1) {
         if (current == NULL) break;
-    /*
+
         banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
         char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
         strcpy(fsm, banner);
@@ -2998,10 +2997,11 @@ void* gamePauseAndNewGame(void* args) {
         sendMessage(current->socket_client_fd, MSG_OK, fsm);
 
         // Inform clients of the start of a new game and
-        // sending the new game matrix.
+        // sending the new game matrix to the registered users.
         banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
         uli l = strlen(banner); 
         // Cannot use strcpy() because the string will be terminated with '\n' not '\0'.
+        // Because we will append after '\n' an another string.
         // Substitute '\0' with '\n'.
         banner[l] = '\n';
         char msgstartgame[l + 1]; // for the '\n'.
@@ -3020,6 +3020,8 @@ void* gamePauseAndNewGame(void* args) {
         uli savedcounter = counter;
 
         // Sending matrix only to registered players.
+        // This string part, if present, will be in the middle of the entire
+        // final string, so the terminator is NOT necessary.
         char* str = NULL;
         char* matstr  = serializeMatrixStr();
         char premessage[] = "New matrix:\n";
@@ -3032,9 +3034,7 @@ void* gamePauseAndNewGame(void* args) {
         }
         uli counter2 = 0LU;
         while(1) {
-            if (matstr[counter2] == '\0'){
-                break;
-            }
+            if (matstr[counter2] == '\0') break;
             matstrandpre[counter++] = matstr[counter2++];
         }
         if (current->name != NULL)
@@ -3042,6 +3042,7 @@ void* gamePauseAndNewGame(void* args) {
         else
             str = NULL;
         
+        // Last part of the string.
         banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
         l = strlen(banner); // +1 for '\n' and +1 for '\0'.
         char msgstartgameend[l + 1 + 1];
@@ -3051,10 +3052,11 @@ void* gamePauseAndNewGame(void* args) {
         free(banner);
         banner = NULL;
 
-        // Appending new current game matrix to the message if the user is registered.
+        // Joining the three previously created strings in a only one.
         l = savedcounter + strlen(msgstartgameend) + 1; // +1 for '\0'.
         if (str != NULL) l += strlen(str);
         char finalmsg[l];
+        // Copying first string in the final one.
         counter = 0LU;
         while(1) {
             if (msgstartgame[counter] == '\n') {
@@ -3064,6 +3066,7 @@ void* gamePauseAndNewGame(void* args) {
             finalmsg[counter] = msgstartgame[counter];
             counter++;
         }
+        // Appending new current game matrix to the string if the user is registered.
         counter2 = 0LU;
         while(1) {
             if (str == NULL) break;
@@ -3071,25 +3074,23 @@ void* gamePauseAndNewGame(void* args) {
                 finalmsg[counter++] = str[counter2++];
                 break;
             }
-            finalmsg[counter] = str[counter2];
-            counter++;
-            counter2++;
+            finalmsg[counter++] = str[counter2++];
         }
 
+        // Appending the last part of the string to the final one.
         counter2 = 0LU;
         while(1) {
             if (msgstartgameend[counter2] == '\0') {
                 finalmsg[counter++] = '\0';
                 break;
             }
-            finalmsg[counter] = msgstartgameend[counter2];
-            counter++;
-            counter2++;
+            finalmsg[counter++] = msgstartgameend[counter2++];
         }
 
         sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
-    */
+
         current = current->next;
+
     }
     // Starting a new game.
     startGame();

@@ -16,14 +16,15 @@ Aggiornare relazione con:
 Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la terminazione deve comportarsi come se la partita si fosse chiusa normalmente, oppure è sufficiente chiudere il socket creato dal server ed ovviamente i file descriptor con cui comunica ai client.
 A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
 
-Server code, remove comments to sendMessage() client banner and test if it works.
+Server code, remove comments to sendMessage(), check returncode.
+Client banner send and test if it works.
+make tests spam prompt and client's output on linux.
 
 Check again all src files.
 Check again all studies files.
 Check again all Tests/C/ files.
 
 problema clearing queue 0 thread id in scoreboard
-problema tutti i threads clienthandler su linux si chiamano mainthread
 
 rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt
 
