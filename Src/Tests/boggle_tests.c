@@ -75,13 +75,19 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     pid = fork();
     if (pid == -1) {
         // Error
+        fprintf(stderr,"\n\n error 3 \n\n");
+
     }
     if (pid == 0) {
         // Son.
         // Continue.
         ;
+    fprintf(stderr,"\n\n error 2 \n\n");
+
     }else{
         // Return for the father the son's pid.
+fprintf(stderr,"\n\n error 1 \n\n");
+
         return pid;
     }
 
@@ -89,33 +95,44 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     retvalue = close(pipefd[1]);
     if (retvalue == -1) {
         // Error
+fprintf(stderr,"\n\n error a \n\n");
     }
 
     // Redirect stdin to pipe.
     retvalue = dup2(pipefd[0], STDIN_FILENO);
     if (retvalue == -1) {
         // Error
+fprintf(stderr,"\n\n error b \n\n");
+
     }
     retvalue = close(pipefd[0]);
     if (retvalue == -1) {
         // Error
+    fprintf(stderr,"\n\n error c \n\n");
+
     }
 
     // Redirect stdout to logs file.
     retvalue = dup2(fdstdoutlogfile, STDOUT_FILENO);
     if (retvalue == -1) {
         // Error
+        fprintf(stderr,"\n\n error d \n\n");
+
     }
 
     // Redirect stderr to logs file.
     retvalue = dup2(fdstdoutlogfile, STDERR_FILENO);
     if (retvalue == -1) {
         // Error
+        fprintf(stderr,"\n\n error e \n\n");
+
     }
 
     retvalue = close(fdstdoutlogfile);
     if (retvalue == -1) {
         // Error
+        fprintf(stderr,"\n\n error f \n\n");
+
     }
 
     // Execute client.
