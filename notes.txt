@@ -23,6 +23,7 @@ Check again all studies files.
 Check again all Tests/C/ files.
 
 problema clearing queue 0 thread id in scoreboard
+problema tutti i threads clienthandler su linux si chiamano mainthread
 
 rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt
 

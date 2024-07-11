@@ -14,7 +14,7 @@ socklen_t client_address_len; // Client address length.
 // Client.
 int client_fd;
 
-void* clientDisconnecter(void* args) {
+void* clientDisconnecterChecker(void* args) {
 
     fprintf(stdout, "I'm the clientDisconnecter() thread!\n");
     sleep(3);
@@ -29,6 +29,16 @@ void* clientDisconnecter(void* args) {
 
 int main(void) {
 
+    sigemptyset(&signalmask);
+    sigaddset(&signalmask, SIGPIPE);
+
+    // Enabling the signals' mask.
+    int retvalue = pthread_sigmask(SIG_BLOCK, &signalmask, NULL);
+    if (retvalue != 0) {
+        // Error
+    }
+    fprintf(stdout, "Threads signals mask enabled correctly.\n");
+
     // Parsing port.
     uli port = 8080LU;
 
@@ -39,7 +49,7 @@ int main(void) {
     
     // Parsing IP.
     char ip[] = "localhost";
-    int retvalue = parseIP(ip, &server_addr);
+    retvalue = parseIP(ip, &server_addr);
     if (retvalue != 1) {
         // Error
     }
@@ -116,7 +126,7 @@ int main(void) {
         fprintf(stdout, "Accepted a new client.\n");
 
         pthread_t t;
-        retvalue = pthread_create(&t, NULL, clientDisconnecter, NULL);
+        retvalue = pthread_create(&t, NULL, clientDisconnecterChecker, NULL);
         if (retvalue != 0) {
             // Error
         }
@@ -125,7 +135,7 @@ int main(void) {
         char resultcode;
         struct Message* message;
         message = receiveMessage(socket_client_fd, &resultcode);
-        fprintf(stdout, "Ok!\n");
+        fprintf(stdout, "Ok, receiveMessage() resultcode: %d.\n", (int) resultcode);
 
         int status;
         waitpid(p, &status, 0);

@@ -528,6 +528,10 @@ void inputHandler(void) {
                         }case MSG_ESCI : {
                             // TODO Server disconnected you. Print the data message.
                             break;
+                        }case MSG_PING_ONLINE : {
+                            // Nothing to do.
+                            ;
+                            break;
                         }case MSG_REGISTRA_UTENTE:
                         case MSG_PAROLA: {
                             // Error

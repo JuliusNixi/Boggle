@@ -57,6 +57,7 @@ pthread_mutex_t setupmutex; // Used to synchronize read/write threads operations
 
 // Added by me.
 #define MSG_ESCI 'Q' // Message sent by the client to the server or vice versa to close the connection.
+#define MSG_PING_ONLINE 'O'
 
 struct Message { // Struct of the message that will be used in the communication between server and clients.
     char type;  // Type of message as above.

@@ -104,6 +104,7 @@ void* scorer(void*);
 int sortPlayersByPointsMessage(const void*, const void*);
 void createScoreboard(struct Queue**, uli);
 void* gamePauseAndNewGame(void*);
+void clientDisconnecterChecker(struct ClientNode*);
 
 // Defined, commented and implemented all in common.h and common.c.
 // int parseIP(char*, struct sockaddr_in*); -> common.h

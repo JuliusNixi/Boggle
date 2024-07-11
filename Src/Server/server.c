@@ -511,7 +511,6 @@ void* signalsThread(void* args) {
                     fprintf(stderr, "Overlapping!\n");
                     fflush(stderr);
                     exit(1);
-                    break;
                 }
 
                 /////////////////////////   GAME OVER   /////////////////////////
@@ -610,7 +609,10 @@ void* signalsThread(void* args) {
                     } 
                     // Continuing only when the signal has been received by the client.
                     if (current->receivedsignal && current->waiting) current = current->next;
-                    else usleep(50);
+                    else{
+                        clientDisconnecterChecker(current);
+                        usleep(50);
+                    } 
                 }
                 // Now all clients threads (in clientHandler()) are suspended
                 // on their mutexes (eventually read() are stopped),
@@ -757,7 +759,10 @@ void* signalsThread(void* args) {
                         // Error
                     }
                     if (current->receivedsignal && current->waiting == 1) current = current->next;
-                    else usleep(50);
+                    else {
+                        clientDisconnecterChecker(current);
+                        usleep(50);
+                    } 
                 }
 
                 // Now all clientHandler() thread are suspended on its mutex.
@@ -2925,25 +2930,23 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
 // thread because this would block the signals management (during the thread sleeps).
 void* gamePauseAndNewGame(void* args) {
 
-                int retvalue;
-                char* banner;
-                struct ClientNode* current;
-                fprintf(stdout, "I'm the gamePauseAndNewGame() pthread (ID): %lu.\n", (uli) gamepauseandnewgamethread);
-                pthread_setname_np(gamepauseandnewgamethread, "GamePauseAndNewGameThread");
+    int retvalue;
+    char* banner;
+    struct ClientNode* current;
+    fprintf(stdout, "I'm the gamePauseAndNewGame() pthread (ID): %lu.\n", (uli) gamepauseandnewgamethread);
+    pthread_setname_np(gamepauseandnewgamethread, "GamePauseAndNewGameThread");
 
-                //////////////////  EXECUTING PAUSE  //////////////////
+    //////////////////  EXECUTING PAUSE  //////////////////
 
-                fprintf(stdout, "Pause sleeping started.\n");
-                // Executing pause.
-                fprintf(stdout, "Sleeping zzz...\n");
+    fprintf(stdout, "Pause sleeping started.\n");
+    // Executing pause.
+    fprintf(stdout, "Sleeping zzz...\n");
 
-                // Executing the pause.
-                // PAUSE_DURATION in minutes, but sleep takes seconds.
-                //sleep(PAUSE_DURATION * 60);
-                sleep(tempteststimeseconds);
-                fprintf(stdout, "Pause sleeping finished.\n");
-
-
+    // Executing the pause.
+    // PAUSE_DURATION in minutes, but sleep takes seconds.
+    //sleep(PAUSE_DURATION * 60);
+    sleep(tempteststimeseconds);
+    fprintf(stdout, "Pause sleeping finished.\n");
 
 
 
@@ -2952,171 +2955,184 @@ void* gamePauseAndNewGame(void* args) {
 
 
 
-                //////////////////  STARTING A NEW GAME  //////////////////
 
-                // Disabling pause and starting a new game.
-                retvalue = pthread_mutex_lock(&pausemutex);
-                if (retvalue != 0) {
-                        // Error
-                }
-                retvalue = pthread_mutex_lock(&listmutex);
-                if (retvalue != 0) {
-                        // Error
-                }
-                // Banner of closing previous "END GAME STARTED".
-                banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 1);
-                fprintf(stdout, "%s\n", banner);
-                free(banner);
-                banner = NULL;
 
-                // Locking threads to avoid unsafe multithreading situations.
-                current = head;
-                while (1) {
-                    if (current == NULL) break;
-                    retvalue = pthread_mutex_lock(&(current->handlerequest));
-                    if (retvalue != 0) {
-                        // Error
-                    }
-                    current = current->next;
-                }
-                current = head;
-                while (1) {
-                    if (current == NULL) break;
-/*
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
-                    char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
-                    strcpy(fsm, banner);
-                    fsm[strlen(banner)] = '\n';
-                    fsm[strlen(banner) + 1] = '\0';
-                    free(banner);
-                    banner = NULL;
-                    sendMessage(current->socket_client_fd, MSG_OK, fsm);
+    //////////////////  STARTING A NEW GAME  //////////////////
 
-                    // Inform clients of the start of a new game and
-                    // sending the new game matrix.
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
-                    uli l = strlen(banner); 
-                    // Cannot use strcpy() because the string will be terminated with '\n' not '\0'.
-                    // Substitute '\0' with '\n'.
-                    banner[l] = '\n';
-                    char msgstartgame[l + 1]; // for the '\n'.
-                    char* s = banner;
-                    uli counter = 0LU;
-                    while(1) {
-                        if (s[0] == '\n'){
-                            msgstartgame[counter++] = s[0];
-                            break;
-                        } 
-                        msgstartgame[counter++] = s[0];
-                        s++;
-                    }
-                    free(banner);
-                    banner = NULL;
-                    uli savedcounter = counter;
+    // Disabling pause and starting a new game.
+    retvalue = pthread_mutex_lock(&pausemutex);
+    if (retvalue != 0) {
+            // Error
+    }
+    retvalue = pthread_mutex_lock(&listmutex);
+    if (retvalue != 0) {
+            // Error
+    }
+    // Banner of closing previous "END GAME STARTED".
+    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME STARTED", BANNER_SYMBOL, 1);
+    fprintf(stdout, "%s\n", banner);
+    free(banner);
+    banner = NULL;
 
-                    // Sending matrix only to registered players.
-                    char* str = NULL;
-                    char* matstr  = serializeMatrixStr();
-                    char premessage[] = "New matrix:\n";
-                    char matstrandpre[strlen(matstr) + strlen(premessage)];
-                    counter = 0LU;
-                    while(1) {
-                        if (premessage[counter] == '\0') break;
-                        matstrandpre[counter] = premessage[counter];
-                        counter++;
-                    }
-                    uli counter2 = 0LU;
-                    while(1) {
-                        if (matstr[counter2] == '\0'){
-                            break;
-                        }
-                        matstrandpre[counter++] = matstr[counter2++];
-                    }
-                    if (current->name != NULL)
-                        str = matstrandpre;
-                    else
-                        str = NULL;
-                    
-                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
-                    l = strlen(banner); // +1 for '\n' and +1 for '\0'.
-                    char msgstartgameend[l + 1 + 1];
-                    strcpy(msgstartgameend, banner);
-                    msgstartgameend[l] = '\n';
-                    msgstartgameend[l + 1] = '\0';
-                    free(banner);
-                    banner = NULL;
+    // Locking threads to avoid unsafe multithreading situations.
+    current = head;
+    while (1) {
+        if (current == NULL) break;
+        retvalue = pthread_mutex_lock(&(current->handlerequest));
+        if (retvalue != 0) {
+            // Error
+        }
+        current = current->next;
+    }
+    current = head;
+    while (1) {
+        if (current == NULL) break;
+    /*
+        banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
+        char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
+        strcpy(fsm, banner);
+        fsm[strlen(banner)] = '\n';
+        fsm[strlen(banner) + 1] = '\0';
+        free(banner);
+        banner = NULL;
+        sendMessage(current->socket_client_fd, MSG_OK, fsm);
 
-                    // Appending new current game matrix to the message if the user is registered.
-                    l = savedcounter + strlen(msgstartgameend) + 1; // +1 for '\0'.
-                    if (str != NULL) l += strlen(str);
-                    char finalmsg[l];
-                    counter = 0LU;
-                    while(1) {
-                        if (msgstartgame[counter] == '\n') {
-                            finalmsg[counter++] = '\n';
-                            break;
-                        }
-                        finalmsg[counter] = msgstartgame[counter];
-                        counter++;
-                    }
-                    counter2 = 0LU;
-                    while(1) {
-                        if (str == NULL) break;
-                        if (str[counter2] == '\n') {
-                            finalmsg[counter++] = str[counter2++];
-                            break;
-                        }
-                        finalmsg[counter] = str[counter2];
-                        counter++;
-                        counter2++;
-                    }
+        // Inform clients of the start of a new game and
+        // sending the new game matrix.
+        banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
+        uli l = strlen(banner); 
+        // Cannot use strcpy() because the string will be terminated with '\n' not '\0'.
+        // Substitute '\0' with '\n'.
+        banner[l] = '\n';
+        char msgstartgame[l + 1]; // for the '\n'.
+        char* s = banner;
+        uli counter = 0LU;
+        while(1) {
+            if (s[0] == '\n'){
+                msgstartgame[counter++] = s[0];
+                break;
+            } 
+            msgstartgame[counter++] = s[0];
+            s++;
+        }
+        free(banner);
+        banner = NULL;
+        uli savedcounter = counter;
 
-                    counter2 = 0LU;
-                    while(1) {
-                        if (msgstartgameend[counter2] == '\0') {
-                            finalmsg[counter++] = '\0';
-                            break;
-                        }
-                        finalmsg[counter] = msgstartgameend[counter2];
-                        counter++;
-                        counter2++;
-                    }
+        // Sending matrix only to registered players.
+        char* str = NULL;
+        char* matstr  = serializeMatrixStr();
+        char premessage[] = "New matrix:\n";
+        char matstrandpre[strlen(matstr) + strlen(premessage)];
+        counter = 0LU;
+        while(1) {
+            if (premessage[counter] == '\0') break;
+            matstrandpre[counter] = premessage[counter];
+            counter++;
+        }
+        uli counter2 = 0LU;
+        while(1) {
+            if (matstr[counter2] == '\0'){
+                break;
+            }
+            matstrandpre[counter++] = matstr[counter2++];
+        }
+        if (current->name != NULL)
+            str = matstrandpre;
+        else
+            str = NULL;
+        
+        banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 1);
+        l = strlen(banner); // +1 for '\n' and +1 for '\0'.
+        char msgstartgameend[l + 1 + 1];
+        strcpy(msgstartgameend, banner);
+        msgstartgameend[l] = '\n';
+        msgstartgameend[l + 1] = '\0';
+        free(banner);
+        banner = NULL;
 
-                    sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
-*/
-                    current = current->next;
-                }
-                // Starting a new game.
-                startGame();
-                // Preparing clients for a new game.
-                // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
-                updateClients();
-                // Disabling pause.
-                pauseon = 0;
-                // Releasing clients locks.
-                current = head;
-                while (1) {
-                    if (current == NULL) break;
-                    retvalue = pthread_mutex_unlock(&(current->handlerequest));
-                    if (retvalue != 0) {
-                        // Error
-                    }
-                    current = current->next;
-                }
-                retvalue = pthread_mutex_unlock(&listmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
-                retvalue = pthread_mutex_unlock(&pausemutex);
-                if (retvalue != 0) {
-                    // Error
-                }
+        // Appending new current game matrix to the message if the user is registered.
+        l = savedcounter + strlen(msgstartgameend) + 1; // +1 for '\0'.
+        if (str != NULL) l += strlen(str);
+        char finalmsg[l];
+        counter = 0LU;
+        while(1) {
+            if (msgstartgame[counter] == '\n') {
+                finalmsg[counter++] = '\n';
+                break;
+            }
+            finalmsg[counter] = msgstartgame[counter];
+            counter++;
+        }
+        counter2 = 0LU;
+        while(1) {
+            if (str == NULL) break;
+            if (str[counter2] == '\n') {
+                finalmsg[counter++] = str[counter2++];
+                break;
+            }
+            finalmsg[counter] = str[counter2];
+            counter++;
+            counter2++;
+        }
 
-                pthread_exit(NULL);
-                return NULL;
+        counter2 = 0LU;
+        while(1) {
+            if (msgstartgameend[counter2] == '\0') {
+                finalmsg[counter++] = '\0';
+                break;
+            }
+            finalmsg[counter] = msgstartgameend[counter2];
+            counter++;
+            counter2++;
+        }
+
+        sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
+    */
+        current = current->next;
+    }
+    // Starting a new game.
+    startGame();
+    // Preparing clients for a new game.
+    // IMPORTANT: Call updateClients() AFTER startGame() to avoid insubstantial "words_validated".
+    updateClients();
+    // Disabling pause.
+    pauseon = 0;
+    // Releasing clients locks.
+    current = head;
+    while (1) {
+        if (current == NULL) break;
+        retvalue = pthread_mutex_unlock(&(current->handlerequest));
+        if (retvalue != 0) {
+            // Error
+        }
+        current = current->next;
+    }
+    retvalue = pthread_mutex_unlock(&listmutex);
+    if (retvalue != 0) {
+        // Error
+    }
+    retvalue = pthread_mutex_unlock(&pausemutex);
+    if (retvalue != 0) {
+        // Error
+    }
+
+    pthread_exit(NULL);
+    return NULL;
 
 }
 
+// ANCHOR clientDisconnecterChecker();
+// TODO Comment (explaination).
+// IT ASSUMES that needed mutexes are ALREADY LOCKED BY THE CALLER!
+void clientDisconnecterChecker(struct ClientNode* client) {
+
+    char resultcode = sendMessage(client->socket_client_fd, MSG_OK, "Test!\n");
+    if (resultcode != 1) {
+        // Error
+    }
+
+}
 
 /*
 
