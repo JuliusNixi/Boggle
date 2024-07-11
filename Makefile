@@ -131,6 +131,8 @@ clean: clear
 	-pkill -SIGKILL -f $(LABIIDIR)$(RNC)
 	-pkill -SIGKILL -f $(LABIIDIR)$(RNT)
 
+	find . -name .DS_Store -not -path "./Tests/C/Logs/*" -delete
+
 
 # Some useful default args for testing.
 export IP=localhost
