@@ -2337,7 +2337,7 @@ disconnect_restart: {
 
         // Closing socket.
         retvalue = close(client->socket_client_fd);
-        if (retvalue != 0){
+        if (retvalue == -1){
             // Error
         }
         client->socket_client_fd = -1;

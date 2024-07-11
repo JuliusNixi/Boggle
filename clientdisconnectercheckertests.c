@@ -16,11 +16,20 @@ int client_fd;
 
 void* clientDisconnecterChecker(void* args) {
 
+    int retvalue;
     fprintf(stdout, "I'm the clientDisconnecter() thread!\n");
     sleep(3);
     fprintf(stdout, "Sleep finished.\n");
     char resultcode = sendMessage(socket_client_fd, MSG_OK, "Test!\n");
     fprintf(stdout, "sendMessage() resultcode: %d.\n", (int) resultcode);
+
+    if (resultcode == 0) {
+        retvalue = close(socket_client_fd);
+        if (retvalue == -1) {
+                // Error
+        }
+        fprintf(stdout, "Close succesfully.\n");
+    }
 
     pthread_exit(NULL);
     return NULL;

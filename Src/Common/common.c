@@ -152,13 +152,19 @@ readtype:
         *resultcode = 0;
         return NULL;
     }
+    if (retvalue == -1 && errno == EBADF) {
+        // Probably a disconnection happened.
+        destroyMessage(&readed);
+        *resultcode = 0;
+        return NULL;      
+    }
+    // Interrupted by a signal, normal, we are in end game.
+    if (retvalue == -1 && errno == EINTR) {
+        destroyMessage(&readed);
+        *resultcode = 1;
+        return NULL;
+    }
     if (retvalue == -1) {
-        // Interrupted by a signal, normal, we are in end game.
-        if (errno == EINTR) {
-            destroyMessage(&readed);
-            *resultcode = 1;
-            return NULL;
-        }
         // Error
         // Another unmanageable error.
         destroyMessage(&readed);
@@ -212,9 +218,17 @@ readlength:
         *resultcode = 0;
         return NULL;
     }
+    if (retvalue == -1 && errno == EBADF) {
+        // Probably a disconnection happened.
+        destroyMessage(&readed);
+        *resultcode = 0;
+        return NULL;      
+    }
+    // Interrupted by a signal, normal, we are in end game.
+    if (retvalue == -1 && errno == EINTR) {
+        goto readlength;
+    }
     if (retvalue == -1) {
-        // Interrupted by a signal, normal, we are in end game.
-        if (errno == EINTR) goto readlength;
         // Error
         // Another unmanageable error.
         destroyMessage(&readed);
@@ -259,9 +273,17 @@ readdata:
             *resultcode = 0;
             return NULL;  
         }
+        if (retvalue == -1 && errno == EBADF) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;      
+        }
+        // Interrupted by a signal, normal, we are in end game.
+        if (retvalue == -1 && errno == EINTR) {
+            goto readdata;
+        }
         if (retvalue == -1) {
-            // Interrupted by a signal, normal, we are in end game.
-            if (errno == EINTR) goto readdata;
             // Error
             // Another unmanageable error.
             destroyMessage(&readed);
@@ -297,9 +319,17 @@ readdatanull:
             *resultcode = 0;
             return NULL;  
         }
+        if (retvalue == -1 && errno == EBADF) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;      
+        }
+        // Interrupted by a signal, normal, we are in end game.
+        if (retvalue == -1 && errno == EINTR) {
+            goto readdatanull;
+        }
         if (retvalue == -1) {
-            // Interrupted by a signal, normal, we are in end game.
-            if (errno == EINTR) goto readdatanull;
             // Error
             // Another unmanageable error.
             destroyMessage(&readed);
