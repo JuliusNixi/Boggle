@@ -1861,7 +1861,7 @@ void* clientHandler(void* voidclient) {
         sprintf(rstr, strf, (uli) client->thread);
         rstr[n - 1] = '\0';
         free(thrid);
-        thrid = NULL;s
+        thrid = NULL;
         int r = pthread_setname_np(client->thread, rstr);
         fprintf(stdout, "\n\n  %d  \n\n", (int)r);
     #endif
