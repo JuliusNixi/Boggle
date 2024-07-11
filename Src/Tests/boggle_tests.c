@@ -5,13 +5,19 @@
 
 // Remember to compile with also "../../Src/Common/common.c".
 
-//#define N_CLIENTS 512LU // Number of clients that will be spawned.
-//#define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
-//#define N_TESTS 8LU // Number of tests. It's multiplied by the nactions, be moderate so.
-
-#define N_CLIENTS 1LU // Number of clients that will be spawned.
-#define N_ACTIONS 1LU // Number of actions for each client. Each action is the submission of a command.
-#define N_TESTS 1LU // Number of tests. It's multiplied by the nactions, be moderate so.
+// Linux.
+// Remember on the LABII machine the maximum open files soft limit (for my user) is 1024.
+// Remember each client will use 2 files, 1 to logs stdin and 1 to logs stdout and stderr.
+// Difference between soft and hard:
+// https://unix.stackexchange.com/questions/29577/ulimit-difference-between-hard-and-soft-limits.
+// To see these limits:
+// https://stackoverflow.com/questions/1356675/check-the-open-fd-limit-for-a-given-process-in-linux
+// macOS.
+// I had to increase the limit of open files to run so many clients:
+// https://stackoverflow.com/questions/73977844/too-many-open-files-during-rspec-tests-on-macos
+#define N_CLIENTS 256LU // Number of clients that will be spawned.
+#define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
+#define N_TESTS 8LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
 char* actions[] = {"help\n", "matrix\n", "enddisabled\n", "register_user", "p", "invalidcommand\n"};
 #define ACTIONS_LENGTH 6LU
