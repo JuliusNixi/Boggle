@@ -1841,7 +1841,8 @@ void* clientHandler(void* voidclient) {
         // Error
     }
 
-    char* thrid = itoa((uli) client->thread);
+    // TODO remove
+    /*char* thrid = itoa((uli) client->thread);
     char strf[] = "ClientHandlerID%luThread";
     uli n = strlen(thrid) + strlen(strf) + 1;
     char rstr[n];
@@ -1849,7 +1850,14 @@ void* clientHandler(void* voidclient) {
     rstr[n - 1] = '\0';
     free(thrid);
     thrid = NULL;
-    pthread_setname_np(client->thread, rstr);
+    pthread_setname_np(client->thread, rstr);*/
+    #if defined(__APPLE__)
+        pthread_setname_np(client->thread, "POPOPOPOLARETTI");
+    #elif defined(__linux__)
+        int r = pthread_setname_np(client->thread, "POPOPOPOLARETTI");
+        fprintf(stdout, "\n\n  %d  \n\n", (int)r);
+        sleep(500);
+    #endif
 
     fprintf(stdout, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) client->thread);
     // Printing the connected client's infos.
