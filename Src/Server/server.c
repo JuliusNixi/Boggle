@@ -1841,7 +1841,7 @@ void* clientHandler(void* voidclient) {
         // Error
     }
 
-    // TODO remove
+    // TODO Fix and remove.
     /*char* thrid = itoa((uli) client->thread);
     char strf[] = "ClientHandlerID%luThread";
     uli n = strlen(thrid) + strlen(strf) + 1;
@@ -1855,7 +1855,7 @@ void* clientHandler(void* voidclient) {
         pthread_setname_np(client->thread, "POPOPOPOLARETTI");
     #elif defined(__linux__)
         char* thrid = itoa((uli) client->thread);
-        char strf[] = "ClientHandlerID%luThread";
+        char strf[] = "ClientHandlerID%luThread"; // 24
         uli n = strlen(thrid) + strlen(strf) + 1;
         char rstr[n];
         sprintf(rstr, strf, (uli) client->thread);
@@ -1865,7 +1865,7 @@ void* clientHandler(void* voidclient) {
         int r = pthread_setname_np(client->thread, rstr);
         fprintf(stdout, "\n\n  %d  \n\n", (int)r);
     #endif
-
+    // Correggere tutte sprintf() in tutti i file (cercare parola con comando).
 
     fprintf(stdout, "CONNECTED: I'm a new clientHandler() thread (ID): %lu.\n", (uli) client->thread);
     // Printing the connected client's infos.
