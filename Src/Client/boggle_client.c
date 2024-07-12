@@ -107,6 +107,7 @@ reconnecting:
                 // Error
             }
             fprintf(stdout, "Socket closed.\nError in connecting, retrying in 3 seconds.\nIs the server online?\n");
+            fflush(stdout);
             sleep(3);
             goto reconnecting;
         }else break;

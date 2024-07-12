@@ -85,7 +85,6 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     pid = fork();
     if (pid == -1) {
         // Error
-fprintf(stderr,"\n\n error 1 \n\n");
     }
     if (pid == 0) {
         // Son.
@@ -100,40 +99,34 @@ fprintf(stderr,"\n\n error 1 \n\n");
     retvalue = close(pipefd[1]);
     if (retvalue == -1) {
         // Error
-fprintf(stderr,"\n\n error a \n\n");
     }
 
     // Redirect stdin to pipe.
     retvalue = dup2(pipefd[0], STDIN_FILENO);
     if (retvalue == -1) {
         // Error
-fprintf(stderr,"\n\n error b \n\n");
 
     }
     retvalue = close(pipefd[0]);
     if (retvalue == -1) {
         // Error
-fprintf(stderr,"\n\n error c \n\n");
     }
 
     // Redirect stdout to logs file.
     retvalue = dup2(fdstdoutlogfile, STDOUT_FILENO);
     if (retvalue == -1) {
         // Error
-fprintf(stderr,"\n\n error d \n\n");
     }
 
     // Redirect stderr to logs file.
     retvalue = dup2(fdstdoutlogfile, STDERR_FILENO);
     if (retvalue == -1) {
         // Error
-fprintf(stderr,"\n\n error e \n\n");
     }
 
     retvalue = close(fdstdoutlogfile);
     if (retvalue == -1) {
         // Error
-fprintf(stderr,"\n\n error f \n\n");
     }
 
     // Execute client.
@@ -348,6 +341,8 @@ int main(int argc, char** argv) {
                     int fd = open(VALID_WORDS_TESTS_FILE_PATH, O_RDONLY, NULL);
                     if (fd == -1) {
                         // Error
+                        fprintf(stderr, "Error in opening valid words tests file.\n");
+                        exit(1);
                     }
                     char file[s.st_size + 1];
                     char file_copy[s.st_size + 1];

@@ -26,6 +26,16 @@ problema clearing queue 0 thread id in scoreboard
 Client banner send and test if it works.
 problema client double free dopo aver ripristinato i banner.
 make tests spam prompt and client's output on linux.
+void logs files tests on linux
+fflushare stdout stderr su client per vedere sui file di logs
+./Src/Server/server.c:510:                    fflush(stdout);
+./Src/Server/server.c:512:                    fflush(stderr);
+./Src/Server/server.c:2662://fflush(stdout);
+./Src/Common/common.c:609:// Thread safety of fflush? Yes.
+./Src/Common/common.c:610:// https://stackoverflow.com/questions/39053670/can-a-program-call-fflush-on-the-same-file-concurrently
+./Src/Client/client.c:194:        fflush(stdout);
+./Src/Client/boggle_client.c:110:            fflush(stdout);
+
 
 rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt
 
