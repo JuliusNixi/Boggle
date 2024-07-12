@@ -23,7 +23,6 @@ Check again all studies files.
 Check again all Tests/C/ files.
 
 problema clearing queue 0 thread id in scoreboard
-Client banner send and test if it works.
 problema client double free dopo aver ripristinato i banner.
 
 rm outputserver.txt || make clean && make && lldb ./paroliere_srv 2>&1 | tee outputserver.txt

@@ -14,7 +14,7 @@ uli words_len = 0U;   // Length of BOTH char[][] above.
 uli matchtime = 0LU;  // Time of the last game startup.
 uli pausetime = 0LU;  // Time of the last pause startup.
 
-// TODO Reset times e delete assert here.
+// TODO Reset times e delete assert here after tests.
 #include <assert.h>
 #define tempteststimeseconds 8
 #define PAUSE_DURATION 8 // Duration of the pause in minutes. Default 1 minute.
@@ -502,7 +502,7 @@ void* signalsThread(void* args) {
                 /////////////////////////   SECURE CHECK   /////////////////////////
                 // In this case the sync between threads to access to this var is not needed.
                 if (pauseon) {
-                    // TODO Could be fixed?
+                    // TODO Is fixed? Delete if all works after the tests.
                     // Error
                     // Another pause is live. 
                     // Another unexpected SIGALRM received.
@@ -1040,13 +1040,17 @@ char* serializeMatrixStr(void) {
 
 
     /*
-    // TODO Reformat this comment.
-    Qu Qu Qu\n 
-    Qu Qu Qu\n
-    Qu Qu Qu\n\0
-    18 + 6 + 3 + 1 = 28
-    indexes from 0 to 27 
-    str[27] = '\0'
+    Example of how a string matrix should be:
+        Qu Qu Qu\n 
+        Qu Qu Qu\n
+        Qu Qu Qu\n\0
+        3 x 3 matrix.
+        3 * 3 = 9 Chars. 9 * 2 = 18 To handle 'Qu'.
+        6 Spaces.
+        3 '\n'.
+        1 '\0'.
+        18 + 6 + 3 + 1 = 28
+        Indexes from 0 to 27. Where 27 is '\0'.
     */
 
     // Allocating the string on the heap.
@@ -3024,7 +3028,7 @@ void* gamePauseAndNewGame(void* args) {
 }
 
 // ANCHOR clientDisconnecterChecker();
-// TODO Comment (explaination).
+// TODO Comment (explaination this function).
 // IT ASSUMES that needed mutexes are ALREADY LOCKED BY THE CALLER!
 void clientDisconnecterChecker(struct ClientNode* client) {
 

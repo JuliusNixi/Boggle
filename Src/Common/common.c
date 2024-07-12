@@ -76,7 +76,7 @@ https://stackoverflow.com/questions/29331651/is-c-read-thread-safe
 
 
 #########################################################################################################
-// TODO Correct after changes.
+// TODO Correct, after changes, this is not true anymore (clientDisconnecter()).
 WARNING: The server's use of this function, ASSUMES that the client will always send a message ENTIRELY
 (even if it is split into its fields) or NOT AT ALL.
 Specifically:

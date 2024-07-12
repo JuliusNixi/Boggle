@@ -8,7 +8,7 @@ List of things to work on. Very few because I forget very often to update this f
 - [ ] Handle all errors.
 - [ ] Execute again Valgrind on server, client and C tests. Fill the obtained output in the .txt files.
 - [ ] Test max clients connected and WORD_LEN limit.
-- [ ] Re-insert command "end" in C tests.
+- [ ] Re-insert command "end" in C tests after end of all tests.
 
 ## Done ✓
 
