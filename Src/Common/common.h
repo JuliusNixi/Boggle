@@ -69,6 +69,8 @@ typedef unsigned long int uli; // Shortcut used often.
 
 pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will not be others prints interleaved from other threads.
 
+char clientorserver;
+
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
 // These variables are used in some tests, that's why they have to be here even if they are not used by both server and client.
@@ -104,4 +106,5 @@ char sendMessage(int, char, char*);
 void destroyMessage(struct Message**);
 char* bannerCreator(uli, uli, char*, char, char);
 char* itoa(uli);
+void* disconnecterChecker(void*);
 

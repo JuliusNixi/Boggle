@@ -8,7 +8,6 @@ List of things to work on. Very few because I forget very often to update this f
 - [ ] Handle all errors.
 - [ ] Execute again Valgrind on server, client and C tests. Fill the obtained output in the .txt files.
 - [ ] Test max clients connected and WORD_LEN limit.
-- [ ] Re-insert command "end" in C tests after end of all tests.
 
 ## Done ✓
 
@@ -27,7 +26,6 @@ List of things to work on. Very few because I forget very often to update this f
 - [x] Remove/delete Src/ Makefile and migrate to the root's Makefile.
 - [x] Check root README.md.
 - [x] Check all .c in Studies/C/ files.
-- [x] Write GOTO (used why) explaination in sendMessage() and receiveMessage().
 - [x] Check and update the report.
 
 

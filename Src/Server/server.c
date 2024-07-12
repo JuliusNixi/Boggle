@@ -618,7 +618,7 @@ void* signalsThread(void* args) {
                     // Continuing only when the signal has been received by the client.
                     if (current->receivedsignal && current->waiting) current = current->next;
                     else{
-                        clientDisconnecterChecker(current);
+                        disconnecterChecker((void*) &(current->socket_client_fd));
                         usleep(50);
                     } 
                 }
@@ -766,7 +766,7 @@ void* signalsThread(void* args) {
                     }
                     if (current->receivedsignal && current->waiting == 1) current = current->next;
                     else {
-                        clientDisconnecterChecker(current);
+                        disconnecterChecker((void*) &(current->socket_client_fd));
                         usleep(50);
                     } 
                 }
@@ -1241,7 +1241,7 @@ void loadDictionary(char* path) {
 
             // Copying the word in the new words[i] heap space.
             strcpy(words[counter - 1], str);
-            words[counter - 1][strlen(words[counter - 1])] = '\0';
+            words[counter - 1][strlen(str)] = '\0';
 
         }
 
@@ -2872,6 +2872,10 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 }
                 disconnectClient(&client, 1);
                 // THIS THREAD SHOULD NOW BE DEAD.
+            }case MSG_PING_ONLINE : { 
+                // Nothing to do.
+                ;
+                break;
             }case MSG_ERR :
             case MSG_OK:
             case MSG_TEMPO_ATTESA:
@@ -2906,8 +2910,15 @@ void* gamePauseAndNewGame(void* args) {
     pthread_setname_np(gamepauseandnewgamethread, "GamePauseAndNewGameThread");
 
     //////////////////  EXECUTING PAUSE  //////////////////
-
-    fprintf(stdout, "Pause sleeping started.\nSleeping zzz...\n");
+    retvalue = pthread_mutex_lock(&listmutex);
+    if (retvalue != 0) {
+        // Error
+    }
+    fprintf(stdout, "Pause sleeping started. Online %lu players.\nSleeping zzz...\n", nclientsconnected);
+    retvalue = pthread_mutex_unlock(&listmutex);
+    if (retvalue != 0) {
+        // Error
+    }
     // Executing the pause.
     // PAUSE_DURATION in minutes, but sleep takes seconds.
     //sleep(PAUSE_DURATION * 60);
@@ -3024,27 +3035,6 @@ void* gamePauseAndNewGame(void* args) {
 
     pthread_exit(NULL);
     return NULL;
-
-}
-
-// ANCHOR clientDisconnecterChecker();
-// TODO Comment (explaination this function).
-// IT ASSUMES that needed mutexes are ALREADY LOCKED BY THE CALLER!
-void clientDisconnecterChecker(struct ClientNode* client) {
-
-    char resultcode = sendMessage(client->socket_client_fd, MSG_PING_ONLINE, "Ping, pong!\n");
-    // Disconnection.
-    if (resultcode == 0) {
-        int retvalue = close(client->socket_client_fd);
-        if (retvalue == -1) {
-            // Error
-        }
-        client->socket_client_fd = -1;
-        return;
-    }
-    if (resultcode != 1) {
-        // Error
-    }
 
 }
 

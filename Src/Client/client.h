@@ -5,6 +5,7 @@
 int client_fd; // Client/Server socket file descriptor.
 
 pthread_t responsesthread; // This thread will handle the responses received from the server asynchronously.
+pthread_t disconnecterthread;
 
 // Functions signatures client used in client.c and boggle_client.c.
 // Implementation and infos in the client.c file.
@@ -22,6 +23,7 @@ void* responsesHandler(void*);
 // void destroyMessage(struct Message**); -> common.h
 // char* bannerCreator(uli, uli, char*, char, char); -> common.h
 // char* itoa(uli); -> common.h
+// void* disconnecterChecker(void*); -> common.h
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h

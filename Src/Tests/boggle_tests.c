@@ -15,11 +15,12 @@
 // macOS.
 // I had to increase the limit of open files to run so many clients:
 // https://stackoverflow.com/questions/73977844/too-many-open-files-during-rspec-tests-on-macos
+
 #define N_CLIENTS 256LU // Number of clients that will be spawned.
 #define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
 #define N_TESTS 8LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
-char* actions[] = {"help\n", "matrix\n", "enddisabled\n", "register_user", "p", "invalidcommand\n"};
+char* actions[] = {"help\n", "matrix\n", "end\n", "register_user", "p", "invalidcommand\n"};
 #define ACTIONS_LENGTH 6LU
 char* finalaction = NULL;
 
@@ -27,7 +28,6 @@ char* finalaction = NULL;
 
 pid_t pids[N_CLIENTS];
 int pipesfdstdin[N_CLIENTS][2];
-int stdoutfds[N_CLIENTS];
 
 void end(char processalive) {
 
@@ -53,19 +53,17 @@ void end(char processalive) {
             if (retvalue == -1) {
                 // Error
             }
-            retvalue = close(stdoutfds[i]);
-            if (retvalue == -1) {
-                // Error
-            }
             retvalue = close(pipesfdstdin[i][1]);
             if (retvalue == -1) {
                 // Error
             }
+            pipesfdstdin[i][1] = -1;
         } else if (result == p) {
-            continue; // Process terminated, skipping.
+            continue; // Process already terminated, skipping.
         }else{
             // Error
         }
+        
     }
 
     int status;
@@ -100,6 +98,7 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     if (retvalue == -1) {
         // Error
     }
+    pipefd[1] = -1;
 
     // Redirect stdin to pipe.
     retvalue = dup2(pipefd[0], STDIN_FILENO);
@@ -111,6 +110,7 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     if (retvalue == -1) {
         // Error
     }
+    pipefd[0] = -1;
 
     // Redirect stdout to logs file.
     retvalue = dup2(fdstdoutlogfile, STDOUT_FILENO);
@@ -128,6 +128,7 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     if (retvalue == -1) {
         // Error
     }
+    fdstdoutlogfile = -1;
 
     // Execute client.
     char* portstr = itoa(port);
@@ -150,6 +151,7 @@ int main(int argc, char** argv) {
 
     // Received args checks.
     if (argc != 3){
+        // Error
         fprintf(stderr, "Invalid args. Pass the IP and the port to be used for the clients connection (to...).\n");
         exit(EXIT_FAILURE);
     }
@@ -189,25 +191,39 @@ int main(int argc, char** argv) {
         rstrout[n - 1] = '\0';
         free(istr);
         istr = NULL;
+
         int fd = open(rstrout, O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); // Creating the stdout logs file.
         if (fd == -1) {
             // Error
         }
-        stdoutfds[i] = fd;
+
         // Create a pipe.
         if (pipe(pipesfdstdin[i]) == -1) {
             // Error
         }
+
         pid_t pid = client(fd, argv[1], port, pipesfdstdin[i]);
         if (pid == -1) {
             // Error
             fprintf(stderr, "Error in executing client's process.\n");
             exit(1);
         }
+
         // Father.
-        // Closing reading pipe.
-        close(pipesfdstdin[i][0]);
         pids[i] = pid;
+
+        retvalue = close(fd);
+        if (retvalue == -1) {
+            // Error
+        }
+
+        // Closing reading pipe.
+        retvalue = close(pipesfdstdin[i][0]);
+        if (retvalue == -1) {
+            // Error
+        }
+        pipesfdstdin[i][0] = -1;
+
         char strpathin[] = "./Tests/C/Logs/stdin-log-%lu.txt";
         char strpathinm[] = "./Tests/C/Logs/stdin-log-.txt";
         l = strlen(strpathinm);
@@ -215,6 +231,7 @@ int main(int argc, char** argv) {
         char rstrin[n];
         sprintf(rstrin, strpathin, i);
         strpathin[n - 1] = '\0';
+
         fd = open(rstrin, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); // Creating the stdin logs file.
         if (fd == -1) {
             // Error
@@ -223,8 +240,12 @@ int main(int argc, char** argv) {
         if (retvalue == -1) {
             // Error
         }
+        fd = -1;
+
     }
-    fprintf(stdout, "All clients opened.\n");
+    fprintf(stdout, "All clients opened.\nSleeping 3 seconds...\n");
+
+    sleep(3);
 
     for (uli i = 0LU; i < N_CLIENTS; i++){
 
@@ -239,44 +260,39 @@ int main(int argc, char** argv) {
         rstrout[n - 1] = '\0';
         free(istr);
         istr = NULL;
+
         // Performing stat on file.
         struct stat s;
         retvalue = stat(rstrout, &s);
         if (retvalue == -1) {
             // Error
         }
+
         // To store file content.
         // Total size, in bytes + 1 for the '\0'. 
         char file[s.st_size + 1];
         char file_copy[s.st_size + 1];
 
-        // Reading the file content using a buffer of BUFFER_SIZE length.
-        char buffer[BUFFER_SIZE];
-        uli counter = 0LU;
-        while (1) {
-            retvalue = read(stdoutfds[i], buffer, BUFFER_SIZE);
-            if (retvalue == -1) {
-                // Error
-            }
 
-            // Exit while, end of file reached.
-            if (retvalue == 0) break;
+        FILE* stdoutfile = fopen(rstrout, "r");
+        if (stdoutfile == NULL) {
+            // Error
+        }
 
-            // Copying the buffer in the main file array.
-            for (uli i = 0LU; i < retvalue; i++)
-                file[counter++] = buffer[i];
+        retvalue = fread(file, sizeof(char), s.st_size, stdoutfile);
+        if (retvalue != s.st_size) {
+            // Error
         }
 
         // Terminating the file content.
         file[s.st_size] = '\0';
-
         // Copying the file content, to use strtok() on the first instance.
         strcpy(file_copy, file);
         file_copy[s.st_size] = '\0';
 
         // Counting file lines and allocating heap space.
         char* str = file;
-        counter = 0LU;
+        uli counter = 0LU;
         while (str != NULL) {
             // strtok() modifies the string content.
             // It tokenize all '\n' '\r' '\n\r' '\r\n'.
@@ -308,7 +324,7 @@ int main(int argc, char** argv) {
 
             // Copying the word in the new words[i] heap space.
             strcpy(lines[counter - 1], str);
-            lines[counter - 1][strlen(lines[counter - 1])] = '\0';
+            lines[counter - 1][strlen(str)] = '\0';
 
         }
 
@@ -320,7 +336,7 @@ int main(int argc, char** argv) {
         }
         if (!found) {
             // Error
-            fprintf(stderr, "The client %lu failed to connect to the server!\n", j);
+            fprintf(stderr, "The client %lu failed to connect to the server!\n", i);
             exit(1);
         }
         for (j = 0LU; j < arraylen; j++) {
@@ -329,13 +345,14 @@ int main(int argc, char** argv) {
         }
 
     }
-    fprintf(stdout, "All clients connected to the server succesfully!\n");
+    fprintf(stdout, "All clients connected to the server succesfully!\nSleeping 3 seconds...\n");
 
     sleep(3);
 
     fprintf(stdout, "Starting actions tests...\n");
     for (uli t = 0LU; t < N_TESTS; t++){
         fprintf(stdout, "Test %lu.\n", t);
+        fflush(stdout);
         for (uli a = 0LU; a < N_ACTIONS; a++) {
             // Sleeping between every action some random time.
             int randint = rand() % 11;
@@ -368,6 +385,7 @@ int main(int argc, char** argv) {
                 char rstrin[n];
                 sprintf(rstrin, strpathin, i);
                 strpathin[n - 1] = '\0';
+
                 int filestdinlogsfd = open(rstrin, O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); // Appending the stdin logs file.
                 if (filestdinlogsfd == -1) {
                     // Error
@@ -385,6 +403,7 @@ int main(int argc, char** argv) {
                     if (retvalue == -1) {
                         // Error
                     }
+                    filestdinlogsfd = -1;
                     continue;
                 }
 
@@ -407,7 +426,7 @@ int main(int argc, char** argv) {
                         user[USERNAME_LENGTH - 1] = VOID_CHAR;
                     user[USERNAME_LENGTH] = '\0';
                     uli l = strlen(action) + 1 /* For space */ + USERNAME_LENGTH + 1 /* For '\n' */
-                    + 1; // +1 for '\0'.
+                    + 1; // For '\0'.
                     finalaction = (char*) malloc(sizeof(char) * l);
                     if (finalaction == NULL) {
                         // Error
@@ -443,6 +462,7 @@ int main(int argc, char** argv) {
                     if(!S_ISREG(s.st_mode)){
                         // Error
                     }
+
                     // Opening the file in readonly mode.
                     int fd = open(VALID_WORDS_TESTS_FILE_PATH, O_RDONLY, NULL);
                     if (fd == -1) {
@@ -450,6 +470,7 @@ int main(int argc, char** argv) {
                         fprintf(stderr, "Error in opening valid words tests file.\n");
                         exit(1);
                     }
+
                     char file[s.st_size + 1];
                     char file_copy[s.st_size + 1];
                     uli counter = 0LU;
@@ -469,13 +490,17 @@ int main(int argc, char** argv) {
                             file[counter++] = buffer[j];
                     }
                     file[counter] = '\0';
+
                     retvalue = close(fd);
                     if (retvalue == -1) {
                         // Error
                     }
+                    fd = -1;
+
                     // Copying the file content, to use strtok() on the first instance.
                     strcpy(file_copy, file);
                     file_copy[s.st_size] = '\0';
+
                     // Counting file lines and allocating heap space.
                     char* str = file;
                     counter = 0LU;
@@ -488,8 +513,9 @@ int main(int argc, char** argv) {
                         else str = strtok(NULL, "\n\r");
                         counter++;
                     }
-                    // Allocating heap spaces for "words" and setting "words_len".
+
                     uli words_len = --counter;
+
                     // No valid words.
                     if (words_len == 0LU) {
                         // Logging it.
@@ -501,8 +527,10 @@ int main(int argc, char** argv) {
                         if (retvalue == -1) {
                             // Error
                         }
+                        filestdinlogsfd = -1;
                         continue;
                     }
+
                     char** words = (char**) malloc(sizeof(char*) * words_len);
                     if (words == NULL) {
                         // Error
@@ -526,10 +554,10 @@ int main(int argc, char** argv) {
 
                         // Copying the word in the new words[i] heap space.
                         strcpy(words[counter - 1], str);
-                        words[counter - 1][strlen(words[counter - 1])] = '\0';
+                        words[counter - 1][strlen(str)] = '\0';
                     }
-                    char* word;
 
+                    char* word;
                     randint = rand() % words_len;
                     word = words[randint];
 
@@ -539,7 +567,7 @@ int main(int argc, char** argv) {
                         word[0] = VOID_CHAR;
 
                     uli l = strlen(action) + 1 /* For space */ + strlen(word) + 1 /* For '\n' */
-                    + 1; // +1 for '\0'.
+                    + 1; // For '\0'.
                     finalaction = (char*) malloc(sizeof(char) * l);
                     if (finalaction == NULL) {
                         // Error
@@ -577,15 +605,13 @@ int main(int argc, char** argv) {
                     // Error
                 }
 
+                // Closing pipe on "end".
                 if (action == actions[2]){
-                    retvalue = close(stdoutfds[i]);
-                    if (retvalue == -1) {
-                        // Error
-                    }
                     retvalue = close(pipesfdstdin[i][1]);
                     if (retvalue == -1) {
                         // Error
                     }
+                    pipesfdstdin[i][1] = -1;
                 }
 
                 // Logging action.
@@ -594,9 +620,9 @@ int main(int argc, char** argv) {
                     // Error
                 }
 
-                // Killing the client if r >= 99.
+                // SIGINT the client if r >= 99.
                 randint = rand() % 101;
-                if (randint >= 99){
+                if (randint >= 99 && action != actions[2]){
                     retvalue = write(filestdinlogsfd, "sigint\n", strlen("sigint\n"));
                     if (retvalue == -1) {
                         // Error
@@ -605,20 +631,18 @@ int main(int argc, char** argv) {
                     if (retvalue == -1) {
                         // Error
                     }
-                    retvalue = close(stdoutfds[i]);
-                    if (retvalue == -1) {
-                        // Error
-                    }
                     retvalue = close(pipesfdstdin[i][1]);
                       if (retvalue == -1) {
                         // Error
-                    }                  
+                    }    
+                    pipesfdstdin[i][1] = -1;              
                 }
 
                 retvalue = close(filestdinlogsfd);
                 if (retvalue == -1) {
                     // Error
                 }
+                filestdinlogsfd = -1;
 
                 free(finalaction);
                 finalaction = NULL;
@@ -628,7 +652,6 @@ int main(int argc, char** argv) {
             if (someonealiveflag == 0) end(0);
 
         } // End for actions.
-
 
     } // End for tests.
 

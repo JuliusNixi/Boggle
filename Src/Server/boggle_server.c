@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
     setupfinished = 0;
+    clientorserver = 1;
     // Cannot use PTHREAD_MUTEX_INITIALIZER, because can be used only on static allocated mutexes.
     // Initialization should be performed like this.
     retvalue = pthread_mutex_init(&setupmutex, NULL);
@@ -109,7 +110,7 @@ int main(int argc, char** argv) {
     for (uli i = 3LU; i < argc; i += 2LU) {
         // Lowering input.
         toLowerOrUpperString(argv[i], 'L');
-        if (strcmp(argv[i], "--matrices") == 0 || strcmp(argv[i], "--matrici") == 0)
+        if (strcmp(argv[i], "--matrices") == 0 || strcmp(argv[i], "--matrici") == 0 || strcmp(argv[i], "--mat") == 0)
             filemath = argv[i + 1];
         else if (strcmp(argv[i], "--duration") == 0 || strcmp(argv[i], "--durata") == 0) {
             gameduration = (uli) strtoul(argv[i + 1], NULL, 10);

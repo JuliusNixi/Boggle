@@ -96,7 +96,7 @@ Specifically:
       into the queue, but this may never happen if the client is uncooperative (not send
       the other missing part of the message).
 #########################################################################################################
-
+// TODO Remove GOTO no longer used.
 WHY USING GOTO THAT CAUSES SPAGHETTI CODE?!?!
 Because this function (in all its read()) could be interrupted theoretically infinite times
 by the signalsThread() thread, receiving from it the SIGUSR1 to signal the end of the game.
@@ -135,56 +135,59 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
     // Reading/Waiting for the message type.
     toread = sizeof(readed->type);
     writingpointer = &(readed->type);
-readtype:
-    retvalue = read(fdfrom, writingpointer, toread);
-    // https://stackoverflow.com/questions/33053507/econnreset-in-send-linux-c
-    // EPIPE is obtained when writing to a closed target.
-    // ECONNRESET is obtained when writing to a closed target and its buffer (of the target)
-    // is not empty.
-    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-        // Probably a disconnection happened.
-        destroyMessage(&readed);
-        *resultcode = 0;
-        return NULL;   
-    }
-    if (retvalue == 0 && errno == ETIMEDOUT) {
-        // Probably a disconnection happened.
-        destroyMessage(&readed);
-        *resultcode = 0;
-        return NULL;
-    }
-    if (retvalue == -1 && errno == EBADF) {
-        // Probably a disconnection happened.
-        destroyMessage(&readed);
-        *resultcode = 0;
-        return NULL;      
-    }
-    // Interrupted by a signal, normal, we are in end game.
-    if (retvalue == -1 && errno == EINTR) {
-        destroyMessage(&readed);
-        *resultcode = 1;
-        return NULL;
-    }
-    if (retvalue == -1) {
-        // Error
-        // Another unmanageable error.
-        destroyMessage(&readed);
-        *resultcode = 2;
-        return NULL;
-    }
-    if (retvalue == 0) {
-        // 0 bytes read.
-        destroyMessage(&readed);
-        *resultcode = 3;
-        return NULL;     
-    }
+    while (1) {
+        retvalue = read(fdfrom, writingpointer, toread);
+        // https://stackoverflow.com/questions/33053507/econnreset-in-send-linux-c
+        // EPIPE is obtained when writing to a closed target.
+        // ECONNRESET is obtained when writing to a closed target and its buffer (of the target)
+        // is not empty.
+        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;   
+        }
+        if (retvalue == 0 && errno == ETIMEDOUT) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;
+        }
+        if (retvalue == -1 && errno == EBADF) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;      
+        }
+        // Interrupted by a signal, normal, we are in end game.
+        if (retvalue == -1 && errno == EINTR) {
+            destroyMessage(&readed);
+            *resultcode = 1;
+            return NULL;
+        }
+        if (retvalue == -1) {
+            // Error
+            // Another unmanageable error.
+            destroyMessage(&readed);
+            *resultcode = 2;
+            return NULL;
+        }
+        if (retvalue == 0) {
+            // 0 bytes read.
+            destroyMessage(&readed);
+            *resultcode = 3;
+            return NULL;     
+        }
 
-    // Interrupted before of end reading (in the middle of a reading).
-    // Readed less bytes returned in retvalue.
-    // When i will return from the (end of game reached) SIGNAL management,
-    // I come back to read where i was left, reading only the unread data from the stream.
-    if (retvalue < sizeof(readed->type)) {
-        toread = sizeof(readed->type) - retvalue;
+        // Interrupted before of end reading (in the middle of a reading).
+        // Readed less bytes returned in retvalue.
+        // When i will return from the (end of game reached) SIGNAL management,
+        // I come back to read where i was left, reading only the unread data from the stream.
+        toread -= retvalue;
+        tmp = (char*) writingpointer;
+        tmp += (retvalue);
+        writingpointer = (void*) tmp;
+        if (toread == 0) break;
         // Incrementing the writingpointer to read to at offset position.
         // Otherwise, i will read the new bytes, but i will overwrite the old ones
         // (already readed previously).
@@ -196,57 +199,55 @@ readtype:
         // Yes, sizeof(char) == 1 always, read here:
         // https://stackoverflow.com/questions/3922958/void-arithmetic
         // https://stackoverflow.com/questions/2215445/are-there-machines-where-sizeofchar-1-or-at-least-char-bit-8
-        tmp = (char*) writingpointer;
-        tmp += (retvalue);
-        writingpointer = (void*) tmp;
-        goto readtype;
+
     }
 
-    toread = sizeof(readed->length);
-    writingpointer = &(readed->length);
-readlength:
-    // Reading/Waiting for the message length.
-    retvalue = read(fdfrom, writingpointer, toread);
-    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-        // Probably a disconnection happened.
-        destroyMessage(&readed);
-        *resultcode = 0;
-        return NULL;   
-    }
-    if (retvalue == 0 && errno == ETIMEDOUT) {
-        // Probably a disconnection happened.
-        destroyMessage(&readed);
-        *resultcode = 0;
-        return NULL;
-    }
-    if (retvalue == -1 && errno == EBADF) {
-        // Probably a disconnection happened.
-        destroyMessage(&readed);
-        *resultcode = 0;
-        return NULL;      
-    }
-    // Interrupted by a signal, normal, we are in end game.
-    if (retvalue == -1 && errno == EINTR) {
-        goto readlength;
-    }
-    if (retvalue == -1) {
-        // Error
-        // Another unmanageable error.
-        destroyMessage(&readed);
-        *resultcode = 2;
-        return NULL;
-    }
-    if (retvalue == 0) {
-        // 0 bytes read.
-        goto readlength;   
-    }
-    if (retvalue < sizeof(readed->length)) {
-        toread = sizeof(readed->length) - retvalue;
+    uint32_t l;
+    toread = sizeof(l);
+    writingpointer = &(l);
+    while (1) {
+        // Reading/Waiting for the message length.
+        retvalue = read(fdfrom, writingpointer, toread);
+        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;   
+        }
+        if (retvalue == 0 && errno == ETIMEDOUT) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;
+        }
+        if (retvalue == -1 && errno == EBADF) {
+            // Probably a disconnection happened.
+            destroyMessage(&readed);
+            *resultcode = 0;
+            return NULL;      
+        }
+        // Interrupted by a signal, normal, we are in end game.
+        if (retvalue == -1 && errno == EINTR) {
+            continue;
+        }
+        if (retvalue == -1) {
+            // Error
+            // Another unmanageable error.
+            destroyMessage(&readed);
+            *resultcode = 2;
+            return NULL;
+        }
+        if (retvalue == 0) {
+            // 0 bytes read.
+            continue;   
+        }
+        toread -= retvalue;
         tmp = (char*) writingpointer;
         tmp += (retvalue);
         writingpointer = (void*) tmp;
-        goto readlength;
+        if (toread == 0) break;
     }
+    readed->length = ntohl(l);
 
     // Allocating heap memory to store the received message data.
     char* bufferstr = NULL;
@@ -259,96 +260,95 @@ readlength:
         readed->data = bufferstr;
         toread = sizeof(char) * readed->length;
         writingpointer = readed->data;
-readdata:
-        // Reading/Waiting for the message data.
-        retvalue = read(fdfrom, writingpointer, toread);
-        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-            // Probably a disconnection happened.
-            destroyMessage(&readed);
-            *resultcode = 0;
-            return NULL;  
-        }
-        if (retvalue == 0 && errno == ETIMEDOUT) {
-            // Probably a disconnection happened.
-            destroyMessage(&readed);
-            *resultcode = 0;
-            return NULL;  
-        }
-        if (retvalue == -1 && errno == EBADF) {
-            // Probably a disconnection happened.
-            destroyMessage(&readed);
-            *resultcode = 0;
-            return NULL;      
-        }
-        // Interrupted by a signal, normal, we are in end game.
-        if (retvalue == -1 && errno == EINTR) {
-            goto readdata;
-        }
-        if (retvalue == -1) {
-            // Error
-            // Another unmanageable error.
-            destroyMessage(&readed);
-            *resultcode = 2;
-            return NULL;
-        }
-        if (retvalue == 0) {
-            // 0 bytes read.
-            goto readdata;   
-        }
-        if (retvalue < (sizeof(char) * readed->length)) {
-            toread = (sizeof(char) * readed->length) - retvalue;
+        while (1) {
+            // Reading/Waiting for the message data.
+            retvalue = read(fdfrom, writingpointer, toread);
+            if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+                // Probably a disconnection happened.
+                destroyMessage(&readed);
+                *resultcode = 0;
+                return NULL;  
+            }
+            if (retvalue == 0 && errno == ETIMEDOUT) {
+                // Probably a disconnection happened.
+                destroyMessage(&readed);
+                *resultcode = 0;
+                return NULL;  
+            }
+            if (retvalue == -1 && errno == EBADF) {
+                // Probably a disconnection happened.
+                destroyMessage(&readed);
+                *resultcode = 0;
+                return NULL;      
+            }
+            // Interrupted by a signal, normal, we are in end game.
+            if (retvalue == -1 && errno == EINTR) {
+                continue;
+            }
+            if (retvalue == -1) {
+                // Error
+                // Another unmanageable error.
+                destroyMessage(&readed);
+                *resultcode = 2;
+                return NULL;
+            }
+            if (retvalue == 0) {
+                // 0 bytes read.
+                continue;  
+            }
+            toread -= retvalue;
             tmp = (char*) writingpointer;
             tmp += (retvalue);
             writingpointer = (void*) tmp;
-            goto readdata;
+            if (toread == 0) break;
         }
     }else{
-        // Read data IS NULL.
-        toread = sizeof(char*);
+        // Message's data IS NULL.
+        // sizeof(char) == 1. No needed conversion from host bytes order and network bytes order.
+        toread = sizeof(char);
         writingpointer = &bufferstr;
-readdatanull:
-        retvalue = read(fdfrom, writingpointer, toread);     
-        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-            // Probably a disconnection happened.
-            destroyMessage(&readed);
-            *resultcode = 0;
-            return NULL;  
-        }
-        if (retvalue == 0 && errno == ETIMEDOUT) {
-            // Probably a disconnection happened.
-            destroyMessage(&readed);
-            *resultcode = 0;
-            return NULL;  
-        }
-        if (retvalue == -1 && errno == EBADF) {
-            // Probably a disconnection happened.
-            destroyMessage(&readed);
-            *resultcode = 0;
-            return NULL;      
-        }
-        // Interrupted by a signal, normal, we are in end game.
-        if (retvalue == -1 && errno == EINTR) {
-            goto readdatanull;
-        }
-        if (retvalue == -1) {
-            // Error
-            // Another unmanageable error.
-            destroyMessage(&readed);
-            *resultcode = 2;
-            return NULL;
-        }
-        if (retvalue == 0) {
-            // 0 bytes read.
-            goto readdatanull;   
-        }
-        if (retvalue < sizeof(char*)) {
-            toread = (sizeof(char*)) - retvalue;
+        while (1) {
+            retvalue = read(fdfrom, writingpointer, toread);     
+            if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+                // Probably a disconnection happened.
+                destroyMessage(&readed);
+                *resultcode = 0;
+                return NULL;  
+            }
+            if (retvalue == 0 && errno == ETIMEDOUT) {
+                // Probably a disconnection happened.
+                destroyMessage(&readed);
+                *resultcode = 0;
+                return NULL;  
+            }
+            if (retvalue == -1 && errno == EBADF) {
+                // Probably a disconnection happened.
+                destroyMessage(&readed);
+                *resultcode = 0;
+                return NULL;      
+            }
+            // Interrupted by a signal, normal, we are in end game.
+            if (retvalue == -1 && errno == EINTR) {
+                continue;
+            }
+            if (retvalue == -1) {
+                // Error
+                // Another unmanageable error.
+                destroyMessage(&readed);
+                *resultcode = 2;
+                return NULL;
+            }
+            if (retvalue == 0) {
+                // 0 bytes read.
+                continue;   
+            }
+            toread -= retvalue;
             tmp = (char*) writingpointer;
             tmp += (retvalue);
             writingpointer = (void*) tmp;
-            goto readdatanull;
-        }              
-    }
+            if (toread == 0) break;
+        } // End while.          
+    } // End if.
 
     *resultcode = 4;
     return readed;
@@ -373,28 +373,28 @@ char sendMessage(int fdto, char type, char* data) {
         // Error
     }
 
-        switch (type){ 
-            case MSG_MATRICE:
-            case MSG_REGISTRA_UTENTE:
-            case MSG_PAROLA:
-            case MSG_ESCI :
-            case MSG_ERR :
-            case MSG_OK:
-            case MSG_TEMPO_ATTESA:
-            case MSG_TEMPO_PARTITA:
-            case MSG_PUNTI_PAROLA:
-            case MSG_PING_ONLINE:
-            case MSG_PUNTI_FINALI: {
-                // OK, nothing to do for all.
-                ;
-                break;
-            }default:{
-                // Error
-                // Not recognized message.
-                break;
-            } 
+    switch (type){ 
+        case MSG_MATRICE:
+        case MSG_REGISTRA_UTENTE:
+        case MSG_PAROLA:
+        case MSG_ESCI :
+        case MSG_ERR :
+        case MSG_OK:
+        case MSG_TEMPO_ATTESA:
+        case MSG_TEMPO_PARTITA:
+        case MSG_PUNTI_PAROLA:
+        case MSG_PING_ONLINE:
+        case MSG_PUNTI_FINALI: {
+            // OK, nothing to do for all.
+            ;
+            break;
+        }default:{
+            // Error
+            // Not recognized message.
+            break;
+        } 
 
-        }
+    }
 
     // Reminder, data can be NULL! We have to check it.
 
@@ -429,73 +429,72 @@ char sendMessage(int fdto, char type, char* data) {
     
     towrite = sizeof(tosend.type);
     writingpointer = &(tosend.type);
-sendtype:
-    // Writing the message type.
-    retvalue = write(fdto, writingpointer, towrite);
-    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-        // Probably a disconnection happened.
-        free(s);
-        return 0;    
-    }
-    if (retvalue == 0 && errno == ETIMEDOUT) {
-        // Probably a disconnection happened.
-        free(s);
-        return 0; 
-    }
-    if (retvalue == -1) {
-        // Interrupted by a signal, normal, we are in end game.
-        if (errno == EINTR) goto sendtype;
-        // Error
-        // Another unmanageable error.
-        free(s);
-        return 2;
-    }
-    if (retvalue == 0) {
-        // 0 bytes read.
-        goto sendtype;   
-    }
-    if (retvalue < sizeof(tosend.type)) {
-        towrite = sizeof(tosend.type) - retvalue;
+    while (1) {
+        // Writing the message type.
+        retvalue = write(fdto, writingpointer, towrite);
+        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+            // Probably a disconnection happened.
+            free(s);
+            return 0;    
+        }
+        if (retvalue == 0 && errno == ETIMEDOUT) {
+            // Probably a disconnection happened.
+            free(s);
+            return 0; 
+        }
+        if (retvalue == -1) {
+            // Interrupted by a signal, normal, we are in end game.
+            if (errno == EINTR) continue;
+            // Error
+            // Another unmanageable error.
+            free(s);
+            return 2;
+        }
+        if (retvalue == 0) {
+            // 0 bytes read.
+            continue;  
+        }
+        towrite -= retvalue;
         tmp = (char*) writingpointer;
         tmp += (retvalue);
         writingpointer = (void*) tmp;
-        goto sendtype;
+        if (towrite == 0) break;
     }
 
 
-    towrite = sizeof(tosend.length);
-    writingpointer = &(tosend.length);
-sendlength:
-    // Writing the message length.
-    retvalue = write(fdto, writingpointer, towrite);
-    if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-        // Probably a disconnection happened.
-        free(s);
-        return 0; 
-    }
-    if (retvalue == 0 && errno == ETIMEDOUT) {
-        // Probably a disconnection happened.
-        free(s);
-        return 0; 
-    }
-    if (retvalue == -1) {
-        // Interrupted by a signal, normal, we are in end game.
-        if (errno == EINTR) goto sendlength;
-        // Error
-        // Another unmanageable error.
-        free(s);
-        return 2;
-    }
-    if (retvalue == 0) {
-        // 0 bytes read.
-        goto sendlength;   
-    }
-    if (retvalue < sizeof(tosend.length)) {
-        towrite = sizeof(tosend.length) - retvalue;
+    uint32_t l = htonl(tosend.length);
+    towrite = sizeof(l);
+    writingpointer = &l;
+    while (1) {
+        // Writing the message length.
+        retvalue = write(fdto, writingpointer, towrite);
+        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+            // Probably a disconnection happened.
+            free(s);
+            return 0; 
+        }
+        if (retvalue == 0 && errno == ETIMEDOUT) {
+            // Probably a disconnection happened.
+            free(s);
+            return 0; 
+        }
+        if (retvalue == -1) {
+            // Interrupted by a signal, normal, we are in end game.
+            if (errno == EINTR) continue;
+            // Error
+            // Another unmanageable error.
+            free(s);
+            return 2;
+        }
+        if (retvalue == 0) {
+            // 0 bytes read.
+            continue;   
+        }
+        towrite -= retvalue;
         tmp = (char*) writingpointer;
         tmp += (retvalue);
         writingpointer = (void*) tmp;
-        goto sendlength;
+        if (towrite == 0) break;
     }
 
     // Writing the message data.
@@ -503,76 +502,75 @@ sendlength:
         // Message's data NOT NULL.
         towrite = tosend.length * sizeof(char);
         writingpointer = tosend.data;
-senddata: {
-        retvalue = write(fdto, writingpointer, towrite);
-        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-            // Probably a disconnection happened.
-            free(s);
-            return 0;   
-        }
-        if (retvalue == 0 && errno == ETIMEDOUT) {
-            // Probably a disconnection happened.
-            free(s);
-            return 0;  
-        }
-        if (retvalue == -1) {
-            // Interrupted by a signal, normal, we are in end game.
-            if (errno == EINTR) goto senddata;
-            // Error
-            // Another unmanageable error.
-            free(s);
-            return 2;
-        }
-        if (retvalue == 0) {
-            // 0 bytes read.
-            goto senddata;   
-        }
-        if (retvalue < (tosend.length * sizeof(char))) {
-            towrite = (sizeof(char) * tosend.length) - retvalue;
+        while (1) {
+            retvalue = write(fdto, writingpointer, towrite);
+            if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+                // Probably a disconnection happened.
+                free(s);
+                return 0;   
+            }
+            if (retvalue == 0 && errno == ETIMEDOUT) {
+                // Probably a disconnection happened.
+                free(s);
+                return 0;  
+            }
+            if (retvalue == -1) {
+                // Interrupted by a signal, normal, we are in end game.
+                if (errno == EINTR) continue;
+                // Error
+                // Another unmanageable error.
+                free(s);
+                return 2;
+            }
+            if (retvalue == 0) {
+                // 0 bytes read.
+                continue; 
+            }
+                    
+            towrite -= retvalue;
             tmp = (char*) writingpointer;
             tmp += (retvalue);
             writingpointer = (void*) tmp;
-            goto senddata;
-        }
-}
+            if (towrite == 0) break;
+
+        } // End while.
     }else{
         // Message's data IS NULL.
-        towrite = sizeof(char*);
-        char* nulll = 0;
+        // sizeof(char) == 1. No needed conversion from host bytes order and network bytes order.
+        towrite = sizeof(char);
+        char nulll = 0;
         writingpointer = &nulll;
-senddatanull: {
-        retvalue = write(fdto, writingpointer, towrite);
-        if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
-            // Probably a disconnection happened.
-            free(s);
-            return 0;   
-        }
-        if (retvalue == 0 && errno == ETIMEDOUT) {
-            // Probably a disconnection happened.
-            free(s);
-            return 0;  
-        }
-        if (retvalue == -1) {
-            // Interrupted by a signal, normal, we are in end game.
-            if (errno == EINTR) goto senddatanull;
-            // Error
-            // Another unmanageable error.
-            free(s);
-            return 2;
-        }
-        if (retvalue == 0) {
-            // 0 bytes read.
-            goto senddatanull;   
-        }
-        if (retvalue < sizeof(char*)) {
-            towrite = (sizeof(char*)) - retvalue;
+        while (1) {
+            retvalue = write(fdto, writingpointer, towrite);
+            if (retvalue == -1 && (errno == ECONNRESET || errno == EPIPE)) {
+                // Probably a disconnection happened.
+                free(s);
+                return 0;   
+            }
+            if (retvalue == 0 && errno == ETIMEDOUT) {
+                // Probably a disconnection happened.
+                free(s);
+                return 0;  
+            }
+            if (retvalue == -1) {
+                // Interrupted by a signal, normal, we are in end game.
+                if (errno == EINTR) continue;
+                // Error
+                // Another unmanageable error.
+                free(s);
+                return 2;
+            }
+            if (retvalue == 0) {
+                // 0 bytes read.
+                continue;   
+            }
+            towrite -= retvalue;
             tmp = (char*) writingpointer;
             tmp += (retvalue);
             writingpointer = (void*) tmp;
-            goto senddata;
-        }
-}       
-    }
+            if (towrite == 0) break;
+        } // End while.
+    } // End if.    
 
     // Message sent.
     free(s);
@@ -677,7 +675,6 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
     for (uli i = 0LU; i < X; i++) 
         result[index++] = bannersymbol;
     
-    
     // Null-terminate the string.
     result[totalsize] = '\0';
 
@@ -721,6 +718,53 @@ char* itoa(uli n) {
     strint[ndigits] = '\0';
     
     return strint;
+
+}
+
+// ANCHOR disconnecterChecker();
+// TODO Comment (explaination this function).
+void* disconnecterChecker(void* args) {
+
+    if (clientorserver == 0) {
+        // Executed only on the client.
+        fprintf(stdout, "I'm the disconnecterChecker() thread (ID): %lu.\n", (uli) pthread_self());  
+
+        int retvalue = pthread_mutex_lock(&setupmutex);
+        if (retvalue != 0) {
+            // Error
+        }
+        setupfinished++;
+        pthread_setname_np(pthread_self(), "DiscChkThread");
+        retvalue = pthread_mutex_unlock(&setupmutex);
+        if (retvalue != 0) {
+            // Error
+        }
+
+    }
+
+    int* fdto = (int*) args;
+    while (1) {
+        if (*fdto < 0) {
+            // Error
+        }
+        char resultcode = sendMessage(*fdto, MSG_PING_ONLINE, "Ping, pong!\n");
+        // Disconnection.
+        if (resultcode == 0) {
+            int retvalue = close(*fdto);
+            if (retvalue == -1) {
+                // Error
+            }
+            *fdto= -1;
+            return NULL;
+        }
+        if (resultcode != 1) {
+            // Error
+        }
+        if (clientorserver == 1) break;
+        sleep(3);
+    }
+
+    return NULL;
 
 }
 

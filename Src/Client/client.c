@@ -328,7 +328,7 @@ void inputHandler(void) {
 
                         char commandfound = 0;
                         // Processing the user request.
-                        if (strcmp("end", inputfinal) == 0 || strcmp("exit", inputfinal) == 0 || strcmp("fine", inputfinal) == 0){
+                        if (strcmp("end", inputfinal) == 0 || strcmp("exit", inputfinal) == 0 || strcmp("fine", inputfinal) == 0 || strcmp("quit", inputfinal) == 0){
                             fprintf(stdout, "Bye, bye, see you soon! Thanks for playing.\n");
                             sendMessage(client_fd, MSG_ESCI, NULL);
                             commandfound = 1;
@@ -629,53 +629,62 @@ void* responsesHandler(void* args) {
         // - 2: Unexpected error.
         // - 3: Read 0 bytes (at the message beginning, so the message's type).
         // - 4: Completed message received succesfully.
-        // TODO Check returncode, the code below must be inserted in this switch in the fourth case.
+        // TODO Check returncode.
         switch (returncode){
-            case 0:
-                /* code */
+            case 0 : {
+                // Server disconnection.
                 break;
-            
-            default:
+            }case 1: {
                 break;
-        }
+            }case 2: {
+                break;
+            }case 3: {
+                break;
+            }case 4: {        
+                // Adding the new completed message received to list of messages (server responses to print).
+                // Allocating a new heap element.
+                struct MessageNode* new;
+                new = (struct MessageNode*) malloc(sizeof(struct MessageNode));
+                if (new == NULL) {
+                    // Error
+                }
 
-        // Adding the new completed message received to list of messages (server responses to print).
-        // Allocating a new heap element.
-        struct MessageNode* new;
-        new = (struct MessageNode*) malloc(sizeof(struct MessageNode));
-        if (new == NULL) {
-            // Error
-        }
+                // Filling the new element.
+                new->next = NULL;
+                new->m = received;
 
-        // Filling the new element.
-        new->next = NULL;
-        new->m = received;
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                // Adding to the list.
+                if (head == NULL) {
+                    // List empty.
+                    head = new;
+                }else{
+                    // Going through the list to add at the end the new element.
+                    struct MessageNode* c = head;
+                    while (1) {
+                        if (c->next == NULL) break;
+                        c = c->next;
+                    }
+                    c->next = new;
+                }  
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
 
-        retvalue = pthread_mutex_lock(&listmutex);
-        if (retvalue != 0) {
-            // Error
-        }
-        // Adding to the list.
-        if (head == NULL) {
-            // List empty.
-            head = new;
-        }else{
-            // Going through the list to add at the end the new element.
-            struct MessageNode* c = head;
-            while (1) {
-                if (c->next == NULL) break;
-                c = c->next;
+            continue; // While.
+            break;
+
+            }default: {
+                break;
             }
-            c->next = new;
-        }  
-        retvalue = pthread_mutex_unlock(&listmutex);
-        if (retvalue != 0) {
-            // Error
-        }
 
-        continue;
+        } // End switch.
 
-    }
+    } // End while.
 
     return NULL;
     
