@@ -76,6 +76,7 @@ https://stackoverflow.com/questions/29331651/is-c-read-thread-safe
 
 
 #########################################################################################################
+// TODO Correct after changes.
 WARNING: The server's use of this function, ASSUMES that the client will always send a message ENTIRELY
 (even if it is split into its fields) or NOT AT ALL.
 Specifically:
@@ -587,7 +588,7 @@ void destroyMessage(struct Message** m) {
 
     if (m == NULL || *m == NULL) {
         // Error
-        printf("NULL destroyMessage()!\n");
+        fprintf(stderr, "NULL destroyMessage()!\n");
     }
 
     // Releasing allocated memory and destroying the vars content.

@@ -542,6 +542,9 @@ void inputHandler(void) {
                             break;
                         }
                     } // End switch.
+
+                    fflush(stdout);
+
                     // Destroying message and element list.
                     struct MessageNode* tmp;
                     tmp = current->next;

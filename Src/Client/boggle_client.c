@@ -112,7 +112,7 @@ reconnecting:
             goto reconnecting;
         }else break;
     }
-    fprintf(stdout, "Connected succesfully!\n");
+    fprintf(stdout, "%s\n", CONNECTED_SUCCESFULLY_STR);
 
     // Creating responses handler pthread.
     retvalue = pthread_create(&responsesthread, NULL, responsesHandler, NULL);
@@ -140,6 +140,8 @@ reconnecting:
     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
     fprintf(stdout, "%s\n\n", banner);
     free(banner);
+
+    fflush(stdout);
 
     // Start input management.
     inputHandler();

@@ -87,6 +87,8 @@ char matrix[NROWS][NCOL];  // Matrix game core, each position is a char.
 #define VALID_WORDS_TESTS_FILE_PATH "./Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary. For more info see "../../Tests/C/README.md".
 
 #define RAND_SEED 42U
+
+#define CONNECTED_SUCCESFULLY_STR "Connected succesfully!"
 //------------------------------------------------------------------------------------
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.

@@ -147,6 +147,6 @@ execc: clear $(EXEC)
 	$(ROOTDIR)$(RNC) $(IP) $(PORT)
 
 # Compile and execute the C tests with some default/testing args.
-tests: clear $(EXET)
+tests: clear $(EXEC) $(EXET)
 	$(ROOTDIR)$(RNT) $(IP) $(PORT)
 

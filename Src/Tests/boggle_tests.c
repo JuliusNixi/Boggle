@@ -173,6 +173,7 @@ int main(int argc, char** argv) {
     fprintf(stdout, "You should open the server on IP: %s and port: %lu.\n", argv[1], port);
     fprintf(stdout, "Clients: %lu. Actions: %lu. Tests %lu.\n", N_CLIENTS, N_ACTIONS, N_TESTS);
     fprintf(stdout, "When you're ready, press enter to start the tests...");
+    fflush(stdout);
     getchar();
 
     fprintf(stdout, "Starting clients...\n");
@@ -188,7 +189,7 @@ int main(int argc, char** argv) {
         rstrout[n - 1] = '\0';
         free(istr);
         istr = NULL;
-        int fd = open(rstrout, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); // Creating the stdout logs file.
+        int fd = open(rstrout, O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); // Creating the stdout logs file.
         if (fd == -1) {
             // Error
         }
@@ -224,6 +225,111 @@ int main(int argc, char** argv) {
         }
     }
     fprintf(stdout, "All clients opened.\n");
+
+    for (uli i = 0LU; i < N_CLIENTS; i++){
+
+        char* istr = itoa(i);
+        uli li = strlen(istr);
+        char strpathout[] = "./Tests/C/Logs/stdout-log-%lu.txt";
+        char strpathoutm[] = "./Tests/C/Logs/stdout-log-.txt";
+        uli l = strlen(strpathoutm);
+        uli n = l + li + 1;
+        char rstrout[n];
+        sprintf(rstrout, strpathout, i);
+        rstrout[n - 1] = '\0';
+        free(istr);
+        istr = NULL;
+        // Performing stat on file.
+        struct stat s;
+        retvalue = stat(rstrout, &s);
+        if (retvalue == -1) {
+            // Error
+        }
+        // To store file content.
+        // Total size, in bytes + 1 for the '\0'. 
+        char file[s.st_size + 1];
+        char file_copy[s.st_size + 1];
+
+        // Reading the file content using a buffer of BUFFER_SIZE length.
+        char buffer[BUFFER_SIZE];
+        uli counter = 0LU;
+        while (1) {
+            retvalue = read(stdoutfds[i], buffer, BUFFER_SIZE);
+            if (retvalue == -1) {
+                // Error
+            }
+
+            // Exit while, end of file reached.
+            if (retvalue == 0) break;
+
+            // Copying the buffer in the main file array.
+            for (uli i = 0LU; i < retvalue; i++)
+                file[counter++] = buffer[i];
+        }
+
+        // Terminating the file content.
+        file[s.st_size] = '\0';
+
+        // Copying the file content, to use strtok() on the first instance.
+        strcpy(file_copy, file);
+        file_copy[s.st_size] = '\0';
+
+        // Counting file lines and allocating heap space.
+        char* str = file;
+        counter = 0LU;
+        while (str != NULL) {
+            // strtok() modifies the string content.
+            // It tokenize all '\n' '\r' '\n\r' '\r\n'.
+            // This tokens are replaced with '\0'.
+            // The first time strtok() need to be called with string pointer, then with NULL.
+            if (counter == 0LU) str = strtok(str, "\n\r");
+            else str = strtok(NULL, "\n\r");
+            counter++;
+        }
+
+        uli arraylen = --counter;
+        char* lines[arraylen];
+
+        // Copying each (line) of the file.
+        counter = 0LU;
+        str = file_copy;
+        while (str != NULL) {
+            // Totkenizing with strtok().
+            if (counter == 0LU) str = strtok(str, "\n\r");
+            else str = strtok(NULL, "\n\r");
+
+            if (str == NULL) break;
+
+            // Allocating heap space.
+            lines[counter++] = (char*) malloc(sizeof(char) * (strlen(str) + 1));
+            if (lines[counter - 1] == NULL) {
+                // Error
+            }
+
+            // Copying the word in the new words[i] heap space.
+            strcpy(lines[counter - 1], str);
+            lines[counter - 1][strlen(lines[counter - 1])] = '\0';
+
+        }
+
+        char found = 0;
+        uli j = 0LU;
+        for (j = 0LU; j < arraylen; j++) {
+            if (strcmp(lines[j], CONNECTED_SUCCESFULLY_STR) == 0) found = 1;
+            if (found) break;
+        }
+        if (!found) {
+            // Error
+            fprintf(stderr, "The client %lu failed to connect to the server!\n", j);
+            exit(1);
+        }
+        for (j = 0LU; j < arraylen; j++) {
+            free(lines[j]);
+            lines[j] = NULL;
+        }
+
+    }
+    fprintf(stdout, "All clients connected to the server succesfully!\n");
 
     sleep(3);
 

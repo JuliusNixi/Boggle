@@ -507,9 +507,7 @@ void* signalsThread(void* args) {
                     // Another pause is live. 
                     // Another unexpected SIGALRM received.
                     // Possible game/pause overlap.
-                    fflush(stdout);
                     fprintf(stderr, "Overlapping!\n");
-                    fflush(stderr);
                     exit(1);
                 }
 
@@ -529,6 +527,9 @@ void* signalsThread(void* args) {
                 free(banner);
                 banner = NULL;
                 fprintf(stdout, "The game is just ended. The requests from clients received until now will anyways be completed.\n");
+                
+                fflush(stdout);
+
                 retvalue = pthread_mutex_unlock(&printmutex);
                 if (retvalue != 0) {
                     // Error
@@ -565,7 +566,15 @@ void* signalsThread(void* args) {
                     retvalue = pthread_mutex_lock(&(current->handlerequest));
                     if (retvalue != 0) {
                         // Error
-                    }                  
+                    }    
+
+                    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "START GAME", BANNER_SYMBOL, 1);              
+                    uli l = strlen(banner) + 1 + 1; // +1 for the '\n'. +1 for the '\0'.
+                    char msg[l];
+                    sprintf(msg, "%s%c", banner, '\n');
+                    msg[l - 1] = '\0';
+                    sendMessage(current->socket_client_fd, MSG_OK, msg);
+                    free(banner);
 
                     // Creating end game message to send it to the clients.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 0);
@@ -641,7 +650,7 @@ void* signalsThread(void* args) {
 
                 //////////////////  ENABLED PAUSE THREADS WORKING ON QUEUE  //////////////////
 
-                fprintf(stdout, "Pause enabled. From now all the clients requests will be threated as in end game phase.\n");
+                fprintf(stdout, "Pause enabled. From now all the clients requests will be threated as in end game phase.\nClients released and notified, now they should working on the queue.\n");
 
                 // STILL OWNING pausemutex -> registerUser() and disconnectClient() suspended.
                 // STILL OWNING listmutex.
@@ -659,8 +668,6 @@ void* signalsThread(void* args) {
                 // and can continue in this task, so there is no danger of deadlock.
                 // Also for the disconnectClient() threads there is not the risk of deadlock.
                 // After threads can once again return to respond to clients requests.
-                fprintf(stdout, "Clients released and notified, now they should working on the queue.\n");
-
 
 
 
@@ -1312,10 +1319,6 @@ void validateDictionary(void) {
     // Printing results.
     char found = 0;
     int retvalue;
-    retvalue = pthread_mutex_lock(&printmutex);
-    if (retvalue != 0) {
-        // Error
-    }
     fprintf(stdout, "Dictionary succesfully validated, founded in the current matrix, these words from dict file:\n");
     
     
@@ -1325,10 +1328,6 @@ void validateDictionary(void) {
     fileCurrentValidsWordsFD = open(VALID_WORDS_TESTS_FILE_PATH, O_TRUNC | O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);  
     if (fileCurrentValidsWordsFD == -1) {
         // Error
-        retvalue = pthread_mutex_unlock(&printmutex);
-        if (retvalue != 0) {
-            // Error
-        }
     }
 
     for (uli i = 0LU; i < words_len; i++) {
@@ -1340,19 +1339,11 @@ void validateDictionary(void) {
             retvalue = write(fileCurrentValidsWordsFD, words_valid[i], sizeof(char) * strlen(words_valid[i]));
             if (retvalue == -1) {
                 // Error
-                retvalue = pthread_mutex_unlock(&printmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
             }
             // Writing new line.
             retvalue = write(fileCurrentValidsWordsFD, "\n", sizeof(char));
             if (retvalue == -1) {
                 // Error
-                retvalue = pthread_mutex_unlock(&printmutex);
-                if (retvalue != 0) {
-                    // Error
-                }
             }
 
             found = 1;
@@ -1364,19 +1355,11 @@ void validateDictionary(void) {
     retvalue = close(fileCurrentValidsWordsFD);
     if (retvalue == -1) {
         // Error
-        retvalue = pthread_mutex_unlock(&printmutex);
-        if (retvalue != 0) {
-            // Error
-        }
     }
 
     // Printing some other stuff.
     if (found == 0) {
         fprintf(stdout, "No words of the current game matrix have been found in the dictionary file... :(\n");
-        retvalue = pthread_mutex_unlock(&printmutex);
-        if (retvalue != 0) {
-            // Error
-        }
         return;
     }
     fprintf(stdout, "The WORD_LEN value is: %lu.\n", WORD_LEN);
@@ -1384,11 +1367,6 @@ void validateDictionary(void) {
         fprintf(stdout, "WORD_LEN greater than 0.\nEven if present in the list above, the words with a length < WORD_LEN will be refused.\n");
     else
         fprintf(stdout, "WORD_LEN is 0, all the above words will be accepted regardless their length.\n");
-
-    retvalue = pthread_mutex_unlock(&printmutex);
-    if (retvalue != 0) {
-        // Error
-    }
 
 }
 
@@ -1616,19 +1594,11 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
 // This function starts a new game.
 void startGame(void) {
 
-    int retvalue = pthread_mutex_lock(&printmutex);
-    if (retvalue != 0) {
-        // Error
-    }    
     char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "NEW GAME STARTED", BANNER_SYMBOL, 0);
     fprintf(stdout, "\n%s\n", banner);
     free(banner);
     banner = NULL;
     fprintf(stdout, "A new game is started right now.\n");
-    retvalue = pthread_mutex_unlock(&printmutex);
-    if (retvalue != 0) {
-        // Error
-    }
 
     // Getting new game start timestamp time in POSIX.
     matchtime = (uli) time(NULL);
@@ -2657,10 +2627,6 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
             // Error
         }
 
-// TODO Remove this.
-//fprintf(stdout, "\n\n DEBUG ID:%lu NAME:%s MTYPE:%c MLENGTH:%u MDATA:%s \n\n", (uli)client->thread, client->name, received->type, received->length, received->data);
-//fflush(stdout);
-
         // Processing the request.
         switch (received->type) {
         
@@ -2937,10 +2903,7 @@ void* gamePauseAndNewGame(void* args) {
 
     //////////////////  EXECUTING PAUSE  //////////////////
 
-    fprintf(stdout, "Pause sleeping started.\n");
-    // Executing pause.
-    fprintf(stdout, "Sleeping zzz...\n");
-
+    fprintf(stdout, "Pause sleeping started.\nSleeping zzz...\n");
     // Executing the pause.
     // PAUSE_DURATION in minutes, but sleep takes seconds.
     //sleep(PAUSE_DURATION * 60);
@@ -2964,6 +2927,10 @@ void* gamePauseAndNewGame(void* args) {
             // Error
     }
     retvalue = pthread_mutex_lock(&listmutex);
+    if (retvalue != 0) {
+            // Error
+    }
+    retvalue = pthread_mutex_lock(&printmutex);
     if (retvalue != 0) {
             // Error
     }
@@ -2996,8 +2963,6 @@ void* gamePauseAndNewGame(void* args) {
         banner = NULL;
         sendMessage(current->socket_client_fd, MSG_OK, fsm);
 
-        // TODO Send new game, send new matrix.
-
         current = current->next;
 
     }
@@ -3008,6 +2973,25 @@ void* gamePauseAndNewGame(void* args) {
     updateClients();
     // Disabling pause.
     pauseon = 0;
+    current = head;
+    while (1) {
+
+        if (current == NULL) break;
+
+        banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "START GAME", BANNER_SYMBOL, 0);
+        char pre[] = "New game matrix:\n";
+        char* m = serializeMatrixStr();
+        uli l = strlen(banner) + strlen(pre) + strlen(m) + 1 + 1; // +1 for the '\n' of end banner. +1 for the '\0'.
+        char msg[l];
+        sprintf(msg, "%s%c%s%s", banner, '\n', pre, m);
+        msg[l - 1] = '\0';
+        free(banner);
+        free(m);
+        sendMessage(current->socket_client_fd, MSG_OK, msg);
+
+        current = current->next;
+
+    }
     // Releasing clients locks.
     current = head;
     while (1) {
@@ -3017,6 +3001,13 @@ void* gamePauseAndNewGame(void* args) {
             // Error
         }
         current = current->next;
+    }
+
+    fflush(stdout);
+
+    retvalue = pthread_mutex_unlock(&printmutex);
+    if (retvalue != 0) {
+            // Error
     }
     retvalue = pthread_mutex_unlock(&listmutex);
     if (retvalue != 0) {

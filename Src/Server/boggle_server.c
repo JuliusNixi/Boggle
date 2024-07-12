@@ -267,6 +267,8 @@ int main(int argc, char** argv) {
     free(banner);
     banner = NULL;
 
+    fflush(stdout);
+
     // Starting the first game.
     startGame();
 
