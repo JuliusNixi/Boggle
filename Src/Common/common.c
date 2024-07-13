@@ -75,41 +75,18 @@ https://stackoverflow.com/questions/467938/stdout-thread-safe-in-c-on-linux
 https://stackoverflow.com/questions/29331651/is-c-read-thread-safe
 
 
-#########################################################################################################
-// TODO Correct, after changes, this is not true anymore (clientDisconnecter()).
-WARNING: The server's use of this function, ASSUMES that the client will always send a message ENTIRELY
+WARNING: This function ASSUMES that the client/server will always send a message ENTIRELY
 (even if it is split into its fields) or NOT AT ALL.
 Specifically:
-    - If the client sends no message (i.e., no part of it) everything works of course.
-    - If the server receive some data, but that does not align with the data structure of
-      the message, the behavior is undefined.
-    - If the server receive LESS bytes than necessary (e.g., the client sends only the type
-      field of the Message struct), the server will wait INDEFINITELY for the rest of the message, 
-      compromising the match for all users. Specifically, at the end of the match, the play/pause game
-      handler, (signalsHandler()) will send a SIGUSR1 signal to the thread
-      handling the user (clientHandler()) stopped on the read(), waiting for the client,
-      that will abort the syscall, upon the signal handler's return, however, if nothing has been
-      received the receiveMessage() function will return NULL and the control will pass normally
-      to the calling clientHandler() function, but if, instead, something has been already written,
-      the thread will expect all the rest of the message to arrive, waiting. At this point,
-      the signalsThread() thread will wait for the clientHandler() thread to insert its result
-      into the queue, but this may never happen if the client is uncooperative (not send
-      the other missing part of the message).
-#########################################################################################################
-// TODO Remove GOTO no longer used.
-WHY USING GOTO THAT CAUSES SPAGHETTI CODE?!?!
-Because this function (in all its read()) could be interrupted theoretically infinite times
-by the signalsThread() thread, receiving from it the SIGUSR1 to signal the end of the game.
-I don't know when I will be interrupted, it may even be while reading part of the message,
-I have a need to remember where I was left off. This could have been done with a data structure
-and recursively calling the function, but it would have been a waste of stack (which in critical
-cases could even generate stackoverflow). Instead, in this specific case the goto is perfect,
-when returning from the SIGUSR1 handler i can simply go back to restart the read() of the interested
-message's part. Also we are talking about small jumps of a few lines backward in the same function,
-so nothing too dangerous.
-
-Some interesting notes on GOTO:
-https://softwareengineering.stackexchange.com/questions/334417/what-kind-of-bugs-do-goto-statements-lead-to-are-there-any-historically-signi
+    - If no message is sent (i.e., no part of it) everything works of course.
+    - If the received message's type it's invalid the message will be ignored by the CALLER.
+    - If the server receive LESS bytes than necessary (e.g., only the message's type
+       field of the Message struct is sent),this function will loop (potentially forever) in a 
+       while(1). However, this cannot happen, because a system to check and resolve this issue
+       has been implemented (but it is external to this function!).
+       This is has been done because someone could have connected to the socket server without
+       using the client and maliciously send only a part of the message. This would have
+       indefinitely blocked the entire server and game for all participants.
 
 */
 struct Message* receiveMessage(int fdfrom, char* resultcode) {
@@ -350,6 +327,8 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
         } // End while.          
     } // End if.
 
+    // The correctness of the message's type is made by the function caller.
+
     *resultcode = 4;
     return readed;
 
@@ -385,7 +364,7 @@ char sendMessage(int fdto, char type, char* data) {
         case MSG_PUNTI_PAROLA:
         case MSG_PING_ONLINE:
         case MSG_PUNTI_FINALI: {
-            // OK, nothing to do for all.
+            // OK, nothing to do for ALL.
             ;
             break;
         }default:{
@@ -393,7 +372,6 @@ char sendMessage(int fdto, char type, char* data) {
             // Not recognized message.
             break;
         } 
-
     }
 
     // Reminder, data can be NULL! We have to check it.
@@ -722,49 +700,27 @@ char* itoa(uli n) {
 }
 
 // ANCHOR disconnecterChecker();
-// TODO Comment (explaination this function).
-void* disconnecterChecker(void* args) {
+// This function is used both by client and server to detect the disconnection of the other part.
+void disconnecterChecker(int* fdto) {
 
-    if (clientorserver == 0) {
-        // Executed only on the client.
-        fprintf(stdout, "I'm the disconnecterChecker() thread (ID): %lu.\n", (uli) pthread_self());  
-
-        int retvalue = pthread_mutex_lock(&setupmutex);
-        if (retvalue != 0) {
+    if (*fdto < 0) {
+        // Error
+    }
+    char resultcode = sendMessage(*fdto, MSG_PING_ONLINE, "Ping, pong!\n");
+     // Disconnect the socket.
+    if (resultcode == 0) {
+        int retvalue = close(*fdto);
+        if (retvalue == -1) {
             // Error
         }
-        setupfinished++;
-        pthread_setname_np(pthread_self(), "DiscChkThread");
-        retvalue = pthread_mutex_unlock(&setupmutex);
-        if (retvalue != 0) {
-            // Error
-        }
-
+        *fdto = -1;
+        return;
+    }
+    if (resultcode != 1) {
+        // Error
     }
 
-    int* fdto = (int*) args;
-    while (1) {
-        if (*fdto < 0) {
-            // Error
-        }
-        char resultcode = sendMessage(*fdto, MSG_PING_ONLINE, "Ping, pong!\n");
-        // Disconnection.
-        if (resultcode == 0) {
-            int retvalue = close(*fdto);
-            if (retvalue == -1) {
-                // Error
-            }
-            *fdto= -1;
-            return NULL;
-        }
-        if (resultcode != 1) {
-            // Error
-        }
-        if (clientorserver == 1) break;
-        sleep(3);
-    }
-
-    return NULL;
+    return;
 
 }
 

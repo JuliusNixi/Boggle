@@ -29,13 +29,71 @@ char* finalaction = NULL;
 pid_t pids[N_CLIENTS];
 int pipesfdstdin[N_CLIENTS][2];
 
+// This cannot be done directly from the spawned client process.
+void additionalPartialMessageSentTest(char* ip, uli port) {
+
+     // Parsing port.
+    server_addr.sin_port = htons(port);
+
+    // Socket type.
+    server_addr.sin_family = AF_INET;
+    
+    // Parsing IP.
+    int retvalue = parseIP(ip, &server_addr);
+    if (retvalue != 1) {
+        // Error
+    }
+    // Creating socket.
+    int client_fd = socket(server_addr.sin_family, SOCK_STREAM, 0);
+    if (client_fd == -1) {
+        // Error
+    }
+
+    retvalue = connect(client_fd, (const struct sockaddr*) &server_addr, (socklen_t) sizeof(server_addr));
+    if (retvalue == -1){
+        retvalue = close(client_fd);
+        if (retvalue == -1) {
+            // Error
+        }
+        fprintf(stderr, "Socket closed.\nError in connecting in additionalPartialMessageSentTest(), ignoring it.\n");
+        return;
+    }
+
+        // Send not the entire message, only a part.
+        char type = MSG_REGISTRA_UTENTE;
+        retvalue = write(client_fd, &type, sizeof(type));
+        if (retvalue == -1) {
+            // Error
+        }else if (retvalue == 1) {
+            // Ok.
+            ;
+        }else{
+            // Error
+        }
+
+        // Important to not close the socket, to test how the server reacts.
+        fprintf(stdout, "Test additionalPartialMessageSentTest() sent.\n");
+        return;
+
+}
+
 void end(char processalive) {
 
     int retvalue;
 
-    if (processalive)
+    if (processalive == 1)
         fprintf(stdout, "All actions (and all tests) completed.\n");
-    else{
+    else if (processalive == 2){
+        // Not all clients connected.
+        ;
+    }else if (processalive == 3){
+        // Error in executing client's process.
+        ;
+    }else if (processalive == 4){
+        // Error in opening valid words tests file.
+        ;
+    }else{
+        // Here processalive == 0
         fprintf(stdout, "There's no longer any living client process.\n");
         exit(0);
     }
@@ -44,6 +102,8 @@ void end(char processalive) {
 
     for (uli i = 0LU; i < N_CLIENTS; i++) {
         pid_t p = pids[i];
+
+        if (p == -1) continue;
 
         int status;
         pid_t result = waitpid(p, &status, WNOHANG);
@@ -63,13 +123,15 @@ void end(char processalive) {
         }else{
             // Error
         }
-        
     }
 
     int status;
-    for (uli i = 0LU; i < N_CLIENTS; i++) waitpid(pids[i], &status, 0);
+    for (uli i = 0LU; i < N_CLIENTS; i++) if(pids[i] != -1) waitpid(pids[i], &status, 0);
 
     fprintf(stdout, "Killed all clients, exiting...\n");
+
+    if (processalive == 2 || processalive == 3 || processalive == 4) exit(1);
+
     exit(0);
 
 }
@@ -139,7 +201,7 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
     portstr = NULL;
     execlp("./paroliere_cl", "./paroliere_cl", ip, portstrstatic, NULL);
 
-    // Error
+    // Error, handled by the father, returning from this function.
     return -1;
 
 }
@@ -153,7 +215,7 @@ int main(int argc, char** argv) {
     if (argc != 3){
         // Error
         fprintf(stderr, "Invalid args. Pass the IP and the port to be used for the clients connection (to...).\n");
-        exit(EXIT_FAILURE);
+        exit(1);
     }
 
     // Setting random seed.
@@ -170,6 +232,7 @@ int main(int argc, char** argv) {
     if (retvalue != 1) {
         // Error
     }
+    char* ip = argv[1];
 
     fprintf(stdout, "Remember to start this program with current folder as the project's root '/'.\n");
     fprintf(stdout, "You should open the server on IP: %s and port: %lu.\n", argv[1], port);
@@ -179,6 +242,8 @@ int main(int argc, char** argv) {
     getchar();
 
     fprintf(stdout, "Starting clients...\n");
+    for (uli i = 0LU; i < N_CLIENTS; i++)
+        pids[i] = -1;
     for (uli i = 0LU; i < N_CLIENTS; i++) {
         char* istr = itoa(i);
         uli li = strlen(istr);
@@ -202,14 +267,16 @@ int main(int argc, char** argv) {
             // Error
         }
 
+        // Fork inside the function and son's pid returned.
         pid_t pid = client(fd, argv[1], port, pipesfdstdin[i]);
+        
+        // Father.
         if (pid == -1) {
             // Error
             fprintf(stderr, "Error in executing client's process.\n");
-            exit(1);
+            end(3);
         }
 
-        // Father.
         pids[i] = pid;
 
         retvalue = close(fd);
@@ -243,10 +310,11 @@ int main(int argc, char** argv) {
         fd = -1;
 
     }
-    fprintf(stdout, "All clients opened.\nSleeping 3 seconds...\n");
+    fprintf(stdout, "All clients opened.\nSleeping 3 seconds to give them time to connect to the server...\n");
 
     sleep(3);
 
+    fprintf(stdout, "Checking if all clients are connected...\n");
     for (uli i = 0LU; i < N_CLIENTS; i++){
 
         char* istr = itoa(i);
@@ -337,7 +405,7 @@ int main(int argc, char** argv) {
         if (!found) {
             // Error
             fprintf(stderr, "The client %lu failed to connect to the server!\n", i);
-            exit(1);
+            end(2);
         }
         for (j = 0LU; j < arraylen; j++) {
             free(lines[j]);
@@ -357,6 +425,12 @@ int main(int argc, char** argv) {
             // Sleeping between every action some random time.
             int randint = rand() % 11;
             usleep(randint * 10);
+
+            randint = rand() % 11;
+            if (randint == 10) {
+                additionalPartialMessageSentTest(ip, port);
+                continue;
+            }
 
             // Use this flag to see if all process are terminated or there is at least one alive.
             char someonealiveflag = 0;
@@ -468,7 +542,7 @@ int main(int argc, char** argv) {
                     if (fd == -1) {
                         // Error
                         fprintf(stderr, "Error in opening valid words tests file.\n");
-                        exit(1);
+                        end(4);
                     }
 
                     char file[s.st_size + 1];

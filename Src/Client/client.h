@@ -14,6 +14,7 @@ void setBlockingGetChar(void);
 char clearInput(void);
 void inputHandler(void);
 void* responsesHandler(void*);
+void* disconnecterCheckerThread(void*);
 
 // Defined, commented and implemented all in common.h and common.c.
 // int parseIP(char*, struct sockaddr_in*); -> common.h
@@ -23,7 +24,7 @@ void* responsesHandler(void*);
 // void destroyMessage(struct Message**); -> common.h
 // char* bannerCreator(uli, uli, char*, char, char); -> common.h
 // char* itoa(uli); -> common.h
-// void* disconnecterChecker(void*); -> common.h
+// void disconnecterChecker(int*); -> common.h
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h

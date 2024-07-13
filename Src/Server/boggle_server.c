@@ -29,7 +29,6 @@ int main(int argc, char** argv) {
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
     setupfinished = 0;
-    clientorserver = 1;
     // Cannot use PTHREAD_MUTEX_INITIALIZER, because can be used only on static allocated mutexes.
     // Initialization should be performed like this.
     retvalue = pthread_mutex_init(&setupmutex, NULL);

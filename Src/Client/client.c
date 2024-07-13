@@ -10,6 +10,8 @@
 #define PROMPT_STR "[PROMPT BOGGLE]--> " // Prompt string.
 #define PROMPT_STR_IT "[PROMPT PAROLIERE]--> " // Prompt string ITALIAN.
 
+#define EXIT_STR "Bye, bye, see you soon! Thanks for playing.\n"
+
 #define HELP_MSG "Avaible commands:\nhelp -> Show this page.\nregister_user user_name -> To register in the game.\nmatrix -> Get the current game matrix.\np word -> Submit a word.\nend -> Exit from the game.\n" // Help message.
 
 #define CHECK_RESPONSES_MICROSECONDS 100 // Time in microseconds. Each time, the responses received from the server (if present), will be printed.
@@ -329,17 +331,37 @@ void inputHandler(void) {
                         char commandfound = 0;
                         // Processing the user request.
                         if (strcmp("end", inputfinal) == 0 || strcmp("exit", inputfinal) == 0 || strcmp("fine", inputfinal) == 0 || strcmp("quit", inputfinal) == 0){
-                            fprintf(stdout, "Bye, bye, see you soon! Thanks for playing.\n");
-                            sendMessage(client_fd, MSG_ESCI, NULL);
-                            commandfound = 1;
+                            retvalue = pthread_mutex_lock(&listmutex);
+                            if (retvalue != 0) {
+                                // Error
+                            }
+                            fprintf(stdout, "Beginning exiting...\n");
+                            retvalue = pthread_cancel(signalsthread);
+                            if (retvalue != 0) {
+                                // Error
+                            }
                             retvalue = pthread_cancel(responsesthread);
                             if (retvalue != 0) {
                                 // Error
                             }
-                            retvalue = close(client_fd);
-                            if (retvalue == -1) {
+                            retvalue = pthread_cancel(disconnecterthread);
+                            if (retvalue != 0) {
                                 // Error
                             }
+                            sendMessage(client_fd, MSG_ESCI, NULL);
+                            if (client_fd != -1) {
+                                retvalue = close(client_fd);
+                                if (retvalue == -1) {
+                                    // Error
+                                }
+                                client_fd = -1;
+                            }
+                            retvalue = pthread_mutex_unlock(&listmutex);
+                            if (retvalue != 0) {
+                                // Error
+                            }
+                            fprintf(stdout, EXIT_STR);
+                            // No need to free memory, we terminate, the OS will do it.
                             exit(EXIT_SUCCESS);
                         }
                         if (strcmp("help", inputfinal) == 0 || strcmp("aiuto", inputfinal) == 0) {
@@ -349,7 +371,6 @@ void inputHandler(void) {
                         if (strcmp("matrix", inputfinal) == 0 || strcmp("matrice", inputfinal) == 0) {
                             sendMessage(client_fd, MSG_MATRICE, NULL);
                             commandfound = 1;
-                            // TODO Control sendMessage() returns also in the server.
                         }
                         // Might be a command with at least two words.
                         // Tokenizing using a space (' ') the user's input.
@@ -526,8 +547,29 @@ void inputHandler(void) {
                             }
                             break;
                         }case MSG_ESCI : {
-                            // TODO Server disconnected you. Print the data message.
-                            break;
+                            fprintf(stdout, "%s", received->data);
+                            retvalue = pthread_cancel(signalsthread);
+                            if (retvalue != 0) {
+                                // Error
+                            }
+                            retvalue = pthread_cancel(responsesthread);
+                            if (retvalue != 0) {
+                                // Error
+                            }
+                            retvalue = pthread_cancel(disconnecterthread);
+                            if (retvalue != 0) {
+                                // Error
+                            }
+                            if (client_fd != -1) {
+                                retvalue = close(client_fd);
+                                if (retvalue == -1) {
+                                    // Error
+                                }
+                                client_fd = -1;
+                            }
+                            fprintf(stdout, EXIT_STR);
+                            // No need to free memory, we terminate, the OS will do it.
+                            exit(EXIT_SUCCESS);
                         }case MSG_PING_ONLINE : {
                             // Nothing to do.
                             ;
@@ -629,19 +671,77 @@ void* responsesHandler(void* args) {
         // - 2: Unexpected error.
         // - 3: Read 0 bytes (at the message beginning, so the message's type).
         // - 4: Completed message received succesfully.
-        // TODO Check returncode.
         switch (returncode){
             case 0 : {
                 // Server disconnection.
-                break;
+                fprintf(stdout, "A disconnection from the server occurred!\n");
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                fprintf(stdout, "Beginning exiting...\n");
+                retvalue = pthread_cancel(mainthread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_cancel(signalsthread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_cancel(disconnecterthread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                if (client_fd != -1) {
+                    retvalue = close(client_fd);
+                    if (retvalue == -1) {
+                        // Error
+                    }
+                    client_fd = -1;
+                }
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                fprintf(stdout, EXIT_STR);
+                // No need to free memory, we terminate, the OS will do it.
+                exit(EXIT_SUCCESS);
             }case 1: {
+                // Error
+                // This case is handled only by the server.
                 break;
             }case 2: {
+                // Error
+                // Unexpected error in receiveMessage().
                 break;
             }case 3: {
-                break;
+                // Continuing while.
+                continue; 
             }case 4: {        
                 // Adding the new completed message received to list of messages (server responses to print).
+                
+                switch (received->type){ 
+                    case MSG_MATRICE:
+                    case MSG_REGISTRA_UTENTE:
+                    case MSG_PAROLA:
+                    case MSG_ESCI :
+                    case MSG_ERR :
+                    case MSG_OK:
+                    case MSG_TEMPO_ATTESA:
+                    case MSG_TEMPO_PARTITA:
+                    case MSG_PUNTI_PAROLA:
+                    case MSG_PING_ONLINE:
+                    case MSG_PUNTI_FINALI: {
+                        // OK, nothing to do for ALL.
+                        ;
+                        break;
+                    }default:{
+                        // Error
+                        // Not recognized message's type. Ignoring it.
+                        continue; // Continue while.
+                    } 
+                }
+                
                 // Allocating a new heap element.
                 struct MessageNode* new;
                 new = (struct MessageNode*) malloc(sizeof(struct MessageNode));
@@ -675,8 +775,7 @@ void* responsesHandler(void* args) {
                     // Error
                 }
 
-            continue; // While.
-            break;
+                continue; // While.
 
             }default: {
                 break;
@@ -731,10 +830,39 @@ void* signalsThread(void* args) {
         // Treatment of different signals.
         switch (sig){
             case SIGINT: { 
-                // TODO SIGINT.
-                fprintf(stdout, "CTRL + C intercepted!\n");
+                fprintf(stdout, "\nCTRL + C: intercepted!\n");
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                fprintf(stdout, "CTRL + C: Beginning exiting...\n");
+                retvalue = pthread_cancel(mainthread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_cancel(responsesthread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_cancel(disconnecterthread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                sendMessage(client_fd, MSG_ESCI, NULL);
+                if (client_fd != -1) {
+                    retvalue = close(client_fd);
+                    if (retvalue == -1) {
+                        // Error
+                    }
+                    client_fd = -1;
+                }
+                retvalue = pthread_mutex_unlock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                fprintf(stdout, EXIT_STR);
+                // No need to free memory, we terminate, the OS will do it.
                 exit(EXIT_SUCCESS);
-                break;
             }case SIGPIPE: {
                 // Nothing, already handled by the single threads.
                 break;
@@ -747,6 +875,22 @@ void* signalsThread(void* args) {
     
     }
     
+    return NULL;
+
+}
+
+// ANCHOR disconnecterCheckerThread()
+// This function is simply a wrapper of the disconnecterChecker() (common function).
+// It's needed to call periodically that function. That cannot be done in other threads,
+// since the mainthread waits for user's input and the responseshandlerthread waits for
+// server's responses. So this function runs in a dedicated thread.
+void* disconnecterCheckerThread(void* args) {
+
+    while (1) {
+        sleep(1);
+        disconnecterChecker(&client_fd);
+    }
+
     return NULL;
 
 }

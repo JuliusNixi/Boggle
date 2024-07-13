@@ -1,7 +1,8 @@
-#include "./Src/Common/common.h"
-// Needed for waitpid() on Linux.
-#include <sys/types.h>
-#include <sys/wait.h>
+#include "../../Src/Common/common.h"
+
+#include <sys/ioctl.h>
+
+#define STR_TO_SEND "Hello World!\n"
 
 // Remember to compile with also "../../Src/Common/common.c".
 
@@ -14,42 +15,7 @@ socklen_t client_address_len; // Client address length.
 // Client.
 int client_fd;
 
-void* clientDisconnecterChecker(void* args) {
-
-    int retvalue;
-    fprintf(stdout, "I'm the clientDisconnecter() thread!\n");
-
-    sleep(3);
-    fprintf(stdout, "Sleep finished.\n");
-
-    char resultcode = sendMessage(socket_client_fd, MSG_OK, "Test!\n");
-    fprintf(stdout, "sendMessage() resultcode: %d.\n", (int) resultcode);
-
-    // Disconnection.
-    if (resultcode == 0) {
-        retvalue = close(socket_client_fd);
-        if (retvalue == -1) {
-                // Error
-        }
-        fprintf(stdout, "Close succesfully.\n");
-    }
-
-    pthread_exit(NULL);
-    return NULL;
-
-}
-
 int main(void) {
-
-    sigemptyset(&signalmask);
-    sigaddset(&signalmask, SIGPIPE);
-
-    // Enabling the signals' mask.
-    int retvalue = pthread_sigmask(SIG_BLOCK, &signalmask, NULL);
-    if (retvalue != 0) {
-        // Error
-    }
-    fprintf(stdout, "Threads signals mask enabled correctly.\n");
 
     // Parsing port.
     uli port = 8080LU;
@@ -61,7 +27,7 @@ int main(void) {
     
     // Parsing IP.
     char ip[] = "localhost";
-    retvalue = parseIP(ip, &server_addr);
+    int retvalue = parseIP(ip, &server_addr);
     if (retvalue != 1) {
         // Error
     }
@@ -93,18 +59,9 @@ int main(void) {
         }
         fprintf(stdout, "Connected succesfully!\n");
 
-        char type = MSG_REGISTRA_UTENTE;
-        retvalue = write(client_fd, &type, 1);
-        if (retvalue == -1) {
-            // Error
-        }else if (retvalue == 1) {
-            fprintf(stdout, "Message's type sent.\n");
-        }else{
-            // Error
-        }
-        
-        fprintf(stdout, "Son exiting.\n");
-        exit(1);
+        sendMessage(client_fd, MSG_OK, STR_TO_SEND);
+
+        while(1) sleep(1);
 
     }else{
         // Father.
@@ -137,26 +94,29 @@ int main(void) {
         }
         fprintf(stdout, "Accepted a new client.\n");
 
-        pthread_t t;
-        retvalue = pthread_create(&t, NULL, clientDisconnecterChecker, NULL);
-        if (retvalue != 0) {
+        sleep(3);
+
+        int count;
+        retvalue = ioctl(socket_client_fd, FIONREAD, &count);
+        if (retvalue == -1) {
             // Error
         }
-        fprintf(stdout, "Thread created!\n");
-
-        char resultcode;
-        struct Message* message;
-        message = receiveMessage(socket_client_fd, &resultcode);
-        fprintf(stdout, "Ok, receiveMessage() resultcode: %d.\n", (int) resultcode);
-
-        int status;
-        waitpid(p, &status, 0);
-        fprintf(stdout, "Son process waited. Father exiting...\n");
+        uli sent = sizeof(MSG_OK) + sizeof(unsigned) + ((uli) strlen(STR_TO_SEND) + 1);
+        fprintf(stdout, "The client has sent %lu bytes.\n", sent);
+        fprintf(stdout, "In the socket there are %d bytes.\n", count);
+        fprintf(stdout, "Are equals? %d.\n", count == sent);
+        char returncode;
+        struct Message* m = receiveMessage(socket_client_fd, &returncode);
+        fprintf(stdout, "The message received is: %s", m->data);
+        retvalue = ioctl(socket_client_fd, FIONREAD, &count);
+        if (retvalue == -1) {
+            // Error
+        }
+        fprintf(stdout, "In the socket there are %d bytes.\n", count);
 
         exit(0);
 
     }
-
 
     return 0;
 

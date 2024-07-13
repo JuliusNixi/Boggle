@@ -603,6 +603,7 @@ void* signalsThread(void* args) {
                     current->actionstoexecute = 0;
                     current->receivedsignal = 0;
                     current->filledqueue = 0;
+                    current->countertimeoutseconds = 0LU;
                     current = current->next;
                 }
 
@@ -618,10 +619,20 @@ void* signalsThread(void* args) {
                     // Continuing only when the signal has been received by the client.
                     if (current->receivedsignal && current->waiting) current = current->next;
                     else{
-                        disconnecterChecker((void*) &(current->socket_client_fd));
-                        usleep(50);
-                    } 
-                }
+                        disconnecterChecker(&(current->socket_client_fd));
+                        current->countertimeoutseconds++;
+                        if (current->countertimeoutseconds == MESSAGE_TIMEOUT_SECONDS) {
+                            // Disconnect the socket.
+                            int retvalue = close(current->socket_client_fd);
+                            if (retvalue == -1) {
+                                // Error
+                            }
+                            current->socket_client_fd = -1;
+                        }
+                        sleep(1);
+                        fprintf(stdout, "WAITING UNRESPONSIVE PLAYER (ID) %lu. KICKING HIM IN %lu SECONDS.\n", (uli) current->thread, MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds);
+                    } // End if.
+                } // End while.
                 // Now all clients threads (in clientHandler()) are suspended
                 // on their mutexes (eventually read() are stopped),
                 // except for those in disconnectClient(), but these last are not relevant.
@@ -740,6 +751,7 @@ void* signalsThread(void* args) {
                     if (current == NULL) break;
                     current->receivedsignal = 0;
                     current->waiting = 0;
+                    current->countertimeoutseconds = 0LU;
                     current = current->next;
                 }
 
@@ -766,8 +778,18 @@ void* signalsThread(void* args) {
                     }
                     if (current->receivedsignal && current->waiting == 1) current = current->next;
                     else {
-                        disconnecterChecker((void*) &(current->socket_client_fd));
-                        usleep(50);
+                        disconnecterChecker(&(current->socket_client_fd));
+                        current->countertimeoutseconds++;
+                        if (current->countertimeoutseconds == MESSAGE_TIMEOUT_SECONDS) {
+                            // Disconnect the socket.
+                            int retvalue = close(current->socket_client_fd);
+                            if (retvalue == -1) {
+                                // Error
+                            }
+                            current->socket_client_fd = -1;
+                        }
+                        sleep(1);
+                        fprintf(stdout, "WAITING UNRESPONSIVE PLAYER (ID) %lu. KICKING HIM IN %lu SECONDS.\n", (uli) current->thread, MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds);
                     } 
                 }
 
@@ -2886,7 +2908,7 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 break;
             }default:{
                 // Error
-                // Not recognized message.
+                // Not recognized message's type. Not block all the game.
                 break;
             } 
 
@@ -3002,7 +3024,7 @@ void* gamePauseAndNewGame(void* args) {
         msg[l - 1] = '\0';
         free(banner);
         free(m);
-        sendMessage(current->socket_client_fd, MSG_OK, msg);
+        sendMessage(current->socket_client_fd, MSG_MATRICE, msg);
 
         current = current->next;
 

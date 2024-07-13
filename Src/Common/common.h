@@ -45,15 +45,15 @@ pthread_mutex_t setupmutex; // Used to synchronize read/write threads operations
 #define BUFFER_SIZE 1024U  // Size of the buffers that will be used in some cases.
 
 // Messages types as described in the project text.
-#define MSG_OK 'K'
-#define MSG_ERR 'E'
-#define MSG_REGISTRA_UTENTE 'R' // Register a user.
-#define MSG_MATRICE 'M'  // Get current game matrix.
-#define MSG_TEMPO_PARTITA 'T' // Time to end game.
-#define MSG_TEMPO_ATTESA 'A' // Time remaining to the start of a new game, pause left time.
-#define MSG_PAROLA 'W' // Submit a word.
-#define MSG_PUNTI_FINALI 'F' // End game scoreboard.
-#define MSG_PUNTI_PAROLA 'P'  // Word guessed.
+#define MSG_OK (char) 'K'
+#define MSG_ERR (char) 'E'
+#define MSG_REGISTRA_UTENTE (char) 'R' // Register a user.
+#define MSG_MATRICE (char) 'M'  // Get current game matrix.
+#define MSG_TEMPO_PARTITA (char) 'T' // Time to end game.
+#define MSG_TEMPO_ATTESA (char) 'A' // Time remaining to the start of a new game, pause left time.
+#define MSG_PAROLA (char) 'W' // Submit a word.
+#define MSG_PUNTI_FINALI (char) 'F' // End game scoreboard.
+#define MSG_PUNTI_PAROLA (char) 'P'  // Word guessed.
 
 // Added by me.
 #define MSG_ESCI 'Q' // Message sent by the client to the server or vice versa to close the connection.
@@ -69,7 +69,7 @@ typedef unsigned long int uli; // Shortcut used often.
 
 pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will not be others prints interleaved from other threads.
 
-char clientorserver;
+#define MESSAGE_TIMEOUT_SECONDS 8LU
 
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
@@ -106,5 +106,5 @@ char sendMessage(int, char, char*);
 void destroyMessage(struct Message**);
 char* bannerCreator(uli, uli, char*, char, char);
 char* itoa(uli);
-void* disconnecterChecker(void*);
+void disconnecterChecker(int*);
 

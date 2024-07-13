@@ -40,6 +40,7 @@ struct ClientNode {
     char waiting; // This is used by the clientHandler() thread to notify the signalsHandler() thread that we are waiting on the handlerequest mutex. 
     char toexit; // This is used by the clientHandler() thread to notify the signalsThread() thread of a client's disconnection.
     char filledqueue; // This is used by the clientHandler() thread to notify the signalsThread() thread of the client has correctly filled the queue.
+    uli countertimeoutseconds;
 
 }; 
 
@@ -113,7 +114,7 @@ void* gamePauseAndNewGame(void*);
 // void destroyMessage(struct Message**); -> common.h
 // char* bannerCreator(uli, uli, char*, char, char); -> common.h
 // char* itoa(uli); -> common.h
-// void* disconnecterChecker(void*); -> common.h
+// void disconnecterChecker(int*); -> common.h
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h

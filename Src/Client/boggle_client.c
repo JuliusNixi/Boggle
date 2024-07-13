@@ -21,7 +21,6 @@ int main(int argc, char** argv) {
     // Shared/Common CLIENT & SERVER cross files vars and libs initialization.
     mainthread = pthread_self();
     setupfinished = 0;
-    clientorserver = 0;
     // Cannot use PTHREAD_MUTEX_INITIALIZER, because can be used only on static allocated mutexes.
     // Initialization should be performed like this.
     retvalue = pthread_mutex_init(&setupmutex, NULL);
@@ -122,7 +121,7 @@ reconnecting:
     }
     fprintf(stdout, "Responses pthread created succesfully.\n");
 
-    retvalue = pthread_create(&disconnecterthread, NULL, disconnecterChecker, (void*) &client_fd);
+    retvalue = pthread_create(&disconnecterthread, NULL, disconnecterCheckerThread, NULL);
     if (retvalue != 0) {
         // Error
     }
@@ -154,8 +153,6 @@ reconnecting:
     inputHandler();
 
     // This never executed, but for clarity.
-    exit(EXIT_SUCCESS);
-
     return 0;
     
 }
