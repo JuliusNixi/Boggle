@@ -2632,7 +2632,7 @@ char gameEndQueue(struct ClientNode* e) {
     if (retvalue != 0) {
         // Error
     }
-    struct Queue* tmp = NULL;
+    tmp = NULL;
     // Example of a queue because sometimes I confuse head and tail... xD
     //           Tail -> NULL <- Head
     // Push A -> 
