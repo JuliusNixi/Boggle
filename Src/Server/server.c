@@ -37,6 +37,7 @@ uli clientid = 0LU;  // A temporary client's ID used to identify a client before
 
 pthread_t gamepauseandnewgamethread; // This thread will execute the game pause and after will start a new game.
 
+char queuephasefinished = 0;
 volatile sig_atomic_t* threadsignalreceivedglobal; // This is used by the clientHandler() thread, inside the SIGUSR1 signal handler, to write his client's receivedsignal without being able/needing to access the struct.
 pthread_mutex_t queuemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be used to synchronize threads ad the end of game to fill the queue.
 struct Queue* headq = NULL; // Pointer to the queue head.
@@ -596,6 +597,8 @@ void* signalsThread(void* args) {
                 // Getting new starting pause timestamp in POSIX time.
                 pausetime = (uli) time(NULL);
 
+                queuephasefinished = 0;
+
                 current = head;
                 // IMPORTANT: Reset actionstoexecute, receivedsignal and filledqueue.
                 while (1) {
@@ -869,6 +872,7 @@ void* signalsThread(void* args) {
                         current = current->next;
                     }
                     if (nclientsconnected == nclientsmessagesent) toexit = 1;
+                    queuephasefinished = 1;
                     current = head;
                     while (1) {
                         if (current == NULL) break;
@@ -884,6 +888,7 @@ void* signalsThread(void* args) {
                 // Releasing scoreboardstr.
                 free(scoreboardstr);
                 scoreboardstr = NULL;
+
                 // Releasing also the listmutex is important to avoid to blocks the
                 // new user's socket connection acceptance during the game pause.
                 retvalue = pthread_mutex_unlock(&listmutex);
@@ -1888,7 +1893,7 @@ void* clientHandler(void* voidclient) {
 
             returncode = 4;
         }
-        // **********     MARK 1     **********
+// **********     MARK 1     **********
 
         // EVERY REQUEST RECEIVED BEFORE the TIMER, will be processed
         // EXCEPT the registerUser() and disconnectClient(), that will still be 
@@ -1968,8 +1973,8 @@ void* clientHandler(void* voidclient) {
         
         // Executed when the game is paused.
         if (pauseon)
-            // First time after end game.
-            if (client->actionstoexecute == 0){
+            // First time after end game and client NOT connected after scoreboard sent during the pause.
+            if (client->actionstoexecute == 0 && queuephasefinished == 0){
                 
                 // The below case was made to handle this situation:
                 // We have received a message and the game end timer rang
@@ -1988,7 +1993,7 @@ void* clientHandler(void* voidclient) {
                 // greater speed (due to a greater thread utilization).
 
                 if (received != NULL) {
-                    sleepflag = processReceivedRequest(&received, client);
+                    sleepflag = processReceivedRequest(&received, client, 1);
                     if (received != NULL) destroyMessage(&received);
                 }else{
                     // Received NULL, no messages to process, go ahead to client->actionstoexecute == 1.
@@ -2001,10 +2006,8 @@ void* clientHandler(void* voidclient) {
 
         // Sending end of game message on queue.
         if (client->actionstoexecute == 1) {
-            char r = gameEndQueue(client);
-            // Client connected after scoreboard sent during the pause.
-            if (r == 0) client->actionstoexecute = 4;
-            else client->actionstoexecute++;
+            gameEndQueue(client);
+            client->actionstoexecute++;
         }
 
         // client->actionstoexecute == 2 not present here because is the signalsThread() thread
@@ -2019,7 +2022,7 @@ void* clientHandler(void* voidclient) {
         }
 
         // Processing the received client's request.
-        sleepflag = sleepflag || processReceivedRequest(&received, client);
+        sleepflag = sleepflag || processReceivedRequest(&received, client, 0);
 
         // This NULL check is mandatory because the message may have already been destroyed
         // with the previous code.
@@ -2547,19 +2550,11 @@ void createScoreboard(struct Queue** array, uli arraylength) {
 // The struct Message will contain in the "data" field a CSV string message with the
 // format "playername,playerpoints".
 // It's required by the project's text.
-char gameEndQueue(struct ClientNode* e) {
+void gameEndQueue(struct ClientNode* e) {
 
     // Invalid client.
     if (e == NULL) {
         // Error
-    }
-
-    // For clients connecting after the queue clearing.
-    struct Queue* tmp = tailq;
-    while (1) {
-        if (tmp == NULL) break;
-        if ((uli) e->thread == (uli) (tmp->client->thread)) return 0;
-        tmp = tmp->next;
     }
 
     // Creating and filling message object.
@@ -2632,7 +2627,7 @@ char gameEndQueue(struct ClientNode* e) {
     if (retvalue != 0) {
         // Error
     }
-    tmp = NULL;
+    struct Queue* tmp = NULL;
     // Example of a queue because sometimes I confuse head and tail... xD
     //           Tail -> NULL <- Head
     // Push A -> 
@@ -2670,7 +2665,6 @@ char gameEndQueue(struct ClientNode* e) {
         // Error
     }
 
-    return 1;
 
 }
 
@@ -2680,7 +2674,7 @@ char gameEndQueue(struct ClientNode* e) {
 // It takes as input (BY REFERENCE FROM clientHandler()) a pointer to the message to process.
 // It takes as input also a pointer to the client who sent it.
 // IT ASSUMES that needed mutexes are ALREADY LOCKED BY THE CALLER!
-char processReceivedRequest(struct Message** receivedfromclienthandler, struct ClientNode* client) {
+char processReceivedRequest(struct Message** receivedfromclienthandler, struct ClientNode* client, char specialignorepause) {
 
         char sleepflag = 0;
 
@@ -2715,7 +2709,7 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 }     
 
                 // Pause game check.
-                if (!pauseon) {
+                if (!pauseon || specialignorepause) {
                     // Sending current game matrix.
                     char* mat = serializeMatrixStr();
                     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
@@ -2824,7 +2818,7 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 id = NULL;
 
                 // pauseon == 0 means the game is ongoing, must send the current game matrix.
-                if (!pauseon) {
+                if (!pauseon || specialignorepause) {
                     // Sending current game matrix.
                     char* mat = serializeMatrixStr();
                     sendMessage(client->socket_client_fd, MSG_MATRICE, mat);
@@ -2836,7 +2830,7 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 // Sending MSG_TEMPO_ATTESA.
                 char* strint = NULL;
                 uli t;
-                if (pauseon) {
+                if (pauseon && specialignorepause == 0) {
                     // The game is paused.
                     // MSG_TEMPO_ATTESA 'A' Time remaining to the start of a new game, pause left time.
                     
@@ -2888,7 +2882,7 @@ char processReceivedRequest(struct Message** receivedfromclienthandler, struct C
                 }
 
                 // Game in pause.
-                if (pauseon) {
+                if (pauseon && specialignorepause == 0) {
                     sendMessage(client->socket_client_fd, MSG_ERR, "Cannot submit words during the game pause. Please, wait a new game.\n");
                     fprintf(stdout, "User with name %s, submitted word \"%s\" during the game pause. We'll be ignored.\n", client->name, received->data);  
                     break;
