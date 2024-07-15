@@ -2516,6 +2516,7 @@ void createScoreboard(struct Queue** array, uli arraylength) {
             } 
             scoreboardstr[counter++] = ',';
         }
+    if (counter == 0LU) counter++;
     // Inserting string terminator, replacing the last ','.
     scoreboardstr[counter - 1] = '\0';
 
