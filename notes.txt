@@ -16,14 +16,6 @@ Aggiornare relazione con:
 Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la terminazione deve comportarsi come se la partita si fosse chiusa normalmente, oppure è sufficiente chiudere il socket creato dal server ed ovviamente i file descriptor con cui comunica ai client.
 A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
 
-problema client double free dopo aver ripristinato i banner.
-
-add disconnecterChecker to report, write it in the common content
-add disconnecterCheckerThread as thread in client to the report
-no send matrix to not registered user 
-no insert in scoreboard the no registered user, but send anyway to them
-
-
 proc handle -p true -s false -n false SIGUSR1
 
 

@@ -530,17 +530,21 @@ void inputHandler(void) {
                             }                            
                             fprintf(stdout, "The game is over, this is the scoreboard:\n");
                             char* tmp = received->data;
-                            while (1) {
-                                // First call to strtok().
-                                if (tmp == received->data) tmp = strtok(tmp, ",");
-                                // NOT first call.
-                                else tmp = strtok(NULL, ",");
-                                if (tmp == NULL) break;
-                                fprintf(stdout, "Name: %s. ", tmp);
-                                tmp = strtok(NULL, ",");
-                                fprintf(stdout, "Points: %s.\n", tmp);
-                                if (tmp == NULL) break;
-                            }
+                            // Empty scoreboard check.
+                            if (strcmp(tmp, EMPTY_SCOREBOARD_MESSAGE_STR) == 0) {
+                                fprintf(stdout, "%s\n", tmp);
+                            }else
+                                while (1) {
+                                    // First call to strtok().
+                                    if (tmp == received->data) tmp = strtok(tmp, ",");
+                                    // NOT first call.
+                                    else tmp = strtok(NULL, ",");
+                                    if (tmp == NULL) break;
+                                    fprintf(stdout, "Name: %s. ", tmp);
+                                    tmp = strtok(NULL, ",");
+                                    fprintf(stdout, "Points: %s.\n", tmp);
+                                    if (tmp == NULL) break;
+                                }
                             retvalue = pthread_mutex_unlock(&printmutex);
                             if (retvalue != 0) {
                                 // Error
@@ -674,7 +678,7 @@ void* responsesHandler(void* args) {
         switch (returncode){
             case 0 : {
                 // Server disconnection.
-                fprintf(stdout, "A disconnection from the server occurred!\n");
+                fprintf(stdout, "\nA disconnection from the server occurred!\n");
                 retvalue = pthread_mutex_lock(&listmutex);
                 if (retvalue != 0) {
                     // Error
@@ -880,10 +884,13 @@ void* signalsThread(void* args) {
 }
 
 // ANCHOR disconnecterCheckerThread()
-// This function is simply a wrapper of the disconnecterChecker() (common function).
-// It's needed to call periodically that function. That cannot be done in other threads,
-// since the mainthread waits for user's input and the responseshandlerthread waits for
-// server's responses. So this function runs in a dedicated thread.
+// This function is simply a wrapper of the disconnecterChecker() (common function shared with server).
+// It's needed to call periodically that function. That cannot be done in other threads (like in the
+// server), since the mainthread waits for user's input and so it's needed and so it has to interrupt 
+// the read() very often, and this would call this function too many times, filling the server
+// with unnecessary messages. The responseshandlerthread, instead, waits for
+// server's responses so it's waiting time is undefined. So this function runs in a dedicated thread,
+// and it executes the disconnecterChecker() each second.
 void* disconnecterCheckerThread(void* args) {
 
     fprintf(stdout, "I'm the disconnecterCheckerThread() thread (ID): %lu.\n", (uli) disconnecterthread);  

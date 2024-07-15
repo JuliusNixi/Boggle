@@ -71,6 +71,8 @@ pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will n
 
 #define MESSAGE_TIMEOUT_SECONDS 8LU
 
+#define EMPTY_SCOREBOARD_MESSAGE_STR "No players played :(, so no scoreboard..."
+
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
 // These variables are used in some tests, that's why they have to be here even if they are not used by both server and client.

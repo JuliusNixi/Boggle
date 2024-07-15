@@ -1649,7 +1649,7 @@ void startGame(void) {
 
     // Print the new current game matrix.
     char* mat = serializeMatrixStr();
-    fprintf(stdout, "Current new matrix:\n%s", mat);
+    fprintf(stdout, "New game matrix:\n%s", mat);
     free(mat);
     mat = NULL;
 
@@ -2490,8 +2490,13 @@ void createScoreboard(struct Queue** array, uli arraylength) {
 
     // Calculating the string length and allocating the corresponding heap space.
     uli totallength = 0LU;
-    for (uli i = 0LU; i < arraylength; i++) totallength += strlen(array[i]->message->data);
-    totallength += arraylength - 1; // For ',' after points
+    uli counter = 0LU;
+    for (uli i = 0LU; i < arraylength; i++) 
+        if (array[i]->client->name != NULL){
+            totallength += strlen(array[i]->message->data);
+            counter++;
+        }
+    if (counter != 0LU) totallength += counter - 1; // For ',' after points
     // (next couple "playername,playerpoints|playername,playerpoints",
     // replace the '|' in the precited example).
     totallength++; // For the '\0'.
@@ -2501,17 +2506,30 @@ void createScoreboard(struct Queue** array, uli arraylength) {
     }
 
     // Copying all data from the Queue** (array) by accessing to each "message->data" field.
-    uli counter = 0LU;
-    for (uli i = 0LU; i < arraylength; i++) {
-        char* s = array[i]->message->data;
-        while (s[0] != '\0'){
-            scoreboardstr[counter++] = s[0];
-            s++;
-        } 
-        scoreboardstr[counter++] = ',';
-    }
+    counter = 0LU;
+    for (uli i = 0LU; i < arraylength; i++) 
+        if (array[i]->client->name != NULL) {
+            char* s = array[i]->message->data;
+            while (s[0] != '\0'){
+                scoreboardstr[counter++] = s[0];
+                s++;
+            } 
+            scoreboardstr[counter++] = ',';
+        }
     // Inserting string terminator, replacing the last ','.
     scoreboardstr[counter - 1] = '\0';
+
+    // Empty scoreboard check.
+    if (strlen(scoreboardstr) == 0) {
+        free(scoreboardstr);
+        uli l = strlen(EMPTY_SCOREBOARD_MESSAGE_STR) + 1; // +1 for the '\0'. 
+        scoreboardstr = (char*) malloc(sizeof(char) * l);
+        if (scoreboardstr == NULL) {
+            // Error
+        }
+        strcpy(scoreboardstr, EMPTY_SCOREBOARD_MESSAGE_STR);
+        scoreboardstr[strlen(EMPTY_SCOREBOARD_MESSAGE_STR)] = '\0';
+    }
 
 }
 
@@ -3028,15 +3046,22 @@ void* gamePauseAndNewGame(void* args) {
         if (current == NULL) break;
 
         banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "START GAME", BANNER_SYMBOL, 0);
+        uli l;
         char pre[] = "New game matrix:\n";
         char* m = serializeMatrixStr();
-        uli l = strlen(banner) + strlen(pre) + strlen(m) + 1 + 1; // +1 for the '\n' of end banner. +1 for the '\0'.
+        if (current->name != NULL)
+            l = strlen(banner) + strlen(pre) + strlen(m) + 1 + 1; // +1 for the '\n' of end banner. +1 for the '\0'.
+        else
+            l = strlen(banner) + 1 + 1; // +1 for the '\n' of end banner. +1 for the '\0'.
         char msg[l];
-        sprintf(msg, "%s%c%s%s", banner, '\n', pre, m);
+        if (current->name != NULL) {
+            sprintf(msg, "%s%c%s%s", banner, '\n', pre, m);
+            free(m);
+        }else sprintf(msg, "%s%c", banner, '\n');
         msg[l - 1] = '\0';
+        char messagetype = current->name != NULL ? MSG_MATRICE : MSG_OK;  
+        sendMessage(current->socket_client_fd, messagetype, msg);
         free(banner);
-        free(m);
-        sendMessage(current->socket_client_fd, MSG_MATRICE, msg);
 
         current = current->next;
 

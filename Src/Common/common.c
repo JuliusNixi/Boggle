@@ -701,6 +701,8 @@ char* itoa(uli n) {
 
 // ANCHOR disconnecterChecker();
 // This function is used both by client and server to detect the disconnection of the other part.
+// It takes as input a pointer to the file descriptor of the socket witch to send a simply "ping" 
+// message to detect socket disconnection (and so client/server disconnection).
 void disconnecterChecker(int* fdto) {
 
     if (*fdto < 0) {

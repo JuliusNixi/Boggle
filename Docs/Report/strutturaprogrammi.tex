@@ -6,7 +6,7 @@
 
 Il server, il client ed i tests condividono librerie utilizzate e codice per delle funzionalit\'a richieste comuni grazie ai files "common.h" e "common.c". 
 \\
-Enunciamo sinteticamente le funzioni condivise. Abbiamo una funzione per fare il parsing dell'IP ottenuto dalla riga di comando, una per trasformare le stringhe in UPPERCASE o lowercase, le fondamentali "receiveMessage()" e "sendMessage()" che servono a scambiarsi i messaggi tra server e client, una funzione "destroyMessage()" per deallocare tali messaggi, una funzione "createBanner()" che crea delle stringhe carine da stampare per suddividere l'output e facilitarne la lettura. Per concludere vi \'e la funzione "itoa()" che converte un numero nella stringa di caratteri che lo rappresenta. Tali funzioni sono identiche in server, client e tests. Vi \'e poi la definizione comune di un mutex "printmutex" utilizzato per stampare messaggi composti da chiamate differenti alla funzione "fprintf()" avendo la garanzia che nel mezzo non si interpongano stampe provenienti da altri threads.
+Enunciamo sinteticamente le funzioni condivise. Abbiamo una funzione per fare il parsing dell'IP ottenuto dalla riga di comando, una per trasformare le stringhe in UPPERCASE o lowercase, le fondamentali "receiveMessage()" e "sendMessage()" che servono a scambiarsi i messaggi tra server e client, una funzione "destroyMessage()" per deallocare tali messaggi, una funzione "createBanner()" che crea delle stringhe carine da stampare per suddividere l'output e facilitarne la lettura. C'\'e la funzione "disconnecterChecker()" che si occupa di inviare un messaggio di "ping" al client/server per riconoscere e gestire disconnessione del socket. Per concludere vi \'e la funzione "itoa()" che converte un numero nella stringa di caratteri che lo rappresenta. Tali funzioni sono identiche in server, client e tests. Vi \'e poi la definizione comune di un mutex "printmutex" utilizzato per stampare messaggi composti da chiamate differenti alla funzione "fprintf()" avendo la garanzia che nel mezzo non si interpongano stampe provenienti da altri threads.
  
  \subsection{Funzioni comuni ma con differente implementazione}
 
@@ -53,10 +53,8 @@ Per approfondire vedere "./Studies/C/ClientInputOutputSync/inputoutputasynctests
  \subsection{Thread responsesHandler()}
  La ricezione delle risposte e l'inserimento in lista invece \'e eseguita da questo thread ad-hoc e quindi \'e totalmente asincrono. Questo thread legge le risposte del server dal socket e le inserisce in lista messaggi. Si sincronizza con il precedente mediante il mutex "listmutex". La scoreboard CSV di fine gioco ricevuta dal server, viene elaborata e stampata in un formato visualmente gradevole.
 
-
-
-
-
+ \subsection{Thread disconnecterCheckerThread()}
+ Questo thread richiama la funzione comune (condivisa con il server) disconnecterChecker() periodicamente in un while(1). Tale azione non poteva essere svolta dai precedenti thread (come nel server) Questo perch\'e il mainthread attende l'input dell'utente e quindi \'e necessario interrompergli la "read()" molto spesso, e ci\'o chiamerebbe questa funzione troppe volte, riempiendo il server di messaggi inutili. Il responseshandlerthread, invece, attende le risposte del server, quindi il suo tempo di attesa \'e indefinito. Quindi questa funzione viene eseguita in un thread dedicato, ed esegue il disconnecterChecker() ogni secondo.
 
 
 
