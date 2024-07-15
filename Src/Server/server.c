@@ -2001,8 +2001,10 @@ void* clientHandler(void* voidclient) {
 
         // Sending end of game message on queue.
         if (client->actionstoexecute == 1) {
-            gameEndQueue(client);
-            client->actionstoexecute++;
+            char r = gameEndQueue(client);
+            // Client connected after scoreboard sent during the pause.
+            if (r == 0) client->actionstoexecute = 4;
+            else client->actionstoexecute++;
         }
 
         // client->actionstoexecute == 2 not present here because is the signalsThread() thread
@@ -2545,11 +2547,19 @@ void createScoreboard(struct Queue** array, uli arraylength) {
 // The struct Message will contain in the "data" field a CSV string message with the
 // format "playername,playerpoints".
 // It's required by the project's text.
-void gameEndQueue(struct ClientNode* e) {
+char gameEndQueue(struct ClientNode* e) {
 
     // Invalid client.
     if (e == NULL) {
         // Error
+    }
+
+    // For clients connecting after the queue clearing.
+    struct Queue* tmp = tailq;
+    while (1) {
+        if (tmp == NULL) break;
+        if ((uli) e->thread == (uli) (tmp->client->thread)) return 0;
+        tmp = tmp->next;
     }
 
     // Creating and filling message object.
@@ -2659,6 +2669,8 @@ void gameEndQueue(struct ClientNode* e) {
     if (retvalue != 0) {
         // Error
     }
+
+    return 1;
 
 }
 

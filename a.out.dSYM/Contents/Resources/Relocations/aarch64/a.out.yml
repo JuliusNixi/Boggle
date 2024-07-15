@@ -1,0 +1,25 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     a.out
+relocations:
+  - { offsetInCU: 0x1E, offset: 0x1E, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x0, symBinAddr: 0x1000026D0, symSize: 0x44 }
+  - { offsetInCU: 0x45, offset: 0x45, size: 0x8, addend: 0x0, symName: _mainthread, symBinAddr: 0x100008000, symSize: 0x0 }
+  - { offsetInCU: 0xF6, offset: 0xF6, size: 0x8, addend: 0x0, symName: _signalmask, symBinAddr: 0x1000080B0, symSize: 0x0 }
+  - { offsetInCU: 0x133, offset: 0x133, size: 0x8, addend: 0x0, symName: _signalsthread, symBinAddr: 0x1000080B8, symSize: 0x0 }
+  - { offsetInCU: 0x148, offset: 0x148, size: 0x8, addend: 0x0, symName: _server_addr, symBinAddr: 0x100008058, symSize: 0x0 }
+  - { offsetInCU: 0x210, offset: 0x210, size: 0x8, addend: 0x0, symName: _setupfinished, symBinAddr: 0x100008068, symSize: 0x0 }
+  - { offsetInCU: 0x225, offset: 0x225, size: 0x8, addend: 0x0, symName: _setupmutex, symBinAddr: 0x100008070, symSize: 0x0 }
+  - { offsetInCU: 0x27D, offset: 0x27D, size: 0x8, addend: 0x0, symName: _printmutex, symBinAddr: 0x100008018, symSize: 0x0 }
+  - { offsetInCU: 0x292, offset: 0x292, size: 0x8, addend: 0x0, symName: _matrix, symBinAddr: 0x100008008, symSize: 0x0 }
+  - { offsetInCU: 0x2AD, offset: 0x2AD, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x0, symBinAddr: 0x1000026D0, symSize: 0x44 }
+  - { offsetInCU: 0x1E, offset: 0x2EB, size: 0x8, addend: 0x0, symName: _toLowerOrUpperString, symObjAddr: 0x0, symBinAddr: 0x100002714, symSize: 0xE4 }
+  - { offsetInCU: 0x13D, offset: 0x40A, size: 0x8, addend: 0x0, symName: _toLowerOrUpperString, symObjAddr: 0x0, symBinAddr: 0x100002714, symSize: 0xE4 }
+  - { offsetInCU: 0x16F, offset: 0x43C, size: 0x8, addend: 0x0, symName: _parseIP, symObjAddr: 0xE4, symBinAddr: 0x1000027F8, symSize: 0xB0 }
+  - { offsetInCU: 0x1B3, offset: 0x480, size: 0x8, addend: 0x0, symName: _receiveMessage, symObjAddr: 0x194, symBinAddr: 0x1000028A8, symSize: 0x894 }
+  - { offsetInCU: 0x24B, offset: 0x518, size: 0x8, addend: 0x0, symName: _destroyMessage, symObjAddr: 0xA28, symBinAddr: 0x10000313C, symSize: 0xA8 }
+  - { offsetInCU: 0x280, offset: 0x54D, size: 0x8, addend: 0x0, symName: __OSSwapInt32, symObjAddr: 0xAD0, symBinAddr: 0x1000031E4, symSize: 0x20 }
+  - { offsetInCU: 0x2A8, offset: 0x575, size: 0x8, addend: 0x0, symName: _sendMessage, symObjAddr: 0xAF0, symBinAddr: 0x100003204, symSize: 0x77C }
+  - { offsetInCU: 0x376, offset: 0x643, size: 0x8, addend: 0x0, symName: _bannerCreator, symObjAddr: 0x126C, symBinAddr: 0x100003980, symSize: 0x394 }
+  - { offsetInCU: 0x4C8, offset: 0x795, size: 0x8, addend: 0x0, symName: _itoa, symObjAddr: 0x1600, symBinAddr: 0x100003D14, symSize: 0xD4 }
+  - { offsetInCU: 0x510, offset: 0x7DD, size: 0x8, addend: 0x0, symName: _disconnecterChecker, symObjAddr: 0x16D4, symBinAddr: 0x100003DE8, symSize: 0xBC }
+...
