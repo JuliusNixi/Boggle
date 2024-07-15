@@ -1,3 +1,4 @@
+// ANCHOR File begin.
 #include "../../Src/Common/common.h"
 // Needed for waitpid() on Linux.
 #include <sys/types.h>
@@ -18,7 +19,7 @@
 
 #define N_CLIENTS 256LU // Number of clients that will be spawned.
 #define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
-#define N_TESTS 8LU // Number of tests. It's multiplied by the nactions, be moderate so.
+#define N_TESTS 4LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
 char* actions[] = {"help\n", "matrix\n", "end\n", "register_user", "p", "invalidcommand\n"};
 #define ACTIONS_LENGTH 6LU
@@ -29,8 +30,9 @@ char* finalaction = NULL;
 pid_t pids[N_CLIENTS];
 int pipesfdstdin[N_CLIENTS][2];
 
+// ANCHOR additionalPartialMessageSentTest()
 // This cannot be done directly from the spawned client process.
-void additionalPartialMessageSentTest(char* ip, uli port) {
+void additionalPartialMessageSentTest(char* ip, uli port, uli testnumber) {
 
      // Parsing port.
     server_addr.sin_port = htons(port);
@@ -58,25 +60,36 @@ void additionalPartialMessageSentTest(char* ip, uli port) {
         fprintf(stderr, "Socket closed.\nError in connecting in additionalPartialMessageSentTest(), ignoring it.\n");
         return;
     }
+        
+    char u[] = "additionalPartialMessageSentTestID%c";
+    char um[] = "additionalPartialMessageSentTestID";
+    uli l = strlen(um);
+    uli n = l + 1 + 1; // +1 for '\0'. +1 for the end char.
+    char rst[n];
+    sprintf(rst, u, ALPHABET[testnumber]);
+    rst[n - 1] = '\0';
 
-        // Send not the entire message, only a part.
-        char type = MSG_REGISTRA_UTENTE;
-        retvalue = write(client_fd, &type, sizeof(type));
-        if (retvalue == -1) {
-            // Error
-        }else if (retvalue == 1) {
-            // Ok.
-            ;
-        }else{
-            // Error
-        }
+    sendMessage(client_fd, MSG_REGISTRA_UTENTE, rst);
 
-        // Important to not close the socket, to test how the server reacts.
-        fprintf(stdout, "Test additionalPartialMessageSentTest() sent.\n");
-        return;
+    // Send not the entire message, only a part.
+    char type = MSG_REGISTRA_UTENTE;
+    retvalue = write(client_fd, &type, sizeof(type));
+    if (retvalue == -1) {
+        // Error
+    }else if (retvalue == 1) {
+        // Ok.
+        ;
+    }else{
+        // Error
+    }
+
+    // Important to not close the socket, to test how the server reacts.
+    fprintf(stdout, "Test additionalPartialMessageSentTest() sent.\n");
+    return;
 
 }
 
+// ANCHOR end()
 void end(char processalive) {
 
     int retvalue;
@@ -94,7 +107,8 @@ void end(char processalive) {
         ;
     }else{
         // Here processalive == 0
-        fprintf(stdout, "There's no longer any living client process.\n");
+        fprintf(stdout, "There's no longer any living client process.\nPress enter to exit...\n");
+        getchar();
         exit(0);
     }
     fprintf(stdout, "Press enter to kill all the clients processes...");
@@ -207,9 +221,6 @@ pid_t client(int fdstdoutlogfile, char* ip, uli port, int* pipefd) {
 }
 
 int main(int argc, char** argv) {
-
-    // Clearing the screen.
-    system("clear");
 
     // Received args checks.
     if (argc != 3){
@@ -418,23 +429,26 @@ int main(int argc, char** argv) {
     sleep(3);
 
     fprintf(stdout, "Starting actions tests...\n");
+    // ANCHOR Tests
     for (uli t = 0LU; t < N_TESTS; t++){
         fprintf(stdout, "Test %lu.\n", t);
         fflush(stdout);
+        
+        additionalPartialMessageSentTest(ip, port, t);
+
+        //ANCHOR Actions
         for (uli a = 0LU; a < N_ACTIONS; a++) {
+            fprintf(stdout, "Action %lu.\n", a);
+
             // Sleeping between every action some random time.
             int randint = rand() % 11;
-            usleep(randint * 10);
-
-            randint = rand() % 11;
-            if (randint == 10) {
-                additionalPartialMessageSentTest(ip, port);
-                continue;
-            }
+            if (randint == 0) randint++;
+            usleep(((double)randint / 10.0) * 1000000);
 
             // Use this flag to see if all process are terminated or there is at least one alive.
             char someonealiveflag = 0;
 
+            // ANCHOR Clients
             for (uli i = 0LU; i < N_CLIENTS; i++) {
                 pid_t p = pids[i];
 
@@ -445,7 +459,9 @@ int main(int argc, char** argv) {
                 } else if (result == p) {
                     continue; // Process terminated, skipping.
                 }else{
-                    // Error
+                    // -1.
+                    // Exited process ("end").
+                    continue;
                 }
 
                 char* istr = itoa(i);
@@ -522,7 +538,7 @@ int main(int argc, char** argv) {
                     finalaction[counter++] = '\n';
                     finalaction[counter] = '\0';
                     action = finalaction;
-                }
+                } // End if register_user.
 
                 if (action == actions[4]){ // p
                     // Reading current valid words file.
@@ -680,7 +696,7 @@ int main(int argc, char** argv) {
                 }
 
                 // Closing pipe on "end".
-                if (action == actions[2]){
+                if (strcmp(action, actions[2]) == 0){
                     retvalue = close(pipesfdstdin[i][1]);
                     if (retvalue == -1) {
                         // Error
@@ -696,7 +712,7 @@ int main(int argc, char** argv) {
 
                 // SIGINT the client if r >= 99.
                 randint = rand() % 101;
-                if (randint >= 99 && action != actions[2]){
+                if (randint >= 99 && strcmp(action, actions[2]) != 0){
                     retvalue = write(filestdinlogsfd, "sigint\n", strlen("sigint\n"));
                     if (retvalue == -1) {
                         // Error
@@ -735,15 +751,4 @@ int main(int argc, char** argv) {
 
 }
 
-
-/*
-     
-        
-
-
-
-
-
-
-*/
 

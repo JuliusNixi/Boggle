@@ -619,6 +619,12 @@ void* signalsThread(void* args) {
                     // Continuing only when the signal has been received by the client.
                     if (current->receivedsignal && current->waiting) current = current->next;
                     else{
+                        // First time only to not wait 1 second for each normal connected client.
+                        if (current->countertimeoutseconds == 0) {
+                            current->countertimeoutseconds++;
+                            usleep(50);
+                            continue;
+                        }
                         disconnecterChecker(&(current->socket_client_fd));
                         current->countertimeoutseconds++;
                         if (current->countertimeoutseconds == MESSAGE_TIMEOUT_SECONDS) {
@@ -630,7 +636,7 @@ void* signalsThread(void* args) {
                             current->socket_client_fd = -1;
                         }
                         sleep(1);
-                        fprintf(stdout, "WAITING UNRESPONSIVE PLAYER (ID) %lu. KICKING HIM IN %lu SECONDS.\n", (uli) current->thread, MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds);
+                        if (MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds <= 3) fprintf(stdout, "WAITING UNRESPONSIVE PLAYER (ID) %lu. KICKING HIM IN %lu SECONDS.\n", (uli) current->thread, MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds);
                     } // End if.
                 } // End while.
                 // Now all clients threads (in clientHandler()) are suspended
@@ -778,6 +784,12 @@ void* signalsThread(void* args) {
                     }
                     if (current->receivedsignal && current->waiting == 1) current = current->next;
                     else {
+                        // First time only to not wait 1 second for each normal connected client.
+                        if (current->countertimeoutseconds == 0) {
+                            current->countertimeoutseconds++;
+                            usleep(50);
+                            continue;
+                        }
                         disconnecterChecker(&(current->socket_client_fd));
                         current->countertimeoutseconds++;
                         if (current->countertimeoutseconds == MESSAGE_TIMEOUT_SECONDS) {
@@ -789,7 +801,7 @@ void* signalsThread(void* args) {
                             current->socket_client_fd = -1;
                         }
                         sleep(1);
-                        fprintf(stdout, "WAITING UNRESPONSIVE PLAYER (ID) %lu. KICKING HIM IN %lu SECONDS.\n", (uli) current->thread, MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds);
+                        if (MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds <= 3) fprintf(stdout, "WAITING UNRESPONSIVE PLAYER (ID) %lu. KICKING HIM IN %lu SECONDS.\n", (uli) current->thread, MESSAGE_TIMEOUT_SECONDS - current->countertimeoutseconds);
                     } 
                 }
 

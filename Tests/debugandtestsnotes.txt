@@ -84,3 +84,6 @@ To search a word in all files:
 grep -Rnw '/path/to/somewhere/' -e 'pattern'
 https://stackoverflow.com/questions/16956810/find-all-files-containing-a-specific-text-string-on-linux
 
+To see (both macOS and Linux) ports used by a process (useful for debugging, i.e. discovering a specific client connected to the server by its used out port):
+lsof -i -n -P | grep process_pid
+

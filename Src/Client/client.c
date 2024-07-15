@@ -886,6 +886,19 @@ void* signalsThread(void* args) {
 // server's responses. So this function runs in a dedicated thread.
 void* disconnecterCheckerThread(void* args) {
 
+    fprintf(stdout, "I'm the disconnecterCheckerThread() thread (ID): %lu.\n", (uli) disconnecterthread);  
+
+    int retvalue = pthread_mutex_lock(&setupmutex);
+    if (retvalue != 0) {
+        // Error
+    }
+    setupfinished++;
+    pthread_setname_np(pthread_self(), "DiscChkThread");
+    retvalue = pthread_mutex_unlock(&setupmutex);
+    if (retvalue != 0) {
+        // Error
+    }
+
     while (1) {
         sleep(1);
         disconnecterChecker(&client_fd);
