@@ -690,18 +690,22 @@ int main(int argc, char** argv) {
 
                 // Submitting action.
                 // Submitting.
-                retvalue = write(pipesfdstdin[i][1], action, strlen(action));
-                if (retvalue == -1) {
-                    // Error
+                if (pipesfdstdin[i][1] != -1) {
+                    retvalue = write(pipesfdstdin[i][1], action, strlen(action));
+                    if (retvalue == -1) {
+                        // Error
+                    }
                 }
 
                 // Closing pipe on "end".
                 if (strcmp(action, actions[2]) == 0){
-                    retvalue = close(pipesfdstdin[i][1]);
-                    if (retvalue == -1) {
-                        // Error
+                    if (pipesfdstdin[i][1] != -1) {
+                        retvalue = close(pipesfdstdin[i][1]);
+                        if (retvalue == -1) {
+                            // Error
+                        }
+                        pipesfdstdin[i][1] = -1;
                     }
-                    pipesfdstdin[i][1] = -1;
                 }
 
                 // Logging action.

@@ -576,6 +576,7 @@ void* signalsThread(void* args) {
                     msg[l - 1] = '\0';
                     sendMessage(current->socket_client_fd, MSG_OK, msg);
                     free(banner);
+                    banner = NULL;
 
                     // Creating end game message to send it to the clients.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 0);
@@ -2528,6 +2529,7 @@ void createScoreboard(struct Queue** array, uli arraylength) {
     // Empty scoreboard check.
     if (strlen(scoreboardstr) == 0) {
         free(scoreboardstr);
+        scoreboardstr = NULL;
         uli l = strlen(EMPTY_SCOREBOARD_MESSAGE_STR) + 1; // +1 for the '\0'. 
         scoreboardstr = (char*) malloc(sizeof(char) * l);
         if (scoreboardstr == NULL) {
@@ -3052,10 +3054,10 @@ void* gamePauseAndNewGame(void* args) {
         else
             l = strlen(banner) + 1 + 1; // +1 for the '\n' of end banner. +1 for the '\0'.
         char msg[l];
-        if (current->name != NULL) {
+        if (current->name != NULL)
             sprintf(msg, "%s%c%s%s", banner, '\n', pre, m);
-            free(m);
-        }else sprintf(msg, "%s%c", banner, '\n');
+        else
+            sprintf(msg, "%s%c", banner, '\n');
         msg[l - 1] = '\0';
         free(banner);
         free(m);
