@@ -3024,22 +3024,6 @@ void* gamePauseAndNewGame(void* args) {
         }
         current = current->next;
     }
-    current = head;
-    while (1) {
-        if (current == NULL) break;
-
-        banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
-        char fsm[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
-        strcpy(fsm, banner);
-        fsm[strlen(banner)] = '\n';
-        fsm[strlen(banner) + 1] = '\0';
-        free(banner);
-        banner = NULL;
-        sendMessage(current->socket_client_fd, MSG_OK, fsm);
-
-        current = current->next;
-
-    }
     // Starting a new game.
     startGame();
     // Preparing clients for a new game.
@@ -3052,8 +3036,15 @@ void* gamePauseAndNewGame(void* args) {
 
         if (current == NULL) break;
 
+        banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 1);
+        uli l = strlen(banner) + 1 + 1; // +1 for the '\n'. +1 for the '\0'.
+        char fsm[l]; 
+        sprintf(fsm, "%s%c", banner, '\n');
+        fsm[l - 1] = '\0';
+        free(banner);
+        banner = NULL;
+
         banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "START GAME", BANNER_SYMBOL, 0);
-        uli l;
         char pre[] = "New game matrix:\n";
         char* m = serializeMatrixStr();
         if (current->name != NULL)
@@ -3066,9 +3057,15 @@ void* gamePauseAndNewGame(void* args) {
             free(m);
         }else sprintf(msg, "%s%c", banner, '\n');
         msg[l - 1] = '\0';
+        free(banner);
+
+        l = strlen(msg) + strlen(fsm) + 1;
+        char finalmsg[l];
+        sprintf(finalmsg, "%s%s", fsm, msg);
+        finalmsg[l - 1] = '\0';
+
         char messagetype = current->name != NULL ? MSG_MATRICE : MSG_OK;  
         sendMessage(current->socket_client_fd, messagetype, msg);
-        free(banner);
 
         current = current->next;
 
