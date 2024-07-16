@@ -626,7 +626,8 @@ void* signalsThread(void* args) {
                         // First time only to not wait 1 second for each normal connected client.
                         if (current->countertimeoutseconds == 0) {
                             current->countertimeoutseconds++;
-                            usleep(50);
+                            // 0.01 seconds.
+                            usleep(10000);
                             continue;
                         }
                         disconnecterChecker(&(current->socket_client_fd));
@@ -721,7 +722,7 @@ void* signalsThread(void* args) {
                         // Error
                     }
                     if (toexit) break;
-                    else usleep(250);
+                    else usleep(10000);
                 }
                 fprintf(stdout, "Queue has been succesfully filled by all the clients threads.\n");
 
@@ -791,7 +792,7 @@ void* signalsThread(void* args) {
                         // First time only to not wait 1 second for each normal connected client.
                         if (current->countertimeoutseconds == 0) {
                             current->countertimeoutseconds++;
-                            usleep(50);
+                            usleep(10000);
                             continue;
                         }
                         disconnecterChecker(&(current->socket_client_fd));
@@ -884,7 +885,7 @@ void* signalsThread(void* args) {
                         current = current->next;
                     }
                     if (toexit) break;
-                    else usleep(250);
+                    else usleep(10000);
                 }
                 // Releasing scoreboardstr.
                 free(scoreboardstr);

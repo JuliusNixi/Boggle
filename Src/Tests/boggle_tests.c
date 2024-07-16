@@ -320,7 +320,6 @@ int main(int argc, char** argv) {
         }
         fd = -1;
 
-        usleep(500);
         fprintf(stdout, "Client %lu spawned.\n", i);
         fflush(stdout);
 
