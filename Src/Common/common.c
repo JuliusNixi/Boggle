@@ -723,7 +723,7 @@ char* itoa(uli n) {
 void disconnecterChecker(int* fdto) {
 
     if (*fdto < 0) {
-        // Error
+        return;
     }
     char resultcode = sendMessage(*fdto, MSG_PING_ONLINE, "Ping, pong!\n");
      // Disconnect the socket.
