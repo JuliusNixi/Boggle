@@ -625,10 +625,24 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
     uli bannertextlength = strlen(bannertext);
 
     // Calculate X, which is the number of times the symbol will be repeated.
-    uli X = (totalstrlength - nspaces * 2LU - bannertextlength) / 2LU;
+    uli X = (totalstrlength - (nspaces * 2LU) - bannertextlength);
+
+    if (X % 2 != 0){
+        // Error
+        fprintf(stderr, "Use different parameters for bannerCreator().\n");
+        exit(1);
+    }
+
+    X = X / 2LU;
     
     // Calculate the total size needed for the new string.
-    uli totalsize = X * 2LU + nspaces * 2LU + bannertextlength + 1LU;
+    uli totalsize = (X * 2LU) + (nspaces * 2LU) + bannertextlength + 1LU;
+
+    if (totalsize - 1 != totalstrlength){
+        // Error
+        fprintf(stderr, "Use different parameters for bannerCreator().\n");
+        exit(1);
+    }
     
     // Allocate memory on the heap for the new string.
     char* result = (char*) malloc(totalsize * sizeof(char));
@@ -654,7 +668,7 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
         result[index++] = bannersymbol;
     
     // Null-terminate the string.
-    result[totalsize] = '\0';
+    result[totalsize - 1] = '\0';
 
     // bannertext characters replacement in case of voidstringornot.
     if (voidstringornot) {
