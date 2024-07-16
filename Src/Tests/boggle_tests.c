@@ -502,6 +502,7 @@ int main(int argc, char** argv) {
 
                 // Chosing a random action from the above list.
                 randint = rand() % ACTIONS_LENGTH;
+                int choosenaction = randint;
                 char* action = actions[randint];
 
                 finalaction = NULL;
@@ -691,6 +692,26 @@ int main(int argc, char** argv) {
                     words = NULL;
                 } // End p.
 
+                // Correcting too frequent end.
+                if (choosenaction == 2){
+                    randint = rand() % 101;
+                    if (randint <= 95){
+                        // Logging action.
+                        retvalue = write(filestdinlogsfd, "skippingend\n", strlen("skippingend\n"));
+                        if (retvalue == -1) {
+                            // Error
+                        }
+                        retvalue = close(filestdinlogsfd);
+                        if (retvalue == -1) {
+                            // Error
+                        }
+                        filestdinlogsfd = -1;
+                        free(finalaction);
+                        finalaction = NULL;
+                        continue;
+                    }
+                }
+
                 // Submitting action.
                 // Submitting.
                 if (pipesfdstdin[i][1] != -1) {
@@ -698,10 +719,19 @@ int main(int argc, char** argv) {
                     if (retvalue == -1) {
                         // Error
                     }
-                }
+                }else{
+                    retvalue = close(filestdinlogsfd);
+                    if (retvalue == -1) {
+                        // Error
+                    }
+                    filestdinlogsfd = -1;
+                    free(finalaction);
+                    finalaction = NULL;
+                    continue;
+                } 
 
                 // Closing pipe on "end".
-                if (strcmp(action, actions[2]) == 0){
+                if (choosenaction == 2){
                     if (pipesfdstdin[i][1] != -1) {
                         retvalue = close(pipesfdstdin[i][1]);
                         if (retvalue == -1) {
@@ -719,7 +749,7 @@ int main(int argc, char** argv) {
 
                 // SIGINT the client if r >= 99.
                 randint = rand() % 101;
-                if (randint >= 99 && strcmp(action, actions[2]) != 0){
+                if (randint >= 99 && choosenaction != 2){
                     retvalue = write(filestdinlogsfd, "sigint\n", strlen("sigint\n"));
                     if (retvalue == -1) {
                         // Error

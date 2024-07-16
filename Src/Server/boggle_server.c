@@ -65,6 +65,9 @@ int main(int argc, char** argv) {
     // Is used to notify the game end.
     sigusr1.sa_flags = 0;
     sigusr1.sa_handler = endGame;  
+    sigset_t voidmask;
+    sigemptyset(&voidmask);
+    sigusr1.sa_mask = voidmask;
     retvalue = sigaction(SIGUSR1, &sigusr1, NULL);
     if (retvalue == -1) {
         // Error
