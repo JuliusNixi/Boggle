@@ -322,6 +322,7 @@ int main(int argc, char** argv) {
 
         usleep(500);
         fprintf(stdout, "Client %lu spawned.\n", i);
+        fflush(stdout);
 
     }
     fprintf(stdout, "All clients opened.\nPress enter to continue...\n");
