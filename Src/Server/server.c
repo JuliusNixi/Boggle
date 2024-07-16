@@ -579,10 +579,10 @@ void* signalsThread(void* args) {
 
                     // Creating end game message to send it to the clients.
                     banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END GAME", BANNER_SYMBOL, 0);
-                    char finalmsg[strlen(banner) + 1 + 1]; // +1 for the '\n'. +1 for the '\0'.
-                    strcpy(finalmsg, banner);
-                    finalmsg[strlen(banner)] = '\n';
-                    finalmsg[strlen(banner) + 1] = '\0';
+                    l = strlen(banner) + 1 + 1;
+                    char finalmsg[l]; // +1 for the '\n'. +1 for the '\0'.
+                    sprintf(finalmsg, "%s%c", banner, '\n');
+                    finalmsg[l - 1] = '\0';
                     free(banner);
                     banner = NULL;
                     sendMessage(current->socket_client_fd, MSG_OK, finalmsg);
