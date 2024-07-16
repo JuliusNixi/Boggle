@@ -321,9 +321,9 @@ int main(int argc, char** argv) {
         fd = -1;
 
     }
-    fprintf(stdout, "All clients opened.\nSleeping 3 seconds to give them time to connect to the server...\n");
+    fprintf(stdout, "All clients opened.\nPress enter to continue...\n");
 
-    sleep(3);
+    getchar();
 
     fprintf(stdout, "Checking if all clients are connected...\n");
     for (uli i = 0LU; i < N_CLIENTS; i++){
@@ -424,9 +424,9 @@ int main(int argc, char** argv) {
         }
 
     }
-    fprintf(stdout, "All clients connected to the server succesfully!\nSleeping 3 seconds...\n");
+    fprintf(stdout, "All clients connected to the server succesfully!\nPress enter to continue...\n");
 
-    sleep(3);
+    getchar();
 
     fprintf(stdout, "Starting actions tests...\n");
     // ANCHOR Tests
