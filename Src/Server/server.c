@@ -3058,6 +3058,9 @@ void* gamePauseAndNewGame(void* args) {
         }else sprintf(msg, "%s%c", banner, '\n');
         msg[l - 1] = '\0';
         free(banner);
+        free(m);
+        banner = NULL;
+        m = NULL;
 
         l = strlen(msg) + strlen(fsm) + 1;
         char finalmsg[l];

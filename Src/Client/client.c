@@ -348,6 +348,7 @@ void inputHandler(void) {
                             if (retvalue != 0) {
                                 // Error
                             }
+                            clearInput();
                             sendMessage(client_fd, MSG_ESCI, NULL);
                             if (client_fd != -1) {
                                 retvalue = close(client_fd);
@@ -635,8 +636,11 @@ void inputHandler(void) {
 
         } // End first while.
 
+        // Removing (if present) the current char* inputfinal.
+        free(inputfinal);
+        inputfinal = NULL;
         // To remember the second while.
-       continue;
+        continue;
 
     }
 

@@ -71,7 +71,7 @@ pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will n
 
 #define MESSAGE_TIMEOUT_SECONDS 8LU
 
-#define EMPTY_SCOREBOARD_MESSAGE_STR "No players played :(, so no scoreboard..."
+#define EMPTY_SCOREBOARD_MESSAGE_STR "No REGISTERED players played :(, so no scoreboard..."
 
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
