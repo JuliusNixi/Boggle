@@ -9,7 +9,7 @@
 int main(int argc, char** argv) {
 
     // Printing start banner.
-    char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "SETUP", BANNER_SYMBOL, 0);
+    char* banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "SETUP!", BANNER_SYMBOL, 0);
     fprintf(stdout, "\n\n##################\n#     SERVER     #\n##################\n\n");
     fprintf(stdout, "%s\n", banner);
     free(banner);
@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
     }
 
     // Printing end banner.
-    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "END SETUP", BANNER_SYMBOL, 0);
+    banner = bannerCreator(BANNER_LENGTH, BANNER_NSPACES, "SETUP!", BANNER_SYMBOL, 1);
     fprintf(stdout, "%s\n", banner);
     free(banner);
     banner = NULL;
