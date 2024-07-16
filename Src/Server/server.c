@@ -490,10 +490,60 @@ void* signalsThread(void* args) {
         // Treatment of different signals.
         switch (sig){
             case SIGINT:{ 
-                // TODO SIGINT.
-                fprintf(stdout, "\nCTRL + C intercepted!\n");
+                // SIGINT.
+                fprintf(stdout, "\nCTRL + C: intercepted!\n");
+                int retvalue;
+                retvalue = pthread_mutex_lock(&pausemutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_mutex_lock(&listmutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_mutex_lock(&queuemutex);
+                if (retvalue != 0) {
+                    // Error
+                }
+                fprintf(stdout, "CTRL + C: Beginning exiting...\n");
+                struct ClientNode* current = head;
+                while (1) {
+                    if (current == NULL) break;
+                    retvalue = pthread_mutex_lock(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }            
+                    current = current->next;
+                }
+                retvalue = pthread_cancel(mainthread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_cancel(scorert);
+                if (retvalue != 0) {
+                    // Error
+                }
+                retvalue = pthread_cancel(gamepauseandnewgamethread);
+                if (retvalue != 0) {
+                    // Error
+                }
+                current = head;
+                while (1) {
+                    if (current == NULL) break;
+                    sendMessage(current->socket_client_fd, MSG_ESCI, "Server is exiting...\n");
+                    retvalue = close(current->socket_client_fd);
+                    if (retvalue == -1) {
+                        // Error
+                    } 
+                    retvalue = pthread_cancel(current->thread);
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    current = current->next;
+                }
+                fprintf(stdout, EXIT_STR);
+                // No need to free memory, we terminate, the OS will do it.
                 exit(EXIT_SUCCESS);
-                break;
             }case SIGALRM:{
                 // This will manage the SIGALRM signal triggered by the timer when the game is over.
 
@@ -503,7 +553,6 @@ void* signalsThread(void* args) {
                 /////////////////////////   SECURE CHECK   /////////////////////////
                 // In this case the sync between threads to access to this var is not needed.
                 if (pauseon) {
-                    // TODO Is fixed? Delete if all works after the tests.
                     // Error
                     // Another pause is live. 
                     // Another unexpected SIGALRM received.
@@ -2969,7 +3018,7 @@ void* gamePauseAndNewGame(void* args) {
     char* banner;
     struct ClientNode* current;
     fprintf(stdout, "I'm the gamePauseAndNewGame() pthread (ID): %lu.\n", (uli) gamepauseandnewgamethread);
-    pthread_setname_np(gamepauseandnewgamethread, "GamePauseAndNewGameThread");
+    pthread_setname_np(gamepauseandnewgamethread, "GPANGThread");
 
     //////////////////  EXECUTING PAUSE  //////////////////
     retvalue = pthread_mutex_lock(&listmutex);

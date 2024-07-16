@@ -1,20 +1,10 @@
 Verrà valutato:
-Compilazione e creazione degli eseguibili, correttezza del Makefile
 Funzionamento di una sessione di test tra client e server, basata sulle prime due righe del file matrici.txt
 con durata passata da parametro di comando ( 5 minuti ) o usando la durata standard 
 Da uno fino a tre clients connessi contemporaneamente
-Rispondenza del comportamento del programma al progetto, correttezza nell’uso della sincronizzazione, mutua esclusione, dei threads e dei socket, assenza di
-Deadlock
-Starvation
-Chiarezza dei commenti, struttura interna del progetto
 Gestione degli errori 
-Chiarezza e completezza della relazione
 
 CHIEDERE AL DOCENTE, IL TRIE NON CONVIENE PERCHE' OGNI CARATTERE 1 BYTE E OGNI CHAR* O STRUCT* (CON SOLO 1 CHAR E 1 STRUCT* NEXT) HA SIZEOF DI 8.
-
-Aggiornare relazione con:
-Q24: Quando viene detto che in caso di SIGINT il server deve terminare, la terminazione deve comportarsi come se la partita si fosse chiusa normalmente, oppure è sufficiente chiudere il socket creato dal server ed ovviamente i file descriptor con cui comunica ai client.
-A24: Anche in questo caso la scelta è lasciata allo studente, che dovrà motivare nella relazione finale.
 
 proc handle -p true -s false -n false SIGUSR1
 

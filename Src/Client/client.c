@@ -10,8 +10,6 @@
 #define PROMPT_STR "[PROMPT BOGGLE]--> " // Prompt string.
 #define PROMPT_STR_IT "[PROMPT PAROLIERE]--> " // Prompt string ITALIAN.
 
-#define EXIT_STR "Bye, bye, see you soon! Thanks for playing.\n"
-
 #define HELP_MSG "Avaible commands:\nhelp -> Show this page.\nregister_user user_name -> To register in the game.\nmatrix -> Get the current game matrix.\np word -> Submit a word.\nend -> Exit from the game.\n" // Help message.
 
 #define CHECK_RESPONSES_MICROSECONDS 100 // Time in microseconds. Each time, the responses received from the server (if present), will be printed.

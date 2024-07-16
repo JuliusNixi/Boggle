@@ -6,6 +6,7 @@
     // On macOS pthread_setname_np() implementation is "void pthread_setname_np(const char *name);"
     #define pthread_setname_np(THREAD_ID, THREAD_NAME) pthread_setname_np(THREAD_NAME)
 #elif defined(__linux__)
+    // 15 Max length thread name on Linux.
     // On Linux pthread_setname_np() implementation is "int pthread_setname_np(pthread_t thread, const char *name);"
     #define pthread_setname_np(THREAD_ID, THREAD_NAME) pthread_setname_np(THREAD_ID, THREAD_NAME)
 #endif
@@ -72,6 +73,8 @@ pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will n
 #define MESSAGE_TIMEOUT_SECONDS 8LU
 
 #define EMPTY_SCOREBOARD_MESSAGE_STR "No REGISTERED players played :(, so no scoreboard..."
+
+#define EXIT_STR "Bye, bye, see you soon! Thanks for playing.\n"
 
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
