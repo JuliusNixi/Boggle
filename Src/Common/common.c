@@ -108,6 +108,9 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
     if (readed == NULL) {
         // Error
     }
+    readed->type = 0;
+    readed->length = 0U;
+    readed->data = NULL;
 
     // Reading/Waiting for the message type.
     toread = sizeof(readed->type);
@@ -571,7 +574,7 @@ void destroyMessage(struct Message** m) {
     struct Message* mc = *m;
     mc->type = (char) 0;
     mc->length = 0U;
-    free(mc->data);
+    if (mc->data != NULL) free(mc->data);
     mc->data = NULL;
     free(mc);
     mc = NULL;
@@ -702,12 +705,12 @@ char* itoa(uli n) {
     if (strint == NULL) {
         // Error
     }
-
+    
     // Inserting in the string the number received as input.
     sprintf(strint, "%lu", n);
 
     // Terminating string.
-    strint[ndigits] = '\0';
+    strint[ndigits - 1] = '\0';
     
     return strint;
 
