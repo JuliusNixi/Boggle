@@ -2329,7 +2329,7 @@ void disconnectClient(struct ClientNode** clienttodestroy, char terminatethread)
             }else{
                 // Error
             }
-        }
+        }else break;
     }
 
         // pausemutex trylock succeded.
