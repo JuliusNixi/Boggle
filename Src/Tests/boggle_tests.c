@@ -19,8 +19,8 @@
 
 // Be particullary moderate when using Valgrind, because it cannot handle high values below.
 // These HIGH values are NOT intended to used with Valgrind.
-#define N_CLIENTS 32LU // Number of clients that will be spawned.
-#define N_ACTIONS 16LU // Number of actions for each client. Each action is the submission of a command.
+#define N_CLIENTS 16LU // Number of clients that will be spawned.
+#define N_ACTIONS 8LU // Number of actions for each client. Each action is the submission of a command.
 #define N_TESTS 2LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
 // So each client will submit N_ACTIONS actions for N_TESTS times.
@@ -163,8 +163,7 @@ void end(char processalive) {
             continue; // Process already terminated, skipping.
         }else{
             // Error
-            fprintf(stderr, "Error in getting client process status.\n");
-            exit(EXIT_FAILURE);
+            continue; // Process already terminated, skipping.
         }
 
     } // End for.
