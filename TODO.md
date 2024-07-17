@@ -4,7 +4,7 @@ List of things to work on. Very few because I forget very often to update this f
 
 ## To do
 
-- [ ] Recheck.
+- [ ] Finishing handling errors in client.c, but i have no time :(
 
 ## Done ✓
 

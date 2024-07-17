@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
     #if defined(TEST_MODE_SECONDS)
         fprintf(stdout, "Using match time duration %lu SECONDS.\n", gameduration);
     #else 
-        fprintf(stdout, "Using match time duration %lu minutes.\n", gameduration);
+        fprintf(stdout, "Using match time duration %lu minutes.\n", gameduration / 60);
     #endif
     if (seed != 0LU) {
         seedpresent = 1;

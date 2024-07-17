@@ -189,7 +189,7 @@ void inputHandler(void) {
         // Printing prompt.
         if (printprompt == 1)
             fprintf(stdout, PROMPT_STR_IT);
-        else printprompt = 0;
+        printprompt = 0;
 
         fflush(stdout);
 
@@ -456,11 +456,9 @@ void inputHandler(void) {
                 }
 
                 if (printprompt == 3) {
-
                     // Two cases:
                     // 1. ->
                     // 2. -> USERINPUT...
-
                     char i = clearInput();
                     if (i == 0) {
                         // First case.
@@ -489,6 +487,7 @@ void inputHandler(void) {
                     // Error
                 }
                 struct MessageNode* current = head;
+                printprompt = 0;
                 while(1) {
                     if (current == NULL) break;
 
@@ -498,12 +497,15 @@ void inputHandler(void) {
                     switch (received->type){
                         case MSG_MATRICE: {
                             fprintf(stdout, "%s", received->data);
+                            printprompt = 1;
                             break;
                         }case MSG_OK:{
                             fprintf(stdout, "%s", received->data);
+                            printprompt = 1;
                             break;
                         }case MSG_ERR: {
                             fprintf(stdout, "%s", received->data);
+                            printprompt = 1;
                             break;
                         }case MSG_TEMPO_ATTESA: {
                             int t = atoi(received->data);
@@ -511,9 +513,11 @@ void inputHandler(void) {
                                 fprintf(stdout, "The game is in pause. Seconds left to the end of the pause: %lu.\n", strtoul(received->data, NULL, 10));
                             else
                                 fprintf(stdout, "The game is in pause. We are late, the next game should start as soon as possible!\n");
+                            printprompt = 1;
                             break;
                         }case MSG_TEMPO_PARTITA: {
                             fprintf(stdout, "The game is ongoing. Seconds left to the end of the game: %lu.\n", strtoul(received->data, NULL, 10));
+                            printprompt = 1;
                             break;
                         }case MSG_PUNTI_PAROLA: {
                             uli points = strtoul(received->data, NULL, 10);
@@ -521,6 +525,7 @@ void inputHandler(void) {
                                 fprintf(stdout, "Word already claimed. You got %lu points.\n", points);
                             else
                                 fprintf(stdout, "Word claimed succesfully, nice guess! You got %lu points.\n", points);
+                            printprompt = 1;
                             break;
                         }case MSG_PUNTI_FINALI: {
                             retvalue = pthread_mutex_lock(&printmutex);
@@ -548,6 +553,7 @@ void inputHandler(void) {
                             if (retvalue != 0) {
                                 // Error
                             }
+                            printprompt = 1;
                             break;
                         }case MSG_ESCI : {
                             fprintf(stdout, "%s", received->data);
@@ -567,15 +573,14 @@ void inputHandler(void) {
                                 retvalue = close(client_fd);
                                 if (retvalue == -1) {
                                     // Error
-                                }
-                                client_fd = -1;
+                                }else client_fd = -1;
                             }
                             fprintf(stdout, "%s\n", EXIT_STR);
                             // No need to free memory, we terminate, the OS will do it.
                             exit(EXIT_SUCCESS);
                         }case MSG_PING_ONLINE : {
                             // Nothing to do.
-                            ;
+                            printprompt = 1;
                             break;
                         }case MSG_REGISTRA_UTENTE:
                         case MSG_PAROLA: {
@@ -604,8 +609,6 @@ void inputHandler(void) {
                     // Error
                 }
 
-                printprompt = 1;
-
             }else{
 
                 // Nothing from server to print.
@@ -630,7 +633,7 @@ void inputHandler(void) {
             }
 
             // Printing prompt is needed.
-            if (printprompt == 1) break;
+            break;
 
         } // End first while.
 
@@ -736,11 +739,12 @@ void* responsesHandler(void* args) {
                     case MSG_TEMPO_ATTESA:
                     case MSG_TEMPO_PARTITA:
                     case MSG_PUNTI_PAROLA:
-                    case MSG_PING_ONLINE:
                     case MSG_PUNTI_FINALI: {
                         // OK, nothing to do for ALL.
                         ;
                         break;
+                    }case MSG_PING_ONLINE: {
+                        continue;
                     }default:{
                         // Error
                         // Not recognized message's type. Ignoring it.

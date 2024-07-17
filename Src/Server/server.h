@@ -76,7 +76,7 @@ struct Queue { // Queue struct.
     struct Queue* next; // Pointer to the next element of the Queue.
 };
 
-#define TEST_MODE_SECONDS 20 // This is used ONLY for testing to use time in seconds, not minute and do not wait a lot.
+//#define TEST_MODE_SECONDS 8LU // This is used ONLY for testing to use time in seconds, not minute and do not wait a lot.
 
 // Functions signatures server used in server.c and bloggle_server.c.
 // Implementation and infos in the server.c file.
