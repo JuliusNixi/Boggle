@@ -1,12 +1,6 @@
 # Bin folder
 This folder contains the project's binaries, "boggle_server", "boggle_client" and "boggle_tests". These binaries files are also present in the project's root folder with the names respectively of "./paroliere_srv", "./paroliere_cl" and "./paroliere_tests" (italian files names). This folder also contains the object files used to compile these binaries.
 
-These binaries has been compiled on:
-
-Apple clang version 15.0.0 (clang-1500.3.9.4)
-Target: arm64-apple-darwin23.5.0
-Thread model: posix
-
-## Compiling, usage and execution
+## Compiling them, usage and execution
 See "../README.md", the file in the project's root folder.
 

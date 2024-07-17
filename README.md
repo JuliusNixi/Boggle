@@ -5,11 +5,11 @@ https://github.com/JuliusNixi/Boggle
 
 ## Compiling
 Some useful phony targets:
-- make -> To compile all: client, server and C tests.
+- make -> To compile all: client, server and tests.
 - make execs -> To compile and run the server, with default args (see in "./Makefile").
 - make execc -> To compile and run the client, with default args (see in "./Makefile").
-- make tests -> To compile and run the C tests, with default args (see in "./Makefile").
-- make clean -> To remove all objects files, executables files, tests logs files and kill all the server, client and C tests processes.
+- make tests -> To compile and run the tests, with default args (see in "./Makefile").
+- make clean -> To remove all objects files, executables files, tests logs files and kill all the server, client and tests processes.
 Of course is also possible to invoke make with directly the desired target.
 
 ## Usage and execution

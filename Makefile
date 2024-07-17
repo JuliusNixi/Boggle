@@ -44,7 +44,7 @@ SRCC = $(NC).c
 SRCC2 = $(SC).c
 # Source common file NAME.
 SRCU = $(SU).c
-# Source C tests file NAME.
+# Source tests file NAME.
 SRCT = $(NT).c
 
 # Header server file NAME.
@@ -76,7 +76,7 @@ EXET = $(BINDIR)$(NT)
 .PHONY: all clear clean execs execc tests
 
 # The first target is the default one, called with "make".
-# Targets bins of client, server and C tests.
+# Targets bins of client, server and tests.
 all: clear $(EXES) $(EXEC) $(EXET)
 
 # Clear screen.
@@ -122,7 +122,6 @@ clean: clear
 	-pkill -SIGKILL -f $(NS)
 	-pkill -SIGKILL -f $(NC)
 	-pkill -SIGKILL -f $(NT)
-
 	-pkill -SIGKILL -f $(RNS)
 	-pkill -SIGKILL -f $(RNC)
 	-pkill -SIGKILL -f $(RNT)
@@ -130,11 +129,11 @@ clean: clear
 	-pkill -SIGKILL -f $(LABIIDIR)$(RNS)
 	-pkill -SIGKILL -f $(LABIIDIR)$(RNC)
 	-pkill -SIGKILL -f $(LABIIDIR)$(RNT)
-
+# Remove all the ".DS_Store" files created on my Mac, excepted the one contained in ./Tests/C/Logs/*.
 	-find . -name .DS_Store -not -path "./Tests/C/Logs/*" -delete
 
 
-# Some useful default args for testing.
+# Some useful default args for testing quickly the main functions.
 export IP=localhost
 export PORT=8080
 
@@ -146,7 +145,7 @@ execs: clear $(EXES)
 execc: clear $(EXEC)
 	$(ROOTDIR)$(RNC) $(IP) $(PORT)
 
-# Compile and execute the C tests with some default/testing args.
+# Compile and execute the tests with some default/testing args.
 tests: clear $(EXEC) $(EXET)
 	$(ROOTDIR)$(RNT) $(IP) $(PORT)
 

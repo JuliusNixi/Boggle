@@ -5,9 +5,10 @@
 int socket_server_fd; // Socket server file descriptor.
 
 uli gameduration; // Game duration, for each match, in minutes. 
+uli pauseduration; // Duration of the pause in minutes. Default 1 minute.
 
-char usematrixfile;  // 1 if a path has been specified by the user trought CLI args, 0 otherwise.
-char* matpath; // String path rapresenting the path of the matrix file (specified by CLI arg). It's not allocated, it just point (after the initialization) to the right argv.
+char usematrixfile;  // 1 if a matrices file path has been specified by the user trought CLI args, 0 otherwise.
+char* matpath; // String rapresenting the path of the matrices file (specified by CLI arg). It's not allocated, it just point (after the initialization) to the right argv.
 
 // The player/client infos will be stored in a heap linked list, with the below structure.
 // Defined here (and not in server.c) because is used in functions signatures below.
@@ -27,20 +28,20 @@ struct ClientNode {
 
     uli points; // Player game points, increased when the player guess a word.
 
-    char** words_validated; // To remember the already submitted words by the player.
+    char** words_validated; // To remember the already submitted words by the player, it's a copy of words_valid.
 
-    char* name; // Player's name, must be composed of ALPHABET characters.
+    char* name; // Player's name, must be composed of ALPHABET (common.h) characters.
 
     // Synchronization tools.
     struct Message* registerafter; // Used to save a suspended register request that need to be processed after the end game phase for synchronization reasons.
     char actionstoexecute; // This var is used to create a very simple "communication" between the signalsThread() thread and the clientHander() thread, without using others more complex synchronization primitives, to handle the game end.
     // https://stackoverflow.com/questions/24931456/how-does-sig-atomic-t-actually-work
     volatile sig_atomic_t receivedsignal; // This is used by the clientHandler() thread to notify the signalsHandler() thread that the signal sent (SIGUSR1) was received.
+    uli countertimeoutseconds; // This is used to count seconds. When this value reach MESSAGE_TIMEOUT_SECONDS (defined in server.c) the unresponsive client is disconnected.
     // These three variables could be 1 or 0 only.
     char waiting; // This is used by the clientHandler() thread to notify the signalsHandler() thread that we are waiting on the handlerequest mutex. 
-    char toexit; // This is used by the clientHandler() thread to notify the signalsThread() thread of a client's disconnection.
+    char toexit; // This is used by the clientHandler() thread to notify the signalsThread() thread of a client's disconnection beginning.
     char filledqueue; // This is used by the clientHandler() thread to notify the signalsThread() thread of the client has correctly filled the queue.
-    uli countertimeoutseconds;
 
 }; 
 
@@ -50,8 +51,9 @@ struct ClientNode {
 
 It is in fact, unnecessary and pedantic (more complicated than necessary) to use it to make threads
 cooperate. Much more simply for the pause manager thread (signalsHandler()), is to block all threads 
-via the corresponding mutexes, by going through the players list, and it would have already had access 
-to the player's points information in a easy and safe way to produce the final scoreboard.
+via the corresponding mutexes (handlerequest), by going through the players list, and it would have  
+already had access to the player's points information in a easy and safe way to produce the final
+scoreboard.
 
 Also, it would have sufficed that the queue contains the pointer to struct ClientNode*
 (which contains the player's score), but since it is stated in the text of the project:
@@ -62,7 +64,7 @@ su di una coda che e' condivisa tra i diversi thread. [...]
 I thought it was explicitly required that the corresponding named data structure should be used
 (struct Message), even though it does not, as it was described in the project's text, contains
 the client's name, so I went to enter the information name, relative score, as a string in the
-data field of the Message* struct.
+data field of the Message* struct in "manual" way.
 
 TL;DR: In conclusion, I have much more complicated than necessary, but I have done so 
 to remain as faithful as possible to the project's text.
@@ -74,6 +76,7 @@ struct Queue { // Queue struct.
     struct Queue* next; // Pointer to the next element of the Queue.
 };
 
+#define TEST_MODE_SECONDS 20 // This is used ONLY for testing to use time in seconds, not minute and do not wait a lot.
 
 // Functions signatures server used in server.c and bloggle_server.c.
 // Implementation and infos in the server.c file.
@@ -95,8 +98,6 @@ void gameEndQueue(struct ClientNode*);
 char* csvNamePoints(struct Message*, char);
 void* clientHandler(void*);
 int registerUser(char*, struct ClientNode*, struct Message*);
-// I used unsigned long because i read on internet that is a recommended type
-// for handling POSIX time.
 uli timeCalculator(uli, char, char*);
 int submitWord(struct ClientNode*, char*);
 int validateWord(char*);
@@ -118,9 +119,4 @@ void* gamePauseAndNewGame(void*);
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h
-////////////////////////////////////////////////////////////////////////
-
-
-
-
 

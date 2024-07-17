@@ -61,10 +61,10 @@ https://stackoverflow.com/questions/5857300/gdb-ctrlc-doesnt-interrupt-process-a
 To kill forcibly a process:
 kill -9 PID     With PID the process' ID, obtained by the previous commands. 9 is SIGKILL, it's must be handled by the OS, not the process.
 
-To execute the server, keep seeing the STDOUT, but also logging it in a file:
+To execute the server, keep seeing the STDOUT AND STDERR, but also logging them in a file:
 ./paroliere_srv localhost 8080 2>&1 | tee outputserver.txt
 
-On macOS I had to increase the limit of open files to run so many clients:
+On macOS I had to increase the limit of open files to run so many clients (in tests):
 https://stackoverflow.com/questions/73977844/too-many-open-files-during-rspec-tests-on-macos
 
 I debugged mainly with gdb on the LABII shared machine.

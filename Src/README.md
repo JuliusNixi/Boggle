@@ -5,12 +5,13 @@ The "../Bin/boggle_tests" ("../paroliere_tests") executable depends from "./Test
 
 The "./Server/boggle_server.c", "./Server/server.c" depend from "./Server/server.h".
 The "./Client/boggle_client.c", "./Client/client.c" depend from "./Client/client.h".
+The "./Tests/boggle_tests.c" depends from "./Common/common.h".
 
 The "./Server/server.h", "./Client/client.h" depend from "./Common/common.h".
 
 The "./Common/common.c" depends from "./Common/common.h".
 
-The "./Common/" files include declarations and implementations used in server, client and C tests. The idea behind the project's structure it's that, the "./Server/boggle_server.c" file and the "./Server/server.c", use shared data structure contained by the "./Server/server.h". Similary for the client files. All the ".c" files (client, server and C tests) depend on "./Common/common.c". All ".h" files depend on "./Common/common.h".
+The "./Common/" files include declarations and implementations used in server, client and tests. The idea behind the project's structure it's that, the "./Server/boggle_server.c" file and the "./Server/server.c", use shared data structure contained by the "./Server/server.h". Similary for the client files.
 
 ## Compiling
 See "../README.md", the file in the project's root folder.

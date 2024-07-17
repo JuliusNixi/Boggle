@@ -14,14 +14,6 @@ uli words_len = 0U;   // Length of BOTH char[][] above.
 uli matchtime = 0LU;  // Time of the last game startup.
 uli pausetime = 0LU;  // Time of the last pause startup.
 
-// TODO Reset times e delete assert here after tests.
-#include <assert.h>
-#define tempteststimeseconds 8
-#define PAUSE_DURATION 8 // Duration of the pause in minutes. Default 1 minute.
-//#define PAUSE_DURATION 7 // Duration of the pause in minutes.
-// For the game duration time, see "gameduration" var in server.h.
-
-// TODO Restore WORD_LEN after tests.
 //#define WORD_LEN 4LU  // If set to an integer greater than 0, the server will refuse all the words that not match this length, even if present in the dictionary and in the current game matrix.
 #define WORD_LEN 0LU
 
@@ -32,6 +24,8 @@ pthread_mutex_t pausemutex = PTHREAD_MUTEX_INITIALIZER; // This mutex will be us
 uli nclientsconnected = 0LU; // This rapresent the number of connected clients to the server. It's include BOTH registered and unregistered users.
 
 #define NO_NAME "unregistered" // This will be the default name assigned to unregistered players.
+
+#define MESSAGE_TIMEOUT_SECONDS 8LU // Amount of seconds after which the server close an unresponsive socket connection with a client.
 
 uli clientid = 0LU;  // A temporary client's ID used to identify a client before its thread starting.
 
@@ -539,10 +533,49 @@ void* signalsThread(void* args) {
                     if (retvalue != 0) {
                         // Error
                     }
-                    current = current->next;
+                    struct ClientNode* tmp = current->next;
+                    // Cleaning the client object.
+                    current->client_address_len = 0;
+                    current->next = NULL;
+                    retvalue = pthread_mutex_destroy(&(current->handlerequest));
+                    if (retvalue != 0) {
+                        // Error
+                    }
+                    current->points = 0LU;
+                    free(current->words_validated);
+                    current->words_validated = NULL;
+                    free(current->name);
+                    current->name = NULL;
+                    free(current->registerafter);
+                    current->registerafter = NULL;
+                    current->actionstoexecute = 0;
+                    current->receivedsignal = 0;
+                    current->waiting = 0;
+                    current->toexit = 0;
+                    current->filledqueue = 0;
+                    free(current);
+                    current = tmp;
                 }
-                fprintf(stdout, EXIT_STR);
-                // No need to free memory, we terminate, the OS will do it.
+
+                for (uli i = 0LU; i < words_len; i++)
+                    free(words[i]);
+                free(words);
+                free(words_valid);
+
+                struct Queue* begin = tailq;
+                struct Queue* tmp = NULL;
+                while (1) {
+                    if (begin == NULL) break;
+                    tmp = begin->next;
+                    struct Queue* t = begin;
+                    struct Message* m = begin->message;
+                    if (m != NULL) destroyMessage(&m);
+                    begin->message = NULL;
+                    free(t);
+                    t = NULL;
+                    begin = tmp;
+                }
+                fprintf(stdout, "%s\n", EXIT_STR);
                 exit(EXIT_SUCCESS);
             }case SIGALRM:{
                 // This will manage the SIGALRM signal triggered by the timer when the game is over.
@@ -664,6 +697,7 @@ void* signalsThread(void* args) {
                 // Notifying the threads handlers of end of game to stop read().
                 while (1) {
                     if (current == NULL) break;
+                    disconnecterChecker(&(current->socket_client_fd));
                     threadsignalreceivedglobal = &(current->receivedsignal);
                     retvalue = pthread_kill(current->thread, SIGUSR1); 
                     if (retvalue != 0) {
@@ -831,6 +865,7 @@ void* signalsThread(void* args) {
                 // the scoreboard to their clients.
                 while (1) {
                     if (current == NULL) break;
+                    disconnecterChecker(&(current->socket_client_fd));
                     threadsignalreceivedglobal = &(current->receivedsignal);
                     retvalue = pthread_kill(current->thread, SIGUSR1); 
                     if (retvalue != 0) {
@@ -1650,6 +1685,9 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     // the already submitted words.
     user->words_validated = (char**) malloc(sizeof(char*) * words_len);
     if (user->words_validated == NULL) {
+        free(str);
+        str = NULL;
+        user->name = NULL;
         // Error
         retvalue = pthread_mutex_unlock(&listmutex);
         if (retvalue != 0) {
@@ -1671,11 +1709,17 @@ int registerUser(char* name, struct ClientNode* user, struct Message* m) {
     retvalue = pthread_mutex_unlock(&listmutex);
     if (retvalue != 0) {
         // Error
+        free(str);
+        str = NULL;
+        user->name = NULL;
         return -1;
     }   
     retvalue = pthread_mutex_unlock(&pausemutex);
     if (retvalue != 0) {
         // Error
+        free(str);
+        str = NULL;
+        user->name = NULL;
         return -1;
     }   
 
@@ -1716,10 +1760,12 @@ void startGame(void) {
     // The default gameduration is 3 minutes setted in main().
     // The gameduration can also be inserted by a CLI arg.
     // Alarm takes as input seconds, but the user input (gameduration var) is in minutes.
-    //alarm(60 * gameduration);
-    gameduration = tempteststimeseconds;
     alarm(gameduration);
-    fprintf(stdout, "The game duration timer is now setted to %lu minutes.\n", gameduration);
+    #if defined(TEST_MODE_SECONDS)
+        fprintf(stdout, "The game duration timer is now setted to %lu minutes.\n", gameduration);
+    #else 
+        fprintf(stdout, "The game duration timer is now setted to %lu SECONDS.\n", gameduration);
+    #endif
 
 }
 
@@ -1735,26 +1781,29 @@ void startGame(void) {
 // This function will be executed always from the the main thread.
 void acceptClient(void) {
 
-    // Pre-allocating heap memory for a new client node.
-    // It's just one client, we don't waste a lot of memory.
+    clientid++;
+
+    // Waiting for a new client connection.
+    int retvalue;
+    int fd;
+    struct ClientNode tmp;
+    while (1) {
+        fd = accept(socket_server_fd, (struct sockaddr*) (&(tmp.client_addr)), &(tmp.client_address_len));
+        if (fd == -1) {
+            // Error
+        }else
+            break;
+    }
+    // Allocating heap memory for a new client node.
     struct ClientNode* new = NULL;
     new = (struct ClientNode*) malloc(sizeof(struct ClientNode));
     if (new == NULL) {
         // Error
     }
-
-    clientid++;
-
-    // Waiting for a new client connection.
-    int retvalue;
     new->client_address_len = (socklen_t) sizeof(new->client_addr);
-    while (1) {
-        new->socket_client_fd = accept(socket_server_fd, (struct sockaddr*) (&(new->client_addr)), &(new->client_address_len));
-        if (new->socket_client_fd == -1) {
-            // Error
-        }else
-            break;
-    }
+    new->socket_client_fd = fd;
+    memcpy((void*)&(new->client_addr), (void*)&(tmp.client_addr), sizeof(tmp.client_addr));
+    memcpy((void*)&(new->client_address_len), (void*)&(tmp.client_address_len), sizeof(tmp.client_address_len));
     fprintf(stdout, "New client succesfully accepted (TMP ID): %lu.\n", clientid);
 
     // Cannot use PTHREAD_MUTEX_INITIALIZER, because can be used only on static allocated mutexes.
@@ -1856,8 +1905,8 @@ uli timeCalculator(uli matchorpausetime, char mode, char* returncode) {
     }else {
         // returncode should be NOT NULL here.
         // MSG_TEMPO_ATTESA 'A' Time remaining to the start of a new game, pause left time.
-        tt = ((uli) PAUSE_DURATION) - timeremaining;
-        if (timeremaining > (uli) PAUSE_DURATION) {
+        tt = ((uli) pauseduration) - timeremaining;
+        if (timeremaining > (uli) pauseduration) {
             // Error
             fprintf(stderr, "WARNING: We are late! Processing is taking longer than the duration time of the pause.\nThe pause should have ended already.\nPlayers will be notified.\nConsider to increase pause duration time.\n");
             *returncode = 0;
@@ -2268,27 +2317,20 @@ void disconnectClient(struct ClientNode** clienttodestroy, char terminatethread)
     // Notifying the signalsThread() thread of this client's disconnection.
     client->toexit = 1;
 
-    // WHY USING GOTO THAT CAUSES SPAGHETTI CODE?!?!
-    // Because this function could recursively recall itself so many times
-    // before signalsThread() releases the mutexes needed.
-    // This could cause stackoverflow, but fortunally we don't need the stack of
-    // the previous call, so in this case the goto is perfect to jump at the start
-    // of this function.
-
-disconnect_restart: {
-    client->waiting = 1;
-    // Trylock needed.
-    retvalue = pthread_mutex_trylock(&pausemutex);
-    if (retvalue != 0) {
-        if (retvalue == EBUSY) {
-            // PAUSE IS ON!          
-            sleep(1);
-            goto disconnect_restart;
-        }else{
-            // Error
+    while (1) {
+        client->waiting = 1;
+        // Trylock needed.
+        retvalue = pthread_mutex_trylock(&pausemutex);
+        if (retvalue != 0) {
+            if (retvalue == EBUSY) {
+                // PAUSE IS ON!          
+                sleep(1);
+                continue;
+            }else{
+                // Error
+            }
         }
     }
-}
 
         // pausemutex trylock succeded.
 
@@ -3031,9 +3073,7 @@ void* gamePauseAndNewGame(void* args) {
         // Error
     }
     // Executing the pause.
-    // PAUSE_DURATION in minutes, but sleep takes seconds.
-    //sleep(PAUSE_DURATION * 60);
-    sleep(tempteststimeseconds);
+    sleep(pauseduration);
     fprintf(stdout, "Pause sleeping finished.\n");
 
 

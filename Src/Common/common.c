@@ -1,5 +1,6 @@
 #include "common.h"
 
+// ANCHOR File begin.
 // ANCHOR toLowerOrUpperString()
 // This function normalizes a string received as input, trasforming it in all lower/UPPER case.
 // 'L' means lowercase, 'U' UPPERCASE, that is specified by the input char lowerupper.
@@ -7,6 +8,8 @@ void toLowerOrUpperString(char* string, char lowerupper) {
 
     if (string == NULL) {
         // Error
+        fprintf(stderr, "Error, toLowerOrUpperString() received an empty string.\n");
+        exit(EXIT_FAILURE);
     }
 
     // Checking if lowerupper input is 'L' (means to change the string in lowercase),
@@ -14,6 +17,8 @@ void toLowerOrUpperString(char* string, char lowerupper) {
     lowerupper = toupper(lowerupper);
     if (lowerupper != 'L' && lowerupper != 'U') {
         // Error
+        fprintf(stderr, "Error, toLowerOrUpperString() received an invalid mode.\n");
+        exit(EXIT_FAILURE);
     }
 
     // Casting the received string char by char.
@@ -34,6 +39,8 @@ int parseIP(char* ip, struct sockaddr_in* sai) {
 
     if (ip == NULL || sai == NULL) {
         // Error
+        fprintf(stderr, "Error, parseIP() received an empty ip or sockaddr_in.\n");
+        exit(EXIT_FAILURE);
     }
 
     // Lowering the string, LoCalhost and localhost and LOCALHOST, are now identical.
@@ -53,16 +60,17 @@ int parseIP(char* ip, struct sockaddr_in* sai) {
 // ANCHOR receiveMessage()
 // This function receive a message from the client or the server.
 // There is no difference since the message format is the same (struct Message).
-// It takes as input the socket file descriptor from which read data.
-// It takes as input also the char* resultcode, a pointer to a char where will be write the
+// It takes as input the socket file descriptor from which read data wit a read().
+// It takes as input also the char* resultcode, a pointer to a char where will be written the
 // operation's result code.
 // This code could be:
 // - 0: A disconnection happened.
 // - 1: Nornally interrupted by a signal.
 // - 2: Unexpected error.
-// - 3: Read 0 bytes (at the message beginning, so the message's type).
+// - 3: Read 0 bytes (at the message beginning, so the message's type). So readed nothing.
 // - 4: Completed message received succesfully.
 // It returns a pointer to the new struct Message allocated on the heap with the readed data.
+// This code should be checked by the function caller.
 /*
 
 If a read is interrupted by a signal...  
@@ -79,9 +87,9 @@ WARNING: This function ASSUMES that the client/server will always send a message
 (even if it is split into its fields) or NOT AT ALL.
 Specifically:
     - If no message is sent (i.e., no part of it) everything works of course.
-    - If the received message's type it's invalid the message will be ignored by the CALLER.
+    - If the received message's type it's invalid, the message will be ignored by the CALLER.
     - If the server receive LESS bytes than necessary (e.g., only the message's type
-       field of the Message struct is sent),this function will loop (potentially forever) in a 
+       field of the Message struct is sent), this function will loop (potentially forever) in a 
        while(1). However, this cannot happen, because a system to check and resolve this issue
        has been implemented (but it is external to this function!).
        This is has been done because someone could have connected to the socket server without
@@ -91,8 +99,10 @@ Specifically:
 */
 struct Message* receiveMessage(int fdfrom, char* resultcode) {
 
-    if (fdfrom < 0) {
+    if (resultcode == NULL) {
         // Error
+        fprintf(stderr, "Error, receiveMessage() received a NULL resultcode pointer.\n");
+        exit(EXIT_FAILURE);
     }
 
     int retvalue;
@@ -107,6 +117,8 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
     readed = (struct Message*) malloc(sizeof(struct Message));
     if (readed == NULL) {
         // Error
+        fprintf(stderr, "Error, receiveMessage() in malloc() of readed message.\n");
+        exit(EXIT_FAILURE);
     }
     readed->type = 0;
     readed->length = 0U;
@@ -161,7 +173,7 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
 
         // Interrupted before of end reading (in the middle of a reading).
         // Readed less bytes returned in retvalue.
-        // When i will return from the (end of game reached) SIGNAL management,
+        // When i will return from the SIGUSR1 signal management,
         // I come back to read where i was left, reading only the unread data from the stream.
         toread -= retvalue;
         tmp = (char*) writingpointer;
@@ -184,7 +196,7 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
 
     uint32_t l;
     toread = sizeof(l);
-    writingpointer = &(l);
+    writingpointer = &l;
     while (1) {
         // Reading/Waiting for the message length.
         retvalue = read(fdfrom, writingpointer, toread);
@@ -207,9 +219,9 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
             return NULL;      
         }
         // Interrupted by a signal, normal, we are in end game.
-        if (retvalue == -1 && errno == EINTR) {
+        // Trying to finish reading the message.
+        if (retvalue == -1 && errno == EINTR)
             continue;
-        }
         if (retvalue == -1) {
             // Error
             // Another unmanageable error.
@@ -217,6 +229,7 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
             *resultcode = 2;
             return NULL;
         }
+        // Trying to finish reading the message, because the message's type has already been received.
         if (retvalue == 0) {
             // 0 bytes read.
             continue;   
@@ -227,6 +240,7 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
         writingpointer = (void*) tmp;
         if (toread == 0) break;
     }
+    // Casting the received number from network bytes order to host bytes order.
     readed->length = ntohl(l);
 
     // Allocating heap memory to store the received message data.
@@ -236,6 +250,8 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
         bufferstr = (char*) malloc(sizeof(char) * readed->length);
         if (bufferstr == NULL) {
             // Error
+            fprintf(stderr, "Error, receiveMessage() bad malloc() of the data.\n");
+            exit(EXIT_FAILURE);
         }
         readed->data = bufferstr;
         toread = sizeof(char) * readed->length;
@@ -262,9 +278,9 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
                 return NULL;      
             }
             // Interrupted by a signal, normal, we are in end game.
-            if (retvalue == -1 && errno == EINTR) {
+            // Trying to finish reading the message.
+            if (retvalue == -1 && errno == EINTR) 
                 continue;
-            }
             if (retvalue == -1) {
                 // Error
                 // Another unmanageable error.
@@ -272,6 +288,7 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
                 *resultcode = 2;
                 return NULL;
             }
+            // Trying to finish reading the message, because the message's type has already been received.
             if (retvalue == 0) {
                 // 0 bytes read.
                 continue;  
@@ -308,9 +325,9 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
                 return NULL;      
             }
             // Interrupted by a signal, normal, we are in end game.
-            if (retvalue == -1 && errno == EINTR) {
+            // Trying to finish reading the message.
+            if (retvalue == -1 && errno == EINTR)
                 continue;
-            }
             if (retvalue == -1) {
                 // Error
                 // Another unmanageable error.
@@ -318,6 +335,7 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
                 *resultcode = 2;
                 return NULL;
             }
+            // Trying to finish reading the message, because the message's type has already been received.
             if (retvalue == 0) {
                 // 0 bytes read.
                 continue;   
@@ -342,7 +360,7 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
 // There is no difference since the message format is the same (struct Message).
 // It takes as input the file descriptor of the socket to wich the message will be sent.
 // Then it takes the struct Message fields: the type of the message and the data as char* (string).
-// Note that the length of the length Message field will be automatically calculated based on data
+// Note that the length of the data Message field will be automatically calculated based on data
 // length with strlen(), or will be 0 if data is passed NULL.
 // It returns a char containing the code result.
 // This code could be:
@@ -350,10 +368,6 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
 // - 2: Unexpected error.
 // - 1: Completed message sent succesfully.
 char sendMessage(int fdto, char type, char* data) {
-
-    if (fdto < 0) {
-        // Error
-    }
 
     switch (type){ 
         case MSG_MATRICE:
@@ -373,7 +387,8 @@ char sendMessage(int fdto, char type, char* data) {
         }default:{
             // Error
             // Not recognized message.
-            break;
+            fprintf(stderr, "Error, sendMessage() received an invalid message's type.\n");
+            exit(EXIT_FAILURE);
         } 
     }
 
@@ -401,6 +416,7 @@ char sendMessage(int fdto, char type, char* data) {
         s = (char*) malloc(sizeof(char) * tosend.length);
         if (s == NULL) {
             // Error
+            fprintf(stderr, "Error, sendMessage() bad malloc() for the data message field.\n");
         }
         strcpy(s, data);
         s[strlen(data)] = '\0';
@@ -423,8 +439,14 @@ char sendMessage(int fdto, char type, char* data) {
             free(s);
             return 0; 
         }
+        if (retvalue == -1 && errno == EBADF) {
+            // Probably a disconnection happened.
+            free(s);
+            return 0;      
+        }
         if (retvalue == -1) {
             // Interrupted by a signal, normal, we are in end game.
+            // Trying to finish sending the message.
             if (errno == EINTR) continue;
             // Error
             // Another unmanageable error.
@@ -432,7 +454,7 @@ char sendMessage(int fdto, char type, char* data) {
             return 2;
         }
         if (retvalue == 0) {
-            // 0 bytes read.
+            // 0 bytes sent.
             continue;  
         }
         towrite -= retvalue;
@@ -442,7 +464,7 @@ char sendMessage(int fdto, char type, char* data) {
         if (towrite == 0) break;
     }
 
-
+    // Converting the length from host bytes order to network bytes order.
     uint32_t l = htonl(tosend.length);
     towrite = sizeof(l);
     writingpointer = &l;
@@ -459,8 +481,14 @@ char sendMessage(int fdto, char type, char* data) {
             free(s);
             return 0; 
         }
+        if (retvalue == -1 && errno == EBADF) {
+            // Probably a disconnection happened.
+            free(s);
+            return 0;      
+        }
         if (retvalue == -1) {
             // Interrupted by a signal, normal, we are in end game.
+            // Trying to finish sending the message.
             if (errno == EINTR) continue;
             // Error
             // Another unmanageable error.
@@ -468,7 +496,7 @@ char sendMessage(int fdto, char type, char* data) {
             return 2;
         }
         if (retvalue == 0) {
-            // 0 bytes read.
+            // 0 bytes sent.
             continue;   
         }
         towrite -= retvalue;
@@ -495,8 +523,14 @@ char sendMessage(int fdto, char type, char* data) {
                 free(s);
                 return 0;  
             }
+            if (retvalue == -1 && errno == EBADF) {
+                // Probably a disconnection happened.
+                free(s);
+                return 0;      
+            }
             if (retvalue == -1) {
                 // Interrupted by a signal, normal, we are in end game.
+                // Trying to finish sending the message.
                 if (errno == EINTR) continue;
                 // Error
                 // Another unmanageable error.
@@ -504,16 +538,14 @@ char sendMessage(int fdto, char type, char* data) {
                 return 2;
             }
             if (retvalue == 0) {
-                // 0 bytes read.
+                // 0 bytes sent.
                 continue; 
-            }
-                    
+            }           
             towrite -= retvalue;
             tmp = (char*) writingpointer;
             tmp += (retvalue);
             writingpointer = (void*) tmp;
             if (towrite == 0) break;
-
         } // End while.
     }else{
         // Message's data IS NULL.
@@ -533,8 +565,14 @@ char sendMessage(int fdto, char type, char* data) {
                 free(s);
                 return 0;  
             }
+            if (retvalue == -1 && errno == EBADF) {
+                // Probably a disconnection happened.
+                free(s);
+                return 0;      
+            }
             if (retvalue == -1) {
                 // Interrupted by a signal, normal, we are in end game.
+                // Trying to finish sending the message.
                 if (errno == EINTR) continue;
                 // Error
                 // Another unmanageable error.
@@ -542,7 +580,7 @@ char sendMessage(int fdto, char type, char* data) {
                 return 2;
             }
             if (retvalue == 0) {
-                // 0 bytes read.
+                // 0 bytes sent.
                 continue;   
             }
             towrite -= retvalue;
@@ -567,7 +605,7 @@ void destroyMessage(struct Message** m) {
 
     if (m == NULL || *m == NULL) {
         // Error
-        fprintf(stderr, "NULL destroyMessage()!\n");
+        fprintf(stderr, "Error, destroyMessage()! received a NULL message.\n");
     }
 
     // Releasing allocated memory and destroying the vars content.
@@ -599,7 +637,7 @@ void destroyMessage(struct Message** m) {
 // It takes as input the bannertext, that is a string that will be placed in the center
 // of the divider.
 // It takes as input the nspaces that rapresent how many spaces should be between the bannersymbol
-// and the bannertext.
+// and the bannertext and vice versa.
 // It takes as input the bannersymbol that rapresent the symbol that will costitute the string.
 // It takes as input the voidstringornot, this will be 1 if the string should be only composed
 // by bannersymbol, 0 otherwise (so will contain bannertext) and will match the structure
@@ -612,6 +650,8 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
      (voidstringornot != 0 && voidstringornot != 1) ||
      bannertext == NULL){
         // Error
+        fprintf(stderr, "Error, bannerCreator() received invalid args.\n");
+        exit(EXIT_FAILURE);
     }
 
     // Searching for bannersymbol in bannertext.
@@ -621,6 +661,8 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
         if (s[0] == bannersymbol) {
             // Error
             // bannertext cannot contains bannersymbol.
+            fprintf(stderr, "Error, bannerCreator() received invalid bannertext. Cannot contains bannersymbol.\n");
+            exit(EXIT_FAILURE);
         }
         s++;
     }
@@ -632,25 +674,28 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
 
     if (X % 2 != 0){
         // Error
-        fprintf(stderr, "Use different parameters for bannerCreator().\n");
-        exit(1);
+        fprintf(stderr, "Error, use in bannerCreator() different parameters size.\n");
+        exit(EXIT_FAILURE);
     }
 
+    // Thanks to the previous check we are sure that the number is even.
     X = X / 2LU;
     
     // Calculate the total size needed for the new string.
-    uli totalsize = (X * 2LU) + (nspaces * 2LU) + bannertextlength + 1LU;
+    uli totalsize = (X * 2LU) + (nspaces * 2LU) + bannertextlength + 1LU; // +1 for '\0'.
 
     if (totalsize - 1 != totalstrlength){
         // Error
-        fprintf(stderr, "Use different parameters for bannerCreator().\n");
-        exit(1);
+        fprintf(stderr, "Error, use different parameters for bannerCreator().\n");
+        exit(EXIT_FAILURE);
     }
     
     // Allocate memory on the heap for the new string.
     char* result = (char*) malloc(totalsize * sizeof(char));
     if (result == NULL) {
         // Error
+        fprintf(stderr, "Error, bannerCreator() bad malloc() for the result string.\n");
+        exit(EXIT_FAILURE);
     }
     
     // Fill the string with the symbol, spaces, and the input string.
@@ -669,7 +714,6 @@ char* bannerCreator(uli totalstrlength, uli nspaces, char* bannertext, char bann
     
     for (uli i = 0LU; i < X; i++) 
         result[index++] = bannersymbol;
-    
     // Null-terminate the string.
     result[totalsize - 1] = '\0';
 
@@ -697,6 +741,7 @@ char* itoa(uli n) {
     // Below i calculate the number of digits of the received n as input.
     // In this way i can allocate a string of the correct length without wasting space.
     // Based on StackOverflow, but tested and seems to work.
+    // It's use math.h.
 
     uli ndigits = n <= 9 ? 1LU : floor (log10 ( (n))) + 1LU;
 
@@ -704,12 +749,14 @@ char* itoa(uli n) {
     char* strint = (char*) malloc(sizeof(char) * ++ndigits); // +1 for '\0'.
     if (strint == NULL) {
         // Error
+        fprintf(stderr, "Error, itoa() bad malloc() for the result string.\n");
+        exit(EXIT_FAILURE);
     }
     
     // Inserting in the string the number received as input.
     sprintf(strint, "%lu", n);
 
-    // Terminating string.
+    // Null terminating string.
     strint[ndigits - 1] = '\0';
     
     return strint;
@@ -720,25 +767,30 @@ char* itoa(uli n) {
 // This function is used both by client and server to detect the disconnection of the other part.
 // It takes as input a pointer to the file descriptor of the socket witch to send a simply "ping" 
 // message to detect socket disconnection (and so client/server disconnection).
+// If a disconnection happens the socket will be closed and the socket file descriptor invalidated.
 void disconnecterChecker(int* fdto) {
 
-    if (*fdto < 0) {
-        return;
-    }
-    char resultcode = sendMessage(*fdto, MSG_PING_ONLINE, "Ping, pong!\n");
-     // Disconnect the socket.
+    // Already disconnected.
+    if (*fdto < 0) return;
+    char resultcode = sendMessage(*fdto, MSG_PING_ONLINE, NULL);
+     // Disconnect the socket if needed.
     if (resultcode == 0) {
         int retvalue = close(*fdto);
         if (retvalue == -1) {
             // Error
+            fprintf(stderr, "Error, disconnecterChecker() in close().\n");
+            exit(EXIT_FAILURE);
         }
         *fdto = -1;
         return;
     }
     if (resultcode != 1) {
         // Error
+        fprintf(stderr, "Error, disconnecterChecker() in sendMessage(). Unexpected error.\n");
+        exit(EXIT_FAILURE);
     }
 
+    // If we arrive here, is all OK.
     return;
 
 }

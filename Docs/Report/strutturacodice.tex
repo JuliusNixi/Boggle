@@ -1,6 +1,6 @@
 \chapter{Struttura codice}
 
-Il codice si trova tutto nella cartella "./Src/" (soruces). Suddiviso in quattro sottocartelle "./Server/", "./Client/", "./Tests/" e "./Common/". Le dipendenze sono le seguenti:
+Il codice si trova tutto nella cartella "./Src/" (sources). Suddiviso in quattro sottocartelle: "./Server/", "./Client/", "./Tests/" e "./Common/". Le dipendenze sono le seguenti:
 \\
 \\
 "./Bin/boggle\_server" ("./paroliere\_srv") eseguibile dipende da "./Src/Server/boggle\_server.c", "./Src/Server/server.c", "./Src/Common/common.c".
@@ -14,6 +14,8 @@ Il codice si trova tutto nella cartella "./Src/" (soruces). Suddiviso in quattro
 \\
 "boggle\_client.c", "client.c" dipendono da "client.h".
 \\
+"boggle\_tests.c" dipende da "common.h".
+\\
 \\
 "server.h", "client.h" dipendono da "common.h".
 \\
@@ -21,7 +23,7 @@ Il codice si trova tutto nella cartella "./Src/" (soruces). Suddiviso in quattro
 "common.c" dipende da "common.h".
 \\
 \\
-Si noti che "common.h" e "common.c" includono librerie, dichiarazioni ed implementazioni comuni a server, client e C tests. "boggle\_server.c" e "boggle\_client.c" contengono solamente i setup e lo scheletro del loro funzionamento. L'effettiva complessa e sostanziale implementazione \'e demandata rispettivamente ai "server.c" e "client.c" files. "server.h" contiene le dichiarazioni di funzioni e le strutture dati condivise tra "boggle\_server.c" e "server.c". Similmente per il client.
+Si noti che "common.h" e "common.c" includono librerie, dichiarazioni ed implementazioni comuni a server, client e tests. "boggle\_server.c" e "boggle\_client.c" contengono solamente i setup e lo scheletro del loro funzionamento. L'effettiva sostanziale implementazione \'e demandata rispettivamente ai "server.c" e "client.c" files. "server.h" contiene le dichiarazioni di funzioni e le strutture dati condivise tra "boggle\_server.c" e "server.c". Similmente con "client.h" per il client.
 \\
 \\
 A seguire un diagramma (o grafo) delle dipendenze per il server. Quello del client \'e analogo.

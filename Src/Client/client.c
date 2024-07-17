@@ -359,7 +359,7 @@ void inputHandler(void) {
                             if (retvalue != 0) {
                                 // Error
                             }
-                            fprintf(stdout, EXIT_STR);
+                            fprintf(stdout, "%s\n", EXIT_STR);
                             // No need to free memory, we terminate, the OS will do it.
                             exit(EXIT_SUCCESS);
                         }
@@ -570,7 +570,7 @@ void inputHandler(void) {
                                 }
                                 client_fd = -1;
                             }
-                            fprintf(stdout, EXIT_STR);
+                            fprintf(stdout, "%s\n", EXIT_STR);
                             // No need to free memory, we terminate, the OS will do it.
                             exit(EXIT_SUCCESS);
                         }case MSG_PING_ONLINE : {
@@ -709,7 +709,7 @@ void* responsesHandler(void* args) {
                 if (retvalue != 0) {
                     // Error
                 }
-                fprintf(stdout, EXIT_STR);
+                fprintf(stdout, "%s\n", EXIT_STR);
                 // No need to free memory, we terminate, the OS will do it.
                 exit(EXIT_SUCCESS);
             }case 1: {
@@ -866,7 +866,7 @@ void* signalsThread(void* args) {
                 if (retvalue != 0) {
                     // Error
                 }
-                fprintf(stdout, EXIT_STR);
+                fprintf(stdout, "%s\n", EXIT_STR);
                 // No need to free memory, we terminate, the OS will do it.
                 exit(EXIT_SUCCESS);
             }case SIGPIPE: {

@@ -6,13 +6,12 @@
     // On macOS pthread_setname_np() implementation is "void pthread_setname_np(const char *name);"
     #define pthread_setname_np(THREAD_ID, THREAD_NAME) pthread_setname_np(THREAD_NAME)
 #elif defined(__linux__)
-    // 15 Max length thread name on Linux.
+    // 15 is the max thread name length on Linux.
     // On Linux pthread_setname_np() implementation is "int pthread_setname_np(pthread_t thread, const char *name);"
     #define pthread_setname_np(THREAD_ID, THREAD_NAME) pthread_setname_np(THREAD_ID, THREAD_NAME)
 #endif
 // I will write in all the code the Linux's implementation, and with the above code, if compiling
 // on macOS the second arg will be discarded without throwing errors.
-// Banner settings used in client and server banner.
 // pthread_setname_np() is used to easily understand the various thread types during debugging.
 // ---------------------------
 #include <ctype.h>
@@ -29,6 +28,7 @@
 #include <math.h> // Used for itoa().
 #include <string.h>
 
+// Banner settings. The banner is a string do divide the output and make it easier to read.
 #define BANNER_LENGTH 80LU
 #define BANNER_SYMBOL '#'
 #define BANNER_NSPACES 4LU
@@ -36,7 +36,7 @@
 pthread_t mainthread; // Main thread.
 
 sigset_t signalmask; // Signal mask to handle signals, blocking it, to just let them handle to a dedicated thread.
-pthread_t signalsthread; // Thread that will handle the signals.
+pthread_t signalsthread; // Thread that will handle some signals.
 
 struct sockaddr_in server_addr; // Socket server address.
 
@@ -58,23 +58,21 @@ pthread_mutex_t setupmutex; // Used to synchronize read/write threads operations
 
 // Added by me.
 #define MSG_ESCI 'Q' // Message sent by the client to the server or vice versa to close the connection.
-#define MSG_PING_ONLINE 'O'
+#define MSG_PING_ONLINE 'O' // Message sent by the client to the server or vice versa to check if the socket connection is still alive.
 
-struct Message { // Struct of the message that will be used in the communication between server and clients.
+struct Message { // Struct of the message that will be used in the communication between server and clients as described in the project's text.
     char type;  // Type of message as above.
     unsigned int length; // Length of the below data field, 0 if the below field is NULL.
     char* data;  // Message content, heap allocated string, null terminated if present, otherwise NULL.
 };
 
-typedef unsigned long int uli; // Shortcut used often.
+typedef unsigned long int uli; // Shortcut used often to declare data that could be only positive integers.
 
 pthread_mutex_t printmutex; // Used to print blocks of lines knowing that will not be others prints interleaved from other threads.
 
-#define MESSAGE_TIMEOUT_SECONDS 8LU
+#define EMPTY_SCOREBOARD_MESSAGE_STR "No REGISTERED players played :(, so no scoreboard..." // Empty scoreboard string message.
 
-#define EMPTY_SCOREBOARD_MESSAGE_STR "No REGISTERED players played :(, so no scoreboard..."
-
-#define EXIT_STR "Bye, bye, see you soon! Thanks for playing.\n"
+#define EXIT_STR "Bye, bye, see you soon! Thanks for playing." // String message used on client/server exiting.
 
 //------------------------------------------------------------------------------------
 /*              REMEMBER                */
@@ -91,11 +89,11 @@ char matrix[NROWS][NCOL];  // Matrix game core, each position is a char.
 
 #define ALPHABET "abcdefghijklmnopqrstuvwxyz" // Alphabet used to generate a random matrix and allowed chars for a client name (regitration).
 
-#define VALID_WORDS_TESTS_FILE_PATH "./Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary. For more info see "../../Tests/C/README.md".
+#define VALID_WORDS_TESTS_FILE_PATH "./Tests/fileCurrentValidsWords.txt" // This is the path to a special file that will be used to perform some tests. It will contain ALL the words present in the current game matrix and in the dictionary for the current game. For more info see "../../Tests/C/README.md".
 
-#define RAND_SEED 42U
+#define RAND_SEED 42U // Default seed used.
 
-#define CONNECTED_SUCCESFULLY_STR "Connected succesfully!"
+#define CONNECTED_SUCCESFULLY_STR "Connected succesfully!" // String printed from the client on a succesfully connection to the server. Is used from tests to know if a client is connected to the server or not.
 //------------------------------------------------------------------------------------
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
@@ -103,7 +101,7 @@ void* signalsThread(void*);
 
 // Functions used both in client and server, their implementation normally is
 // the same, is done in common.c.
-// More infos in common.c.
+// More infos on them in common.c.
 int parseIP(char*, struct sockaddr_in*);
 void toLowerOrUpperString(char*, char);
 struct Message* receiveMessage(int, char*);

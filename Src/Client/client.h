@@ -4,8 +4,8 @@
 // Common client only cross files used vars and libs.
 int client_fd; // Client/Server socket file descriptor.
 
-pthread_t responsesthread; // This thread will handle the responses received from the server asynchronously.
-pthread_t disconnecterthread;
+pthread_t responsesthread; // This thread will handle the responses received from the server asynchronously, by putting them in a linked list.
+pthread_t disconnecterthread; // This thread will periodically call the disconnecterChecker() (define in common.h) function. It's used to detect socket disconnection.
 
 // Functions signatures client used in client.c and boggle_client.c.
 // Implementation and infos in the client.c file.
@@ -28,6 +28,4 @@ void* disconnecterCheckerThread(void*);
 
 // Present both in client and server, but with DIFFERENT IMPLEMENTATION.
 // void* signalsThread(void*); -> common.h
-////////////////////////////////////////////////////////////////////////
-
 
