@@ -1762,9 +1762,9 @@ void startGame(void) {
     // Alarm takes as input seconds, but the user input (gameduration var) is in minutes.
     alarm(gameduration);
     #if defined(TEST_MODE_SECONDS)
-        fprintf(stdout, "The game duration timer is now setted to %lu minutes.\n", gameduration);
-    #else 
         fprintf(stdout, "The game duration timer is now setted to %lu SECONDS.\n", gameduration);
+    #else 
+        fprintf(stdout, "The game duration timer is now setted to %lu minutes.\n", gameduration);
     #endif
 
 }

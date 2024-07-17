@@ -19,9 +19,9 @@
 
 // Be particullary moderate when using Valgrind, because it cannot handle high values below.
 // These HIGH values are NOT intended to used with Valgrind.
-#define N_CLIENTS 16LU // Number of clients that will be spawned.
-#define N_ACTIONS 8LU // Number of actions for each client. Each action is the submission of a command.
-#define N_TESTS 2LU // Number of tests. It's multiplied by the nactions, be moderate so.
+#define N_CLIENTS 128LU // Number of clients that will be spawned.
+#define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
+#define N_TESTS 3LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
 // So each client will submit N_ACTIONS actions for N_TESTS times.
 
@@ -524,9 +524,10 @@ int main(int argc, char** argv) {
             fprintf(stdout, "Action %lu.\n", a);
 
             // Sleeping between every action some random time.
-            // Sleep random from 1 to 5 seconds.
-            int randint = rand() % 6;
+            // Sleep random from 2 to 6 seconds.
+            int randint = rand() % 5;
             if (randint == 0) randint++;
+            randint += 1;
             usleep(((double)randint / 10.0) * 10000000);
 
             // Use this flag to see if all process are terminated or there is at least one alive.
@@ -536,8 +537,8 @@ int main(int argc, char** argv) {
             // ANCHOR Clients
             for (uli i = 0LU; i < N_CLIENTS; i++) {
 
-                // Sleep 0.1 seconds.
-                usleep(100000);
+                // Sleep 0.01 seconds.
+                usleep(10000);
 
                 pid_t p = pids[i];
 
