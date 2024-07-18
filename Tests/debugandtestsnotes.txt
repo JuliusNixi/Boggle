@@ -87,3 +87,6 @@ https://stackoverflow.com/questions/16956810/find-all-files-containing-a-specifi
 To see (both macOS and Linux) ports used by a process (useful for debugging, i.e. discovering a specific client connected to the server by its used out port):
 lsof -i -n -P | grep process_pid
 
+POSIX Safety Concepts:
+https://www.gnu.org/software/libc/manual/html_node/POSIX-Safety-Concepts.html
+
