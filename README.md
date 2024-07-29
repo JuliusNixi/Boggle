@@ -20,6 +20,11 @@ Server Usage: ./paroliere_srv server_ip server_port [--matrices matrices_filepat
 Client Usage: ./paroliere_cl server_ip server_port.
 Tests Usage: ./paroliere_tests server_ip server_port.
 
+On the client use 'help' to see the avaible commands.
+
 ## Working directory
 The project uses some absolute hard-coded files paths. It assumes that the working directory is the project's root (the folder containing this file). So NEVER EVER do "cd Bin/" and "./something".
+
+## Game rules
+The words could be composed using adjacent letters (up, down, left, right), but NOT the diagonals one. A word to be valid must be in the current game matrix AND in the dictionary file used. A matrix letter could be used only one time to form a word. The game is divided in a game phase and a pause phase. During the pause phase it's only possible to register and view the final scoreboard of the previous ended game, but there's not a matrix and it's not possible to submit words. A word could be submitted only one time in a game to receive its points. A word long N characters gives when submitted (the first time in the game) N points, the 'Qu' character values 1 point. By default there's no constraint on the word's length, but this could be setted modifying "WORD_LEN" in "./Src/Server/server.c".
 

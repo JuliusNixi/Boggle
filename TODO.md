@@ -5,6 +5,7 @@ List of things to work on. Very few because I forget very often to update this f
 ## To do
 
 - [ ] Finishing handling errors in client.c, but i have no time :(
+- [ ] Printmutex.
 
 ## Done ✓
 

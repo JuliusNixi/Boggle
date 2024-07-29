@@ -60,7 +60,7 @@ int parseIP(char* ip, struct sockaddr_in* sai) {
 // ANCHOR receiveMessage()
 // This function receive a message from the client or the server.
 // There is no difference since the message format is the same (struct Message).
-// It takes as input the socket file descriptor from which read data wit a read().
+// It takes as input the socket file descriptor from which read data with a read().
 // It takes as input also the char* resultcode, a pointer to a char where will be written the
 // operation's result code.
 // This code could be:
@@ -104,6 +104,8 @@ struct Message* receiveMessage(int fdfrom, char* resultcode) {
         fprintf(stderr, "Error, receiveMessage() received a NULL resultcode pointer.\n");
         exit(EXIT_FAILURE);
     }
+
+    // fdfrom COULD be negative, is checked after!
 
     int retvalue;
 
