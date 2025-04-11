@@ -11,12 +11,16 @@ Some useful phony targets:
 Of course is also possible to invoke make with directly the desired target.
 
 ## Usage and execution
-WARNING: The italian args (as described in the project's text) are ALSO accepted!
+WARNING: The italian args (as described in the project's text) are ALSO accepted!  
+
 WARNING: The italian client commands (as described in the project's text) are ALSO accepted!
 
-Server Usage: ./paroliere_srv server_ip server_port [--matrices matrices_filepath] [--duration game_duration_in_minutes] [--seed rnd_seed] [--dic dictionary_filepath].
-Client Usage: ./paroliere_cl server_ip server_port.
-Tests Usage: ./paroliere_tests server_ip server_port.
+Server Usage: ./paroliere_srv server_ip server_port [--matrices matrices_filepath] [--duration game_duration_in_minutes] [--seed rnd_seed] [--dic dictionary_filepath].  
+
+Client Usage: ./paroliere_cl server_ip server_port.  
+
+Tests Usage: ./paroliere_tests server_ip server_port.  
+
 
 On the client use 'help' to see the avaible commands.
 
