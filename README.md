@@ -1,5 +1,10 @@
 # Boggle
-"The Boggle" online video game written in C. Multi-threaded, POSIX, command line, client/server application. Project exam of programming laboratory course 2, University of Pisa, Computer Science BSc, summer session, academic year 2023-2024.
+"The Boggle" online video game written in C. Multi-threaded, POSIX, command line, client/server application. Project exam of programming laboratory course 2, University of Pisa, Computer Science BSc, summer session, academic year 2023-2024.  
+
+<div style="text-align: center;">
+  <img src="./Boggle-Demo.gif" alt="Git Logo" width="500"/>
+</div>
+
 
 ## Compiling
 Some useful phony targets:
