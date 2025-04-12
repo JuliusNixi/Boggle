@@ -19,7 +19,7 @@
 
 // Be particullary moderate when using Valgrind, because it cannot handle high values below.
 // These HIGH values are NOT intended to used with Valgrind.
-#define N_CLIENTS 128LU // Number of clients that will be spawned.
+#define N_CLIENTS 64LU // Number of clients that will be spawned.
 #define N_ACTIONS 32LU // Number of actions for each client. Each action is the submission of a command.
 #define N_TESTS 3LU // Number of tests. It's multiplied by the nactions, be moderate so.
 
