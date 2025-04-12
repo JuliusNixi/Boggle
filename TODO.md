@@ -1,13 +1,13 @@
 # TODO
 
-List of things to work on. Very few because I forget very often to update this file.
+List of things to work on. Few because I forget very often to update this file.
 
 ## To do
 
-- [ ] Finishing handling errors in client.c, but i have no time :(
-- [ ] Printmutex.
+- [ ] Finishing handling errors in client.c, but i have no time. :(
+- [ ] Printmutex. Add a mutex to handle some concurrent prints.
 
-## Done ✓
+## Done 
 
 - [x] Review project structure.
 - [x] Read and check again directives: slides PowerPoint, PDF document and Google Docs FAQ, updating code and report accordingly paying attention that all requests are met in code and report. 
